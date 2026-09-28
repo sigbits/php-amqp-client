@@ -10,6 +10,7 @@ must have release notes in this file before the tag is created.
 ### Added
 
 - AMQP SASL init encode/decode foundation for ANONYMOUS and PLAIN credentials.
+- AMQP SASL outcome encode/decode foundation for OK and failure responses.
 
 ## v0.2.0 - 2026-09-28
 

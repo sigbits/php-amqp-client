@@ -22,4 +22,19 @@ final class SaslException extends RuntimeException
     {
         return new self('Truncated AMQP SASL init performative.');
     }
+
+    public static function expectedOutcomeDescriptor(): self
+    {
+        return new self('Expected AMQP SASL outcome performative descriptor.');
+    }
+
+    public static function missingOutcomeCode(): self
+    {
+        return new self('AMQP SASL outcome performative requires code.');
+    }
+
+    public static function truncatedOutcome(): self
+    {
+        return new self('Truncated AMQP SASL outcome performative.');
+    }
 }
