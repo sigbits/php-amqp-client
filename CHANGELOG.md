@@ -13,3 +13,4 @@ must have release notes in this file before the tag is created.
 - AMQP codec foundation with null, boolean, and unsigned integer encodings.
 - AMQP protocol header encode/decode foundation.
 - AMQP frame header codec and incremental frame parser foundation.
+- Minimal AMQP OPEN performative encode/decode foundation.
