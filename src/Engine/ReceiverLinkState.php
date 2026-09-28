@@ -1,0 +1,14 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Sigbits\Amqp\Engine;
+
+enum ReceiverLinkState
+{
+    case Idle;
+    case AttachSent;
+    case Attached;
+    case DetachSent;
+    case Detached;
+}

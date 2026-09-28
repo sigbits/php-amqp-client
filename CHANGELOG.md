@@ -7,6 +7,10 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+### Added
+
+- Byte-driven receiver link engine for ATTACH and DETACH lifecycle frames.
+
 ## v0.1.0 - 2026-09-28
 
 ### Added
