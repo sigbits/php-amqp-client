@@ -32,3 +32,9 @@ supported PHP versions.
 See [docs/roadmap.md](docs/roadmap.md) for the release roadmap and
 [docs/amqp-1.0-php-iterative-plan.md](docs/amqp-1.0-php-iterative-plan.md) for
 the detailed implementation plan.
+
+## Releases
+
+Release tags are created only when the corresponding roadmap milestone has
+been reached. Every tagged version must have release notes in
+[CHANGELOG.md](CHANGELOG.md) before the tag is created.
