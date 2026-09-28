@@ -7,6 +7,10 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+### Added
+
+- Minimal AMQP BEGIN and END performative encode/decode foundation.
+
 ## v0.0.1 - 2026-09-28
 
 ### Added

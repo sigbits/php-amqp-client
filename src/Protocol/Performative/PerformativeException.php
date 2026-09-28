@@ -28,6 +28,36 @@ final class PerformativeException extends RuntimeException
         return new self('Expected AMQP close performative descriptor.');
     }
 
+    public static function expectedBeginDescriptor(): self
+    {
+        return new self('Expected AMQP begin performative descriptor.');
+    }
+
+    public static function missingBeginRequiredFields(): self
+    {
+        return new self('AMQP begin performative requires next-outgoing-id, incoming-window, and outgoing-window.');
+    }
+
+    public static function truncatedBegin(): self
+    {
+        return new self('Truncated AMQP begin performative.');
+    }
+
+    public static function expectedEndDescriptor(): self
+    {
+        return new self('Expected AMQP end performative descriptor.');
+    }
+
+    public static function truncatedEnd(): self
+    {
+        return new self('Truncated AMQP end performative.');
+    }
+
+    public static function endErrorPayloadUnsupported(): self
+    {
+        return new self('AMQP end error payload is not supported yet.');
+    }
+
     public static function truncatedClose(): self
     {
         return new self('Truncated AMQP close performative.');
