@@ -22,4 +22,19 @@ final class PerformativeException extends RuntimeException
     {
         return new self('Truncated AMQP open performative.');
     }
+
+    public static function expectedCloseDescriptor(): self
+    {
+        return new self('Expected AMQP close performative descriptor.');
+    }
+
+    public static function truncatedClose(): self
+    {
+        return new self('Truncated AMQP close performative.');
+    }
+
+    public static function closeErrorPayloadUnsupported(): self
+    {
+        return new self('AMQP close error payload is not supported yet.');
+    }
 }
