@@ -15,4 +15,9 @@ final class DecodeException extends RuntimeException
             $formatCode,
         ));
     }
+
+    public static function truncatedBoolean(): self
+    {
+        return new self('Truncated AMQP boolean value.');
+    }
 }

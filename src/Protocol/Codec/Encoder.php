@@ -8,10 +8,18 @@ final class Encoder
 {
     public function encode(mixed $value): string
     {
-        if ($value !== null) {
-            throw EncodeException::unsupportedValue($value);
+        if ($value === null) {
+            return "\x40";
         }
 
-        return "\x40";
+        if ($value === true) {
+            return "\x41";
+        }
+
+        if ($value === false) {
+            return "\x42";
+        }
+
+        throw EncodeException::unsupportedValue($value);
     }
 }
