@@ -25,4 +25,14 @@ final class DecodeException extends RuntimeException
     {
         return new self('Truncated AMQP ubyte value.');
     }
+
+    public static function truncatedUShort(): self
+    {
+        return new self('Truncated AMQP ushort value.');
+    }
+
+    public static function truncatedUInt(): self
+    {
+        return new self('Truncated AMQP uint value.');
+    }
 }

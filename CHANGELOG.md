@@ -10,4 +10,4 @@ must have release notes in this file before the tag is created.
 ### Added
 
 - Project roadmap and Docker-first development workflow.
-- AMQP codec foundation with null and boolean encodings.
+- AMQP codec foundation with null, boolean, and unsigned integer encodings.
