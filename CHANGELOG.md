@@ -12,3 +12,4 @@ must have release notes in this file before the tag is created.
 - Project roadmap and Docker-first development workflow.
 - AMQP codec foundation with null, boolean, and unsigned integer encodings.
 - AMQP protocol header encode/decode foundation.
+- AMQP frame header codec and incremental frame parser foundation.
