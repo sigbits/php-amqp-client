@@ -17,6 +17,7 @@ must have release notes in this file before the tag is created.
 - AMQP value body encode/decode support for string payloads.
 - AMQP connection URI parsing with `amqp://` and `amqps://` TLS stream context options.
 - Synchronous PHP stream connector that opens `tcp://` or `tls://` transports from connection URIs.
+- Stream-level SASL authenticator for mechanism negotiation, client init, and outcome validation.
 - AMQP SASL init encode/decode foundation for ANONYMOUS and PLAIN credentials.
 - Transport-independent SASL client negotiator for ANONYMOUS and PLAIN mechanisms.
 - AMQP SASL mechanisms encode/decode foundation for offered server mechanisms.
