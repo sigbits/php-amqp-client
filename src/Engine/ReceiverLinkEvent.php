@@ -8,4 +8,5 @@ enum ReceiverLinkEvent
 {
     case LinkAttached;
     case LinkDetached;
+    case MessageReceived;
 }

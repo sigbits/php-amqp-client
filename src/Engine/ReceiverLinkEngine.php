@@ -8,15 +8,24 @@ use Sigbits\Amqp\Protocol\Frame\Frame;
 use Sigbits\Amqp\Protocol\Frame\FrameHeader;
 use Sigbits\Amqp\Protocol\Frame\FrameHeaderCodec;
 use Sigbits\Amqp\Protocol\Frame\FrameParser;
+use Sigbits\Amqp\Protocol\Message\Message;
+use Sigbits\Amqp\Protocol\Message\MessageCodec;
 use Sigbits\Amqp\Protocol\Performative\Attach;
 use Sigbits\Amqp\Protocol\Performative\AttachCodec;
 use Sigbits\Amqp\Protocol\Performative\Detach;
 use Sigbits\Amqp\Protocol\Performative\DetachCodec;
 use Sigbits\Amqp\Protocol\Performative\LinkRole;
+use Sigbits\Amqp\Protocol\Performative\TransferCodec;
 
 final class ReceiverLinkEngine
 {
     private ReceiverLinkState $state = ReceiverLinkState::Idle;
+    private string $incomingTransferPayload = '';
+
+    /**
+     * @var list<Message>
+     */
+    private array $receivedMessages = [];
 
     public function __construct(
         private readonly int $sessionChannel,
@@ -26,12 +35,19 @@ final class ReceiverLinkEngine
         private readonly FrameParser $frameParser = new FrameParser(),
         private readonly AttachCodec $attachCodec = new AttachCodec(),
         private readonly DetachCodec $detachCodec = new DetachCodec(),
+        private readonly TransferCodec $transferCodec = new TransferCodec(),
+        private readonly MessageCodec $messageCodec = new MessageCodec(),
     ) {
     }
 
     public function state(): ReceiverLinkState
     {
         return $this->state;
+    }
+
+    public function receive(): ?Message
+    {
+        return array_shift($this->receivedMessages);
     }
 
     /**
@@ -115,6 +131,26 @@ final class ReceiverLinkEngine
             return [ReceiverLinkEvent::LinkDetached];
         }
 
+        if (str_starts_with($frame->payload, "\x00\x53\x14")) {
+            $transferPayloadOffset = $this->transferPayloadOffset($frame->payload);
+            $transfer = $this->transferCodec->decode(substr($frame->payload, 0, $transferPayloadOffset));
+            $this->incomingTransferPayload .= substr($frame->payload, $transferPayloadOffset);
+
+            if ($transfer->more) {
+                return [];
+            }
+
+            $this->receivedMessages[] = $this->messageCodec->decode($this->incomingTransferPayload);
+            $this->incomingTransferPayload = '';
+
+            return [ReceiverLinkEvent::MessageReceived];
+        }
+
         throw ReceiverLinkException::unsupportedReceiverLinkPerformative();
+    }
+
+    private function transferPayloadOffset(string $payload): int
+    {
+        return 5 + ord($payload[4]);
     }
 }
