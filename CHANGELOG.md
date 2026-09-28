@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- AMQP DISPOSITION encode/decode foundation for accepted, released, and rejected settlements.
 - Receiver link incoming TRANSFER assembly for DATA body messages.
 - Byte-driven receiver link engine for ATTACH and DETACH lifecycle frames.
 

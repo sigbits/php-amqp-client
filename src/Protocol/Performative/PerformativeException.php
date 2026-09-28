@@ -58,6 +58,21 @@ final class PerformativeException extends RuntimeException
         return new self('Expected AMQP transfer performative descriptor.');
     }
 
+    public static function expectedDispositionDescriptor(): self
+    {
+        return new self('Expected AMQP disposition performative descriptor.');
+    }
+
+    public static function missingDispositionRequiredFields(): self
+    {
+        return new self('AMQP disposition performative requires role, first, settled, and state.');
+    }
+
+    public static function truncatedDisposition(): self
+    {
+        return new self('Truncated AMQP disposition performative.');
+    }
+
     public static function missingTransferRequiredFields(): self
     {
         return new self('AMQP transfer performative requires handle, delivery-id, delivery-tag, and message-format.');
