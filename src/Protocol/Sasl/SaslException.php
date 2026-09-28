@@ -52,4 +52,22 @@ final class SaslException extends RuntimeException
     {
         return new self('Truncated AMQP SASL outcome performative.');
     }
+
+    public static function mechanismNotOffered(string $mechanism): self
+    {
+        return new self(sprintf('AMQP SASL server does not offer %s mechanism.', $mechanism));
+    }
+
+    public static function authenticationFailed(SaslOutcomeCode $code): self
+    {
+        $codeName = match ($code) {
+            SaslOutcomeCode::Ok => 'OK',
+            SaslOutcomeCode::Auth => 'AUTH',
+            SaslOutcomeCode::Sys => 'SYS',
+            SaslOutcomeCode::SysPerm => 'SYS-PERM',
+            SaslOutcomeCode::SysTemp => 'SYS-TEMP',
+        };
+
+        return new self(sprintf('AMQP SASL authentication failed with %s outcome.', $codeName));
+    }
 }
