@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Byte-driven sender link engine for ATTACH and DETACH lifecycle frames.
 - Minimal AMQP ATTACH and DETACH performative encode/decode foundation.
 - Byte-driven AMQP session engine for BEGIN and END lifecycle frames.
 - Minimal AMQP BEGIN and END performative encode/decode foundation.
