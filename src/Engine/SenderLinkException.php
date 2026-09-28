@@ -18,6 +18,11 @@ final class SenderLinkException extends RuntimeException
         return new self(sprintf('Cannot detach AMQP sender link from state %s.', $state->name));
     }
 
+    public static function noCreditAvailable(): self
+    {
+        return new self('Cannot claim AMQP sender link credit when none is available.');
+    }
+
     public static function unsupportedSenderLinkPerformative(): self
     {
         return new self('Unsupported AMQP sender link performative.');
