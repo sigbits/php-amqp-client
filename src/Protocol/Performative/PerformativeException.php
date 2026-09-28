@@ -48,6 +48,21 @@ final class PerformativeException extends RuntimeException
         return new self('Expected AMQP detach performative descriptor.');
     }
 
+    public static function expectedFlowDescriptor(): self
+    {
+        return new self('Expected AMQP flow performative descriptor.');
+    }
+
+    public static function missingFlowLinkCreditFields(): self
+    {
+        return new self('AMQP flow performative requires handle, delivery-count, and link-credit.');
+    }
+
+    public static function truncatedFlow(): self
+    {
+        return new self('Truncated AMQP flow performative.');
+    }
+
     public static function missingDetachHandle(): self
     {
         return new self('AMQP detach performative requires handle.');
