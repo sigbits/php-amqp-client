@@ -41,6 +41,10 @@ final class ConnectionEngine
      */
     public function start(): array
     {
+        if ($this->state !== ConnectionState::Idle) {
+            throw ConnectionException::cannotStart($this->state);
+        }
+
         $this->state = ConnectionState::OpenSent;
 
         return [
@@ -61,7 +65,12 @@ final class ConnectionEngine
                 return [];
             }
 
-            $this->protocolHeaderCodec->decode(substr($this->headerBuffer, 0, 8));
+            $header = $this->protocolHeaderCodec->decode(substr($this->headerBuffer, 0, 8));
+
+            if (!$header->isAmqp10()) {
+                throw ConnectionException::incompatibleRemoteProtocolHeader();
+            }
+
             $bytes = substr($this->headerBuffer, 8);
             $this->headerBuffer = '';
             $this->remoteHeaderReceived = true;
@@ -83,6 +92,10 @@ final class ConnectionEngine
      */
     public function close(): array
     {
+        if ($this->state !== ConnectionState::Opened) {
+            throw ConnectionException::cannotClose($this->state);
+        }
+
         $this->state = ConnectionState::CloseSent;
 
         return [
@@ -119,6 +132,6 @@ final class ConnectionEngine
             return [ConnectionEvent::ConnectionClosed];
         }
 
-        return [];
+        throw ConnectionException::unsupportedConnectionPerformative();
     }
 }
