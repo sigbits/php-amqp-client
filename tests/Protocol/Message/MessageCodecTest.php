@@ -213,6 +213,40 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesFooterAfterDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x75\xa0\x07payload"
+                . "\x00\x53\x78\xc1\x13\x02\xa3\x08checksum\xa1\x06abc123",
+            $codec->encode(new Message(
+                body: 'payload',
+                footer: [
+                    'checksum' => 'abc123',
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesFooterAfterDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                footer: [
+                    'checksum' => 'abc123',
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x75\xa0\x07payload"
+                    . "\x00\x53\x78\xc1\x13\x02\xa3\x08checksum\xa1\x06abc123",
+            ),
+        );
+    }
+
     public function testRejectsWrongSectionDescriptor(): void
     {
         $codec = new MessageCodec();

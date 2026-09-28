@@ -72,4 +72,14 @@ final class MessageException extends RuntimeException
     {
         return new self('Truncated AMQP application properties section.');
     }
+
+    public static function malformedFooter(): self
+    {
+        return new self('Malformed AMQP footer section.');
+    }
+
+    public static function truncatedFooter(): self
+    {
+        return new self('Truncated AMQP footer section.');
+    }
 }
