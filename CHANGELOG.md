@@ -15,6 +15,7 @@ must have release notes in this file before the tag is created.
 - AMQP footer encode/decode support for symbol keys and string values after DATA bodies.
 - AMQP sequence body encode/decode support for string list payloads.
 - AMQP value body encode/decode support for string payloads.
+- AMQP connection URI parsing with `amqp://` and `amqps://` TLS stream context options.
 - AMQP SASL init encode/decode foundation for ANONYMOUS and PLAIN credentials.
 - Transport-independent SASL client negotiator for ANONYMOUS and PLAIN mechanisms.
 - AMQP SASL mechanisms encode/decode foundation for offered server mechanisms.
