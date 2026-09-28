@@ -71,6 +71,40 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesMessageAnnotationsBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x72\xc1\x15\x02\xa3\x08trace-id\xa1\x08trace-42"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                messageAnnotations: [
+                    'trace-id' => 'trace-42',
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesMessageAnnotationsBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                messageAnnotations: [
+                    'trace-id' => 'trace-42',
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x72\xc1\x15\x02\xa3\x08trace-id\xa1\x08trace-42"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
     public function testEncodesPropertiesBeforeDataBody(): void
     {
         $codec = new MessageCodec();
