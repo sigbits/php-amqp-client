@@ -28,6 +28,36 @@ final class PerformativeException extends RuntimeException
         return new self('Expected AMQP close performative descriptor.');
     }
 
+    public static function expectedAttachDescriptor(): self
+    {
+        return new self('Expected AMQP attach performative descriptor.');
+    }
+
+    public static function missingAttachRequiredFields(): self
+    {
+        return new self('AMQP attach performative requires name, handle, and role.');
+    }
+
+    public static function truncatedAttach(): self
+    {
+        return new self('Truncated AMQP attach performative.');
+    }
+
+    public static function expectedDetachDescriptor(): self
+    {
+        return new self('Expected AMQP detach performative descriptor.');
+    }
+
+    public static function missingDetachHandle(): self
+    {
+        return new self('AMQP detach performative requires handle.');
+    }
+
+    public static function truncatedDetach(): self
+    {
+        return new self('Truncated AMQP detach performative.');
+    }
+
     public static function expectedBeginDescriptor(): self
     {
         return new self('Expected AMQP begin performative descriptor.');
