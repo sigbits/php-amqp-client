@@ -71,6 +71,40 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesDeliveryAnnotationsBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x71\xc1\x16\x02\xa3\x0cdelivery-tag\xa1\x05tag-1"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                deliveryAnnotations: [
+                    'delivery-tag' => 'tag-1',
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesDeliveryAnnotationsBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                deliveryAnnotations: [
+                    'delivery-tag' => 'tag-1',
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x71\xc1\x16\x02\xa3\x0cdelivery-tag\xa1\x05tag-1"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
     public function testEncodesMessageAnnotationsBeforeDataBody(): void
     {
         $codec = new MessageCodec();
