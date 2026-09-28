@@ -12,12 +12,14 @@ final class MessageCodec
     private const string PROPERTIES_DESCRIPTOR = "\x00\x53\x73";
     private const string APPLICATION_PROPERTIES_DESCRIPTOR = "\x00\x53\x74";
     private const string DATA_DESCRIPTOR = "\x00\x53\x75";
+    private const string FOOTER_DESCRIPTOR = "\x00\x53\x78";
     private const int HEADER_DESCRIPTOR_LENGTH = 3;
     private const int DELIVERY_ANNOTATIONS_DESCRIPTOR_LENGTH = 3;
     private const int MESSAGE_ANNOTATIONS_DESCRIPTOR_LENGTH = 3;
     private const int PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int APPLICATION_PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int DATA_DESCRIPTOR_LENGTH = 3;
+    private const int FOOTER_DESCRIPTOR_LENGTH = 3;
     private const int CONSTRUCTOR_BOOL = 0x56;
     private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
     private const int CONSTRUCTOR_BOOL_FALSE = 0x42;
@@ -55,11 +57,16 @@ final class MessageCodec
             $sections .= $this->encodeApplicationProperties($message->applicationProperties);
         }
 
-        return $sections
-            . self::DATA_DESCRIPTOR
+        $sections .= self::DATA_DESCRIPTOR
             . chr(self::CONSTRUCTOR_VBIN8)
             . chr(strlen($message->body))
             . $message->body;
+
+        if ($message->footer !== []) {
+            $sections .= $this->encodeFooter($message->footer);
+        }
+
+        return $sections;
     }
 
     public function decode(string $bytes): Message
@@ -122,13 +129,22 @@ final class MessageCodec
             throw MessageException::truncatedDataBody();
         }
 
+        $body = substr($bytes, $cursor, $length);
+        $cursor += $length;
+        $footer = [];
+
+        if (substr($bytes, $cursor, self::FOOTER_DESCRIPTOR_LENGTH) === self::FOOTER_DESCRIPTOR) {
+            [$footer] = $this->decodeFooter($bytes, $cursor);
+        }
+
         return new Message(
-            body: substr($bytes, $cursor, $length),
+            body: $body,
             header: $header,
             deliveryAnnotations: $deliveryAnnotations,
             messageAnnotations: $messageAnnotations,
             properties: $properties,
             applicationProperties: $applicationProperties,
+            footer: $footer,
         );
     }
 
@@ -273,6 +289,30 @@ final class MessageCodec
     private function encodeSymbol(string $value): string
     {
         return chr(self::CONSTRUCTOR_SYMBOL8) . chr(strlen($value)) . $value;
+    }
+
+    /**
+     * @param array<string, string> $footer
+     */
+    private function encodeFooter(array $footer): string
+    {
+        $entries = '';
+
+        foreach ($footer as $name => $value) {
+            $entries .= $this->encodeSymbol($name) . $this->encodeString($value);
+        }
+
+        $mapSize = 1 + strlen($entries);
+
+        if ($mapSize > 255) {
+            throw new \InvalidArgumentException('AMQP footer must fit in map8 encoding.');
+        }
+
+        return self::FOOTER_DESCRIPTOR
+            . chr(self::CONSTRUCTOR_MAP8)
+            . chr($mapSize)
+            . chr(count($footer) * 2)
+            . $entries;
     }
 
     /**
@@ -900,6 +940,110 @@ final class MessageCodec
         }
 
         return [$properties, $cursor];
+    }
+
+    /**
+     * @return array{0: array<string, string>, 1: int}
+     */
+    private function decodeFooter(string $bytes, int $cursor): array
+    {
+        if (strlen($bytes) < $cursor + self::FOOTER_DESCRIPTOR_LENGTH + 1) {
+            throw MessageException::truncatedFooter();
+        }
+
+        if (substr($bytes, $cursor, self::FOOTER_DESCRIPTOR_LENGTH) !== self::FOOTER_DESCRIPTOR) {
+            throw MessageException::malformedFooter();
+        }
+
+        $cursor += self::FOOTER_DESCRIPTOR_LENGTH;
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_MAP8) {
+            throw MessageException::malformedFooter();
+        }
+
+        ++$cursor;
+
+        if (strlen($bytes) < $cursor + 2) {
+            throw MessageException::truncatedFooter();
+        }
+
+        $mapSize = ord($bytes[$cursor]);
+        ++$cursor;
+        $mapCount = ord($bytes[$cursor]);
+        ++$cursor;
+        $mapEnd = $cursor + $mapSize - 1;
+
+        if ($mapCount % 2 !== 0) {
+            throw MessageException::malformedFooter();
+        }
+
+        if (strlen($bytes) < $mapEnd) {
+            throw MessageException::truncatedFooter();
+        }
+
+        $footer = [];
+
+        for ($i = 0; $i < $mapCount; $i += 2) {
+            [$name, $cursor] = $this->decodeFooterSymbol($bytes, $cursor, $mapEnd);
+            [$value, $cursor] = $this->decodeFooterString($bytes, $cursor, $mapEnd);
+            $footer[$name] = $value;
+        }
+
+        return [$footer, $cursor];
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeFooterSymbol(string $bytes, int $cursor, int $mapEnd): array
+    {
+        if ($cursor >= $mapEnd) {
+            throw MessageException::truncatedFooter();
+        }
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYMBOL8) {
+            throw MessageException::malformedFooter();
+        }
+
+        return $this->decodeFooterString8($bytes, $cursor + 1, $mapEnd);
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeFooterString(string $bytes, int $cursor, int $mapEnd): array
+    {
+        if ($cursor >= $mapEnd) {
+            throw MessageException::truncatedFooter();
+        }
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
+            throw MessageException::malformedFooter();
+        }
+
+        return $this->decodeFooterString8($bytes, $cursor + 1, $mapEnd);
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeFooterString8(string $bytes, int $cursor, int $mapEnd): array
+    {
+        if ($cursor >= $mapEnd) {
+            throw MessageException::truncatedFooter();
+        }
+
+        $length = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($cursor + $length > $mapEnd) {
+            throw MessageException::truncatedFooter();
+        }
+
+        return [
+            substr($bytes, $cursor, $length),
+            $cursor + $length,
+        ];
     }
 
     /**
