@@ -7,6 +7,8 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+## v0.2.0 - 2026-09-28
+
 ### Added
 
 - Minimal synchronous blocking receiver API over the receiver link engine.
