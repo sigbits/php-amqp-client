@@ -13,10 +13,12 @@ final readonly class Message
      * @param array<string, string> $messageAnnotations
      * @param array<string, string> $applicationProperties
      * @param array<string, string> $footer
+     * @param list<string> $bodySequence
      */
     public function __construct(
         public string $body,
         public MessageBodySection $bodySection = MessageBodySection::Data,
+        public array $bodySequence = [],
         public ?Header $header = null,
         public array $deliveryAnnotations = [],
         public array $messageAnnotations = [],
@@ -26,6 +28,12 @@ final readonly class Message
     ) {
         if (strlen($body) > 255) {
             throw new InvalidArgumentException('AMQP message body must fit in string8/vbin8 encoding.');
+        }
+
+        foreach ($bodySequence as $item) {
+            if (strlen($item) > 255) {
+                throw new InvalidArgumentException('AMQP sequence item must fit in string8 encoding.');
+            }
         }
 
         foreach ($deliveryAnnotations as $name => $value) {

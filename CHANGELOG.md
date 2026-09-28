@@ -13,6 +13,7 @@ must have release notes in this file before the tag is created.
 - AMQP delivery annotations encode/decode support for symbol keys and string values.
 - AMQP message annotations encode/decode support for symbol keys and string values.
 - AMQP footer encode/decode support for symbol keys and string values after DATA bodies.
+- AMQP sequence body encode/decode support for string list payloads.
 - AMQP value body encode/decode support for string payloads.
 - AMQP SASL init encode/decode foundation for ANONYMOUS and PLAIN credentials.
 - Transport-independent SASL client negotiator for ANONYMOUS and PLAIN mechanisms.

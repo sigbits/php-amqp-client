@@ -60,6 +60,34 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesAmqpSequenceBodyMessage(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x76\xc0\x0b\x02\xa1\x03one\xa1\x03two",
+            $codec->encode(new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpSequence,
+                bodySequence: ['one', 'two'],
+            )),
+        );
+    }
+
+    public function testDecodesAmqpSequenceBodyMessage(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpSequence,
+                bodySequence: ['one', 'two'],
+            ),
+            $codec->decode("\x00\x53\x76\xc0\x0b\x02\xa1\x03one\xa1\x03two"),
+        );
+    }
+
     public function testEncodesHeaderBeforeDataBody(): void
     {
         $codec = new MessageCodec();
