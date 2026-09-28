@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Message\Message;
 use Sigbits\Amqp\Protocol\Message\MessageCodec;
 use Sigbits\Amqp\Protocol\Message\MessageException;
+use Sigbits\Amqp\Protocol\Message\Properties;
 
 final class MessageCodecTest extends TestCase
 {
@@ -28,6 +29,46 @@ final class MessageCodecTest extends TestCase
         self::assertEquals(
             new Message(body: 'hello'),
             $codec->decode("\x00\x53\x75\xa0\x05hello"),
+        );
+    }
+
+    public function testEncodesPropertiesBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x73\xc0\x2f\x07\xa1\x03123\x40\x40\xa1\x0dorder.created\x40\xa1\x03456\xa3\x10application/json"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                properties: new Properties(
+                    messageId: '123',
+                    correlationId: '456',
+                    contentType: 'application/json',
+                    subject: 'order.created',
+                ),
+            )),
+        );
+    }
+
+    public function testDecodesPropertiesBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                properties: new Properties(
+                    messageId: '123',
+                    correlationId: '456',
+                    contentType: 'application/json',
+                    subject: 'order.created',
+                ),
+            ),
+            $codec->decode(
+                "\x00\x53\x73\xc0\x2f\x07\xa1\x03123\x40\x40\xa1\x0dorder.created\x40\xa1\x03456\xa3\x10application/json"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
         );
     }
 

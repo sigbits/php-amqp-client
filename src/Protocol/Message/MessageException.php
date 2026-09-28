@@ -22,4 +22,14 @@ final class MessageException extends RuntimeException
     {
         return new self('Truncated AMQP data body section.');
     }
+
+    public static function malformedProperties(): self
+    {
+        return new self('Malformed AMQP properties section.');
+    }
+
+    public static function truncatedProperties(): self
+    {
+        return new self('Truncated AMQP properties section.');
+    }
 }
