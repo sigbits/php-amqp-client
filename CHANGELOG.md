@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Sender link TRANSFER frame emission with message payload fragmentation.
 - Minimal AMQP TRANSFER performative encode/decode foundation.
 - Minimal AMQP message DATA body encode/decode foundation.
 - Sender link credit tracking from remote AMQP FLOW frames.
