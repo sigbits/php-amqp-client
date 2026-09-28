@@ -15,3 +15,4 @@ must have release notes in this file before the tag is created.
 - AMQP frame header codec and incremental frame parser foundation.
 - Minimal AMQP OPEN performative encode/decode foundation.
 - Minimal AMQP CLOSE performative encode/decode foundation.
+- Minimal byte-driven connection engine for protocol header, OPEN, and CLOSE.
