@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- AMQP message header encode/decode support for durable, priority, and TTL fields.
 - AMQP SASL init encode/decode foundation for ANONYMOUS and PLAIN credentials.
 - Transport-independent SASL client negotiator for ANONYMOUS and PLAIN mechanisms.
 - AMQP SASL mechanisms encode/decode foundation for offered server mechanisms.
