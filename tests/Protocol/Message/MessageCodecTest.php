@@ -72,6 +72,40 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesApplicationPropertiesBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x74\xc1\x0f\x02\xa3\x06tenant\xa1\x04acme"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                applicationProperties: [
+                    'tenant' => 'acme',
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesApplicationPropertiesBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                applicationProperties: [
+                    'tenant' => 'acme',
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x74\xc1\x0f\x02\xa3\x06tenant\xa1\x04acme"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
     public function testRejectsWrongSectionDescriptor(): void
     {
         $codec = new MessageCodec();
@@ -79,7 +113,7 @@ final class MessageCodecTest extends TestCase
         $this->expectException(MessageException::class);
         $this->expectExceptionMessage('Expected AMQP data body section descriptor.');
 
-        $codec->decode("\x00\x53\x74\xa0\x05hello");
+        $codec->decode("\x00\x53\x7f\xa0\x05hello");
     }
 
     public function testRejectsUnsupportedBodyEncoding(): void

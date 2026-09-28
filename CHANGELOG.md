@@ -14,6 +14,7 @@ must have release notes in this file before the tag is created.
 - AMQP SASL mechanisms encode/decode foundation for offered server mechanisms.
 - AMQP SASL outcome encode/decode foundation for OK and failure responses.
 - AMQP message properties encode/decode support for message ID, correlation ID, content type, and subject.
+- AMQP application properties encode/decode support for string keys and string values.
 
 ## v0.2.0 - 2026-09-28
 
