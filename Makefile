@@ -1,8 +1,10 @@
 PHP_VERSION ?= 8.3
 DOCKER_COMPOSE ?= docker compose
 DOCKER_RUN = PHP_VERSION=$(PHP_VERSION) $(DOCKER_COMPOSE) run --rm php
+BROKER_COMPOSE = PHP_VERSION=$(PHP_VERSION) $(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.broker.yml
+BROKER_READY_TIMEOUT ?= 60
 
-.PHONY: build install validate test cs cs-fix stan proof-connection ci shell
+.PHONY: build install validate test test-integration broker-up broker-wait broker-down cs cs-fix stan proof-connection ci shell
 
 build:
 	PHP_VERSION=$(PHP_VERSION) $(DOCKER_COMPOSE) build php
@@ -15,6 +17,21 @@ validate:
 
 test:
 	$(DOCKER_RUN) composer test
+
+test-integration: broker-up
+	$(BROKER_COMPOSE) run --rm -e RUN_BROKER_TESTS=1 php composer test:integration
+
+broker-up:
+	$(BROKER_COMPOSE) up -d qpid artemis
+	@$(MAKE) broker-wait
+
+broker-wait:
+	@i=0; until $(BROKER_COMPOSE) logs --no-color qpid | grep -q 'Qpid Broker Ready'; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for Qpid Broker-J readiness.' >&2; exit 1; fi; sleep 1; done; echo 'Qpid Broker-J ready.'
+	@i=0; until $(BROKER_COMPOSE) logs --no-color artemis | grep -q 'Server is now active'; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for ActiveMQ Artemis readiness.' >&2; exit 1; fi; sleep 1; done; echo 'ActiveMQ Artemis ready.'
+
+broker-down:
+	$(BROKER_COMPOSE) stop qpid artemis
+	$(BROKER_COMPOSE) rm --force --volumes qpid artemis
 
 cs:
 	$(DOCKER_RUN) composer cs

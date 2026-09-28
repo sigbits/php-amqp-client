@@ -19,6 +19,7 @@ Development commands must run inside Docker:
 ```sh
 make install
 make test
+make test-integration
 make cs
 make stan
 make ci
@@ -26,6 +27,17 @@ make ci
 
 The package supports PHP 8.3 and newer. CI runs the quality pipeline across
 supported PHP versions.
+
+Broker integration tests run against Apache Qpid Broker-J and Apache ActiveMQ
+Artemis containers:
+
+```sh
+make test-integration
+make broker-down
+```
+
+The broker AMQP ports are also exposed on the host as `56720` for Qpid and
+`56730` for Artemis.
 
 ## Roadmap
 

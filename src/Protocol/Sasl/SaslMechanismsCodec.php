@@ -14,6 +14,7 @@ final class SaslMechanismsCodec
     private const int CONSTRUCTOR_LIST8 = 0xc0;
     private const int CONSTRUCTOR_ARRAY8 = 0xe0;
     private const int CONSTRUCTOR_SYMBOL8 = 0xa3;
+    private const int CONSTRUCTOR_SYMBOL32 = 0xb3;
 
     public function encode(SaslMechanisms $mechanisms): string
     {
@@ -135,7 +136,9 @@ final class SaslMechanismsCodec
             throw SaslException::missingServerMechanisms();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYMBOL8) {
+        $symbolConstructor = ord($bytes[$cursor]);
+
+        if (!in_array($symbolConstructor, [self::CONSTRUCTOR_SYMBOL8, self::CONSTRUCTOR_SYMBOL32], true)) {
             throw SaslException::missingServerMechanisms();
         }
 
@@ -144,12 +147,21 @@ final class SaslMechanismsCodec
         $values = [];
 
         for ($i = 0; $i < $count; ++$i) {
-            if ($cursor >= $arrayEnd) {
-                throw SaslException::truncatedMechanisms();
-            }
+            if ($symbolConstructor === self::CONSTRUCTOR_SYMBOL8) {
+                if ($cursor >= $arrayEnd) {
+                    throw SaslException::truncatedMechanisms();
+                }
 
-            $length = ord($bytes[$cursor]);
-            ++$cursor;
+                $length = ord($bytes[$cursor]);
+                ++$cursor;
+            } else {
+                if ($cursor + 4 > $arrayEnd) {
+                    throw SaslException::truncatedMechanisms();
+                }
+
+                $length = $this->readUInt32($bytes, $cursor);
+                $cursor += 4;
+            }
 
             if ($cursor + $length > $arrayEnd) {
                 throw SaslException::truncatedMechanisms();
@@ -163,5 +175,13 @@ final class SaslMechanismsCodec
             $values,
             $cursor,
         ];
+    }
+
+    private function readUInt32(string $bytes, int $cursor): int
+    {
+        return (ord($bytes[$cursor]) << 24)
+            | (ord($bytes[$cursor + 1]) << 16)
+            | (ord($bytes[$cursor + 2]) << 8)
+            | ord($bytes[$cursor + 3]);
     }
 }

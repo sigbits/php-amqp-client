@@ -52,6 +52,16 @@ final class SaslMechanismsCodecTest extends TestCase
         );
     }
 
+    public function testDecodesSymbol32MechanismArray(): void
+    {
+        $codec = new SaslMechanismsCodec();
+
+        self::assertEquals(
+            new SaslMechanisms(['PLAIN', 'ANONYMOUS']),
+            $codec->decode("\x00\x53\x40\xc0\x1b\x01\xe0\x18\x02\xb3\x00\x00\x00\x05PLAIN\x00\x00\x00\x09ANONYMOUS"),
+        );
+    }
+
     public function testRejectsWrongDescriptor(): void
     {
         $codec = new SaslMechanismsCodec();

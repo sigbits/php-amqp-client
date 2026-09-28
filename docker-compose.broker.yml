@@ -1,0 +1,19 @@
+services:
+  qpid:
+    image: apache/qpid-broker-j:latest
+    environment:
+      QPID_ADMIN_USER: guest
+      QPID_ADMIN_PASSWORD: guest
+    ports:
+      - "56720:5672"
+      - "58080:8080"
+
+  artemis:
+    image: apache/artemis:latest-alpine
+    environment:
+      ARTEMIS_USER: guest
+      ARTEMIS_PASSWORD: guest
+      ANONYMOUS_LOGIN: "false"
+    ports:
+      - "56730:5672"
+      - "58161:8161"

@@ -31,6 +31,16 @@ final class OpenCodecTest extends TestCase
         );
     }
 
+    public function testDecodesList32OpenPerformative(): void
+    {
+        $codec = new OpenCodec();
+
+        self::assertEquals(
+            new Open(containerId: 'server'),
+            $codec->decode("\x00\x53\x10\xd0\x00\x00\x00\x0c\x00\x00\x00\x01\xa1\x06server"),
+        );
+    }
+
     public function testRejectsWrongDescriptor(): void
     {
         $codec = new OpenCodec();
