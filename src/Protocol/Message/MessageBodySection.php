@@ -7,5 +7,6 @@ namespace Sigbits\Amqp\Protocol\Message;
 enum MessageBodySection
 {
     case Data;
+    case AmqpSequence;
     case AmqpValue;
 }

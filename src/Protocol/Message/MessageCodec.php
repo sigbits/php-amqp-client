@@ -12,6 +12,7 @@ final class MessageCodec
     private const string PROPERTIES_DESCRIPTOR = "\x00\x53\x73";
     private const string APPLICATION_PROPERTIES_DESCRIPTOR = "\x00\x53\x74";
     private const string DATA_DESCRIPTOR = "\x00\x53\x75";
+    private const string AMQP_SEQUENCE_DESCRIPTOR = "\x00\x53\x76";
     private const string AMQP_VALUE_DESCRIPTOR = "\x00\x53\x77";
     private const string FOOTER_DESCRIPTOR = "\x00\x53\x78";
     private const int HEADER_DESCRIPTOR_LENGTH = 3;
@@ -20,6 +21,7 @@ final class MessageCodec
     private const int PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int APPLICATION_PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int DATA_DESCRIPTOR_LENGTH = 3;
+    private const int AMQP_SEQUENCE_DESCRIPTOR_LENGTH = 3;
     private const int AMQP_VALUE_DESCRIPTOR_LENGTH = 3;
     private const int FOOTER_DESCRIPTOR_LENGTH = 3;
     private const int CONSTRUCTOR_BOOL = 0x56;
@@ -64,6 +66,7 @@ final class MessageCodec
                 . chr(self::CONSTRUCTOR_VBIN8)
                 . chr(strlen($message->body))
                 . $message->body,
+            MessageBodySection::AmqpSequence => $this->encodeAmqpSequenceBody($message->bodySequence),
             MessageBodySection::AmqpValue => self::AMQP_VALUE_DESCRIPTOR
                 . chr(self::CONSTRUCTOR_STRING8)
                 . chr(strlen($message->body))
@@ -117,41 +120,62 @@ final class MessageCodec
         $bodySection = MessageBodySection::Data;
         $bodyDescriptor = substr($bytes, $cursor, self::DATA_DESCRIPTOR_LENGTH);
 
-        if ($bodyDescriptor !== self::DATA_DESCRIPTOR && $bodyDescriptor !== self::AMQP_VALUE_DESCRIPTOR) {
+        if (
+            $bodyDescriptor !== self::DATA_DESCRIPTOR
+            && $bodyDescriptor !== self::AMQP_SEQUENCE_DESCRIPTOR
+            && $bodyDescriptor !== self::AMQP_VALUE_DESCRIPTOR
+        ) {
             throw MessageException::expectedDataBodyDescriptor();
+        }
+
+        if ($bodyDescriptor === self::AMQP_SEQUENCE_DESCRIPTOR) {
+            $bodySection = MessageBodySection::AmqpSequence;
         }
 
         if ($bodyDescriptor === self::AMQP_VALUE_DESCRIPTOR) {
             $bodySection = MessageBodySection::AmqpValue;
         }
 
-        $cursor += $bodySection === MessageBodySection::Data
-            ? self::DATA_DESCRIPTOR_LENGTH
-            : self::AMQP_VALUE_DESCRIPTOR_LENGTH;
+        $cursor += match ($bodySection) {
+            MessageBodySection::Data => self::DATA_DESCRIPTOR_LENGTH,
+            MessageBodySection::AmqpSequence => self::AMQP_SEQUENCE_DESCRIPTOR_LENGTH,
+            MessageBodySection::AmqpValue => self::AMQP_VALUE_DESCRIPTOR_LENGTH,
+        };
 
         if ($bodySection === MessageBodySection::Data && ord($bytes[$cursor]) !== self::CONSTRUCTOR_VBIN8) {
             throw MessageException::unsupportedDataBodyEncoding();
+        }
+
+        if ($bodySection === MessageBodySection::AmqpSequence && ord($bytes[$cursor]) !== self::CONSTRUCTOR_LIST8) {
+            throw MessageException::unsupportedAmqpSequenceEncoding();
         }
 
         if ($bodySection === MessageBodySection::AmqpValue && ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
             throw MessageException::unsupportedAmqpValueEncoding();
         }
 
-        ++$cursor;
+        if ($bodySection === MessageBodySection::AmqpSequence) {
+            [$bodySequence, $cursor] = $this->decodeAmqpSequenceBody($bytes, $cursor);
+            $body = '';
+        } else {
+            ++$cursor;
 
-        if (strlen($bytes) <= $cursor) {
-            throw MessageException::truncatedDataBody();
+            if (strlen($bytes) <= $cursor) {
+                throw MessageException::truncatedDataBody();
+            }
+
+            $length = ord($bytes[$cursor]);
+            ++$cursor;
+
+            if (strlen($bytes) < $cursor + $length) {
+                throw MessageException::truncatedDataBody();
+            }
+
+            $body = substr($bytes, $cursor, $length);
+            $cursor += $length;
+            $bodySequence = [];
         }
 
-        $length = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if (strlen($bytes) < $cursor + $length) {
-            throw MessageException::truncatedDataBody();
-        }
-
-        $body = substr($bytes, $cursor, $length);
-        $cursor += $length;
         $footer = [];
 
         if (substr($bytes, $cursor, self::FOOTER_DESCRIPTOR_LENGTH) === self::FOOTER_DESCRIPTOR) {
@@ -161,6 +185,7 @@ final class MessageCodec
         return new Message(
             body: $body,
             bodySection: $bodySection,
+            bodySequence: $bodySequence,
             header: $header,
             deliveryAnnotations: $deliveryAnnotations,
             messageAnnotations: $messageAnnotations,
@@ -314,6 +339,30 @@ final class MessageCodec
     }
 
     /**
+     * @param list<string> $items
+     */
+    private function encodeAmqpSequenceBody(array $items): string
+    {
+        $encodedItems = '';
+
+        foreach ($items as $item) {
+            $encodedItems .= $this->encodeString($item);
+        }
+
+        $listSize = 1 + strlen($encodedItems);
+
+        if ($listSize > 255) {
+            throw new \InvalidArgumentException('AMQP sequence body must fit in list8 encoding.');
+        }
+
+        return self::AMQP_SEQUENCE_DESCRIPTOR
+            . chr(self::CONSTRUCTOR_LIST8)
+            . chr($listSize)
+            . chr(count($items))
+            . $encodedItems;
+    }
+
+    /**
      * @param array<string, string> $footer
      */
     private function encodeFooter(array $footer): string
@@ -458,6 +507,70 @@ final class MessageCodec
                 ttl: $ttl,
             ),
             $cursor,
+        ];
+    }
+
+    /**
+     * @return array{0: list<string>, 1: int}
+     */
+    private function decodeAmqpSequenceBody(string $bytes, int $cursor): array
+    {
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_LIST8) {
+            throw MessageException::unsupportedAmqpSequenceEncoding();
+        }
+
+        ++$cursor;
+
+        if (strlen($bytes) < $cursor + 2) {
+            throw MessageException::truncatedDataBody();
+        }
+
+        $listSize = ord($bytes[$cursor]);
+        ++$cursor;
+        $fieldCount = ord($bytes[$cursor]);
+        ++$cursor;
+        $listEnd = $cursor + $listSize - 1;
+
+        if (strlen($bytes) < $listEnd) {
+            throw MessageException::truncatedDataBody();
+        }
+
+        $items = [];
+
+        for ($i = 0; $i < $fieldCount; ++$i) {
+            if ($cursor >= $listEnd) {
+                throw MessageException::truncatedDataBody();
+            }
+
+            if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
+                throw MessageException::unsupportedAmqpSequenceEncoding();
+            }
+
+            [$items[], $cursor] = $this->decodeSequenceString8($bytes, $cursor + 1, $listEnd);
+        }
+
+        return [$items, $cursor];
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeSequenceString8(string $bytes, int $cursor, int $listEnd): array
+    {
+        if ($cursor >= $listEnd) {
+            throw MessageException::truncatedDataBody();
+        }
+
+        $length = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($cursor + $length > $listEnd) {
+            throw MessageException::truncatedDataBody();
+        }
+
+        return [
+            substr($bytes, $cursor, $length),
+            $cursor + $length,
         ];
     }
 
