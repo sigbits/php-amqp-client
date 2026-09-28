@@ -7,10 +7,12 @@ namespace Sigbits\Amqp\Protocol\Message;
 final class MessageCodec
 {
     private const string HEADER_DESCRIPTOR = "\x00\x53\x70";
+    private const string MESSAGE_ANNOTATIONS_DESCRIPTOR = "\x00\x53\x72";
     private const string PROPERTIES_DESCRIPTOR = "\x00\x53\x73";
     private const string APPLICATION_PROPERTIES_DESCRIPTOR = "\x00\x53\x74";
     private const string DATA_DESCRIPTOR = "\x00\x53\x75";
     private const int HEADER_DESCRIPTOR_LENGTH = 3;
+    private const int MESSAGE_ANNOTATIONS_DESCRIPTOR_LENGTH = 3;
     private const int PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int APPLICATION_PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int DATA_DESCRIPTOR_LENGTH = 3;
@@ -35,6 +37,10 @@ final class MessageCodec
             $sections .= $this->encodeHeader($message->header);
         }
 
+        if ($message->messageAnnotations !== []) {
+            $sections .= $this->encodeMessageAnnotations($message->messageAnnotations);
+        }
+
         if ($message->properties !== null) {
             $sections .= $this->encodeProperties($message->properties);
         }
@@ -57,6 +63,12 @@ final class MessageCodec
 
         if (substr($bytes, 0, self::HEADER_DESCRIPTOR_LENGTH) === self::HEADER_DESCRIPTOR) {
             [$header, $cursor] = $this->decodeHeader($bytes, $cursor);
+        }
+
+        $messageAnnotations = [];
+
+        if (substr($bytes, $cursor, self::MESSAGE_ANNOTATIONS_DESCRIPTOR_LENGTH) === self::MESSAGE_ANNOTATIONS_DESCRIPTOR) {
+            [$messageAnnotations, $cursor] = $this->decodeMessageAnnotations($bytes, $cursor);
         }
 
         $properties = null;
@@ -101,6 +113,7 @@ final class MessageCodec
         return new Message(
             body: substr($bytes, $cursor, $length),
             header: $header,
+            messageAnnotations: $messageAnnotations,
             properties: $properties,
             applicationProperties: $applicationProperties,
         );
@@ -247,6 +260,30 @@ final class MessageCodec
     private function encodeSymbol(string $value): string
     {
         return chr(self::CONSTRUCTOR_SYMBOL8) . chr(strlen($value)) . $value;
+    }
+
+    /**
+     * @param array<string, string> $annotations
+     */
+    private function encodeMessageAnnotations(array $annotations): string
+    {
+        $entries = '';
+
+        foreach ($annotations as $name => $value) {
+            $entries .= $this->encodeSymbol($name) . $this->encodeString($value);
+        }
+
+        $mapSize = 1 + strlen($entries);
+
+        if ($mapSize > 255) {
+            throw new \InvalidArgumentException('AMQP message annotations must fit in map8 encoding.');
+        }
+
+        return self::MESSAGE_ANNOTATIONS_DESCRIPTOR
+            . chr(self::CONSTRUCTOR_MAP8)
+            . chr($mapSize)
+            . chr(count($annotations) * 2)
+            . $entries;
     }
 
     /**
@@ -418,6 +455,110 @@ final class MessageCodec
         }
 
         return $cursor + 1;
+    }
+
+    /**
+     * @return array{0: array<string, string>, 1: int}
+     */
+    private function decodeMessageAnnotations(string $bytes, int $cursor): array
+    {
+        if (strlen($bytes) < $cursor + self::MESSAGE_ANNOTATIONS_DESCRIPTOR_LENGTH + 1) {
+            throw MessageException::truncatedMessageAnnotations();
+        }
+
+        if (substr($bytes, $cursor, self::MESSAGE_ANNOTATIONS_DESCRIPTOR_LENGTH) !== self::MESSAGE_ANNOTATIONS_DESCRIPTOR) {
+            throw MessageException::malformedMessageAnnotations();
+        }
+
+        $cursor += self::MESSAGE_ANNOTATIONS_DESCRIPTOR_LENGTH;
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_MAP8) {
+            throw MessageException::malformedMessageAnnotations();
+        }
+
+        ++$cursor;
+
+        if (strlen($bytes) < $cursor + 2) {
+            throw MessageException::truncatedMessageAnnotations();
+        }
+
+        $mapSize = ord($bytes[$cursor]);
+        ++$cursor;
+        $mapCount = ord($bytes[$cursor]);
+        ++$cursor;
+        $mapEnd = $cursor + $mapSize - 1;
+
+        if ($mapCount % 2 !== 0) {
+            throw MessageException::malformedMessageAnnotations();
+        }
+
+        if (strlen($bytes) < $mapEnd) {
+            throw MessageException::truncatedMessageAnnotations();
+        }
+
+        $annotations = [];
+
+        for ($i = 0; $i < $mapCount; $i += 2) {
+            [$name, $cursor] = $this->decodeAnnotationSymbol($bytes, $cursor, $mapEnd);
+            [$value, $cursor] = $this->decodeAnnotationString($bytes, $cursor, $mapEnd);
+            $annotations[$name] = $value;
+        }
+
+        return [$annotations, $cursor];
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeAnnotationSymbol(string $bytes, int $cursor, int $mapEnd): array
+    {
+        if ($cursor >= $mapEnd) {
+            throw MessageException::truncatedMessageAnnotations();
+        }
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYMBOL8) {
+            throw MessageException::malformedMessageAnnotations();
+        }
+
+        return $this->decodeAnnotationString8($bytes, $cursor + 1, $mapEnd);
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeAnnotationString(string $bytes, int $cursor, int $mapEnd): array
+    {
+        if ($cursor >= $mapEnd) {
+            throw MessageException::truncatedMessageAnnotations();
+        }
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
+            throw MessageException::malformedMessageAnnotations();
+        }
+
+        return $this->decodeAnnotationString8($bytes, $cursor + 1, $mapEnd);
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeAnnotationString8(string $bytes, int $cursor, int $mapEnd): array
+    {
+        if ($cursor >= $mapEnd) {
+            throw MessageException::truncatedMessageAnnotations();
+        }
+
+        $length = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($cursor + $length > $mapEnd) {
+            throw MessageException::truncatedMessageAnnotations();
+        }
+
+        return [
+            substr($bytes, $cursor, $length),
+            $cursor + $length,
+        ];
     }
 
     /**
