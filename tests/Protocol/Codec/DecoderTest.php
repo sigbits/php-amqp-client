@@ -7,6 +7,7 @@ namespace Sigbits\Amqp\Tests\Protocol\Codec;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
+use Sigbits\Amqp\Protocol\Type\UByte;
 
 final class DecoderTest extends TestCase
 {
@@ -53,6 +54,30 @@ final class DecoderTest extends TestCase
         $this->expectExceptionMessage('Truncated AMQP boolean value.');
 
         $decoder->decode("\x56");
+    }
+
+    public function testDecodesUByteZero(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new UByte(0), $decoder->decode("\x50\x00"));
+    }
+
+    public function testDecodesUByteMaximum(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new UByte(255), $decoder->decode("\x50\xff"));
+    }
+
+    public function testRejectsTruncatedUByte(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP ubyte value.');
+
+        $decoder->decode("\x50");
     }
 
     public function testRejectsUnsupportedFormatCode(): void

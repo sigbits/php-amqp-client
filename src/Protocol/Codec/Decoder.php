@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Codec;
 
+use Sigbits\Amqp\Protocol\Type\UByte;
+
 final class Decoder
 {
     public function decode(string $bytes): mixed
@@ -14,6 +16,7 @@ final class Decoder
             0x40 => null,
             0x41 => true,
             0x42 => false,
+            0x50 => $this->decodeUByte($bytes),
             0x56 => $this->decodeBoolean($bytes),
             default => throw DecodeException::unsupportedFormatCode($formatCode),
         };
@@ -26,5 +29,14 @@ final class Decoder
         }
 
         return ord($bytes[1]) !== 0;
+    }
+
+    private function decodeUByte(string $bytes): UByte
+    {
+        if (strlen($bytes) < 2) {
+            throw DecodeException::truncatedUByte();
+        }
+
+        return new UByte(ord($bytes[1]));
     }
 }
