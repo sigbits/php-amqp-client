@@ -6,23 +6,34 @@ namespace Sigbits\Amqp\Protocol\Message;
 
 final class MessageCodec
 {
+    private const string HEADER_DESCRIPTOR = "\x00\x53\x70";
     private const string PROPERTIES_DESCRIPTOR = "\x00\x53\x73";
     private const string APPLICATION_PROPERTIES_DESCRIPTOR = "\x00\x53\x74";
     private const string DATA_DESCRIPTOR = "\x00\x53\x75";
+    private const int HEADER_DESCRIPTOR_LENGTH = 3;
     private const int PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int APPLICATION_PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int DATA_DESCRIPTOR_LENGTH = 3;
+    private const int CONSTRUCTOR_BOOL = 0x56;
+    private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
+    private const int CONSTRUCTOR_BOOL_FALSE = 0x42;
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
     private const int CONSTRUCTOR_MAP8 = 0xc1;
     private const int CONSTRUCTOR_NULL = 0x40;
     private const int CONSTRUCTOR_STRING8 = 0xa1;
     private const int CONSTRUCTOR_SYMBOL8 = 0xa3;
+    private const int CONSTRUCTOR_UBYTE = 0x50;
+    private const int CONSTRUCTOR_UINT = 0x70;
     private const int CONSTRUCTOR_VBIN8 = 0xa0;
 
     public function encode(Message $message): string
     {
         $sections = '';
+
+        if ($message->header !== null) {
+            $sections .= $this->encodeHeader($message->header);
+        }
 
         if ($message->properties !== null) {
             $sections .= $this->encodeProperties($message->properties);
@@ -42,9 +53,15 @@ final class MessageCodec
     public function decode(string $bytes): Message
     {
         $cursor = 0;
+        $header = null;
+
+        if (substr($bytes, 0, self::HEADER_DESCRIPTOR_LENGTH) === self::HEADER_DESCRIPTOR) {
+            [$header, $cursor] = $this->decodeHeader($bytes, $cursor);
+        }
+
         $properties = null;
 
-        if (substr($bytes, 0, self::PROPERTIES_DESCRIPTOR_LENGTH) === self::PROPERTIES_DESCRIPTOR) {
+        if (substr($bytes, $cursor, self::PROPERTIES_DESCRIPTOR_LENGTH) === self::PROPERTIES_DESCRIPTOR) {
             [$properties, $cursor] = $this->decodeProperties($bytes, $cursor);
         }
 
@@ -83,9 +100,67 @@ final class MessageCodec
 
         return new Message(
             body: substr($bytes, $cursor, $length),
+            header: $header,
             properties: $properties,
             applicationProperties: $applicationProperties,
         );
+    }
+
+    private function encodeHeader(Header $header): string
+    {
+        $fields = [
+            $this->encodeNullableBoolean($header->durable),
+            $this->encodeNullableUByte($header->priority),
+            $this->encodeNullableUInt($header->ttl),
+        ];
+
+        $lastSetField = -1;
+
+        foreach ($fields as $index => $field) {
+            if ($field !== chr(self::CONSTRUCTOR_NULL)) {
+                $lastSetField = $index;
+            }
+        }
+
+        if ($lastSetField === -1) {
+            return self::HEADER_DESCRIPTOR . chr(self::CONSTRUCTOR_LIST0);
+        }
+
+        $encodedFields = implode('', array_slice($fields, 0, $lastSetField + 1));
+        $listSize = 1 + strlen($encodedFields);
+
+        return self::HEADER_DESCRIPTOR
+            . chr(self::CONSTRUCTOR_LIST8)
+            . chr($listSize)
+            . chr($lastSetField + 1)
+            . $encodedFields;
+    }
+
+    private function encodeNullableBoolean(?bool $value): string
+    {
+        if ($value === null) {
+            return chr(self::CONSTRUCTOR_NULL);
+        }
+
+        return chr($value ? self::CONSTRUCTOR_BOOL_TRUE : self::CONSTRUCTOR_BOOL_FALSE);
+    }
+
+    private function encodeNullableUByte(?int $value): string
+    {
+        if ($value === null) {
+            return chr(self::CONSTRUCTOR_NULL);
+        }
+
+        return chr(self::CONSTRUCTOR_UBYTE) . chr($value);
+    }
+
+    private function encodeNullableUInt(?int $value): string
+    {
+        if ($value === null) {
+            return chr(self::CONSTRUCTOR_NULL);
+        }
+
+        return chr(self::CONSTRUCTOR_UINT) . pack('N', $value);
     }
 
     private function encodeProperties(Properties $properties): string
@@ -172,6 +247,177 @@ final class MessageCodec
     private function encodeSymbol(string $value): string
     {
         return chr(self::CONSTRUCTOR_SYMBOL8) . chr(strlen($value)) . $value;
+    }
+
+    /**
+     * @return array{0: Header, 1: int}
+     */
+    private function decodeHeader(string $bytes, int $cursor): array
+    {
+        if (strlen($bytes) < $cursor + self::HEADER_DESCRIPTOR_LENGTH + 1) {
+            throw MessageException::truncatedHeader();
+        }
+
+        if (substr($bytes, $cursor, self::HEADER_DESCRIPTOR_LENGTH) !== self::HEADER_DESCRIPTOR) {
+            throw MessageException::malformedHeader();
+        }
+
+        $cursor += self::HEADER_DESCRIPTOR_LENGTH;
+        $constructor = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($constructor === self::CONSTRUCTOR_LIST0) {
+            return [new Header(), $cursor];
+        }
+
+        if ($constructor !== self::CONSTRUCTOR_LIST8) {
+            throw MessageException::malformedHeader();
+        }
+
+        if (strlen($bytes) < $cursor + 2) {
+            throw MessageException::truncatedHeader();
+        }
+
+        $listSize = ord($bytes[$cursor]);
+        ++$cursor;
+        $fieldCount = ord($bytes[$cursor]);
+        ++$cursor;
+        $listEnd = $cursor + $listSize - 1;
+
+        if (strlen($bytes) < $listEnd) {
+            throw MessageException::truncatedHeader();
+        }
+
+        $durable = null;
+        $priority = null;
+        $ttl = null;
+
+        for ($field = 0; $field < $fieldCount; ++$field) {
+            if ($cursor >= $listEnd) {
+                throw MessageException::truncatedHeader();
+            }
+
+            if ($field === 0) {
+                [$durable, $cursor] = $this->decodeNullableBoolean($bytes, $cursor, $listEnd);
+                continue;
+            }
+
+            if ($field === 1) {
+                [$priority, $cursor] = $this->decodeNullableUByte($bytes, $cursor, $listEnd);
+                continue;
+            }
+
+            if ($field === 2) {
+                [$ttl, $cursor] = $this->decodeNullableUInt($bytes, $cursor, $listEnd);
+                continue;
+            }
+
+            $cursor = $this->skipHeaderNull($bytes, $cursor, $listEnd);
+        }
+
+        return [
+            new Header(
+                durable: $durable,
+                priority: $priority,
+                ttl: $ttl,
+            ),
+            $cursor,
+        ];
+    }
+
+    /**
+     * @return array{0: ?bool, 1: int}
+     */
+    private function decodeNullableBoolean(string $bytes, int $cursor, int $listEnd): array
+    {
+        $constructor = ord($bytes[$cursor]);
+
+        if ($constructor === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor + 1];
+        }
+
+        if ($constructor === self::CONSTRUCTOR_BOOL_TRUE) {
+            return [true, $cursor + 1];
+        }
+
+        if ($constructor === self::CONSTRUCTOR_BOOL_FALSE) {
+            return [false, $cursor + 1];
+        }
+
+        if ($constructor !== self::CONSTRUCTOR_BOOL) {
+            throw MessageException::malformedHeader();
+        }
+
+        ++$cursor;
+
+        if ($cursor >= $listEnd) {
+            throw MessageException::truncatedHeader();
+        }
+
+        return [ord($bytes[$cursor]) !== 0, $cursor + 1];
+    }
+
+    /**
+     * @return array{0: ?int, 1: int}
+     */
+    private function decodeNullableUByte(string $bytes, int $cursor, int $listEnd): array
+    {
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor + 1];
+        }
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_UBYTE) {
+            throw MessageException::malformedHeader();
+        }
+
+        ++$cursor;
+
+        if ($cursor >= $listEnd) {
+            throw MessageException::truncatedHeader();
+        }
+
+        return [ord($bytes[$cursor]), $cursor + 1];
+    }
+
+    /**
+     * @return array{0: ?int, 1: int}
+     */
+    private function decodeNullableUInt(string $bytes, int $cursor, int $listEnd): array
+    {
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor + 1];
+        }
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_UINT) {
+            throw MessageException::malformedHeader();
+        }
+
+        ++$cursor;
+
+        if ($cursor + 4 > $listEnd) {
+            throw MessageException::truncatedHeader();
+        }
+
+        return [
+            (ord($bytes[$cursor]) << 24)
+            | (ord($bytes[$cursor + 1]) << 16)
+            | (ord($bytes[$cursor + 2]) << 8)
+            | ord($bytes[$cursor + 3]),
+            $cursor + 4,
+        ];
+    }
+
+    private function skipHeaderNull(string $bytes, int $cursor, int $listEnd): int
+    {
+        if ($cursor >= $listEnd) {
+            throw MessageException::truncatedHeader();
+        }
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_NULL) {
+            throw MessageException::malformedHeader();
+        }
+
+        return $cursor + 1;
     }
 
     /**

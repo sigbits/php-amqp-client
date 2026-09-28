@@ -13,6 +13,7 @@ final readonly class Message
      */
     public function __construct(
         public string $body,
+        public ?Header $header = null,
         public ?Properties $properties = null,
         public array $applicationProperties = [],
     ) {

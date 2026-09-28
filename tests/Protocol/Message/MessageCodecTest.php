@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Tests\Protocol\Message;
 
 use PHPUnit\Framework\TestCase;
+use Sigbits\Amqp\Protocol\Message\Header;
 use Sigbits\Amqp\Protocol\Message\Message;
 use Sigbits\Amqp\Protocol\Message\MessageCodec;
 use Sigbits\Amqp\Protocol\Message\MessageException;
@@ -29,6 +30,44 @@ final class MessageCodecTest extends TestCase
         self::assertEquals(
             new Message(body: 'hello'),
             $codec->decode("\x00\x53\x75\xa0\x05hello"),
+        );
+    }
+
+    public function testEncodesHeaderBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x70\xc0\x09\x03\x41\x50\x05\x70\x00\x00\xea\x60"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                header: new Header(
+                    durable: true,
+                    priority: 5,
+                    ttl: 60000,
+                ),
+            )),
+        );
+    }
+
+    public function testDecodesHeaderBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                header: new Header(
+                    durable: true,
+                    priority: 5,
+                    ttl: 60000,
+                ),
+            ),
+            $codec->decode(
+                "\x00\x53\x70\xc0\x09\x03\x41\x50\x05\x70\x00\x00\xea\x60"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
         );
     }
 
