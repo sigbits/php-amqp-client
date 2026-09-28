@@ -75,6 +75,60 @@ final class ReceiverLinkEngineTest extends TestCase
         self::assertNull($engine->receive());
     }
 
+    public function testAcceptEmitsAcceptedDispositionFrame(): void
+    {
+        $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+
+        self::assertSame(
+            [
+                "\x00\x00\x00\x1a\x02\x00\x00\x01"
+                . "\x00\x53\x15\xc0\x0d\x05"
+                . "\x41"
+                . "\x70\x00\x00\x00\x00"
+                . "\x40"
+                . "\x41"
+                . "\x00\x53\x24\x45",
+            ],
+            $engine->accept(deliveryId: 0),
+        );
+    }
+
+    public function testReleaseEmitsReleasedDispositionFrame(): void
+    {
+        $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+
+        self::assertSame(
+            [
+                "\x00\x00\x00\x1a\x02\x00\x00\x01"
+                . "\x00\x53\x15\xc0\x0d\x05"
+                . "\x41"
+                . "\x70\x00\x00\x00\x01"
+                . "\x40"
+                . "\x41"
+                . "\x00\x53\x26\x45",
+            ],
+            $engine->release(deliveryId: 1),
+        );
+    }
+
+    public function testRejectEmitsRejectedDispositionFrame(): void
+    {
+        $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+
+        self::assertSame(
+            [
+                "\x00\x00\x00\x1a\x02\x00\x00\x01"
+                . "\x00\x53\x15\xc0\x0d\x05"
+                . "\x41"
+                . "\x70\x00\x00\x00\x02"
+                . "\x40"
+                . "\x41"
+                . "\x00\x53\x25\x45",
+            ],
+            $engine->reject(deliveryId: 2),
+        );
+    }
+
     public function testRemoteFragmentedTransferCompletesMessageAfterFinalFrame(): void
     {
         $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);

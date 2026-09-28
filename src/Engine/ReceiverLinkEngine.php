@@ -14,7 +14,10 @@ use Sigbits\Amqp\Protocol\Performative\Attach;
 use Sigbits\Amqp\Protocol\Performative\AttachCodec;
 use Sigbits\Amqp\Protocol\Performative\Detach;
 use Sigbits\Amqp\Protocol\Performative\DetachCodec;
+use Sigbits\Amqp\Protocol\Performative\Disposition;
+use Sigbits\Amqp\Protocol\Performative\DispositionCodec;
 use Sigbits\Amqp\Protocol\Performative\LinkRole;
+use Sigbits\Amqp\Protocol\Performative\SettlementOutcome;
 use Sigbits\Amqp\Protocol\Performative\TransferCodec;
 
 final class ReceiverLinkEngine
@@ -37,6 +40,7 @@ final class ReceiverLinkEngine
         private readonly DetachCodec $detachCodec = new DetachCodec(),
         private readonly TransferCodec $transferCodec = new TransferCodec(),
         private readonly MessageCodec $messageCodec = new MessageCodec(),
+        private readonly DispositionCodec $dispositionCodec = new DispositionCodec(),
     ) {
     }
 
@@ -48,6 +52,30 @@ final class ReceiverLinkEngine
     public function receive(): ?Message
     {
         return array_shift($this->receivedMessages);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function accept(int $deliveryId): array
+    {
+        return $this->settle($deliveryId, SettlementOutcome::Accepted);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function release(int $deliveryId): array
+    {
+        return $this->settle($deliveryId, SettlementOutcome::Released);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function reject(int $deliveryId): array
+    {
+        return $this->settle($deliveryId, SettlementOutcome::Rejected);
     }
 
     /**
@@ -152,5 +180,18 @@ final class ReceiverLinkEngine
     private function transferPayloadOffset(string $payload): int
     {
         return 5 + ord($payload[4]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function settle(int $deliveryId, SettlementOutcome $outcome): array
+    {
+        return [
+            $this->frame($this->dispositionCodec->encode(new Disposition(
+                deliveryId: $deliveryId,
+                outcome: $outcome,
+            ))),
+        ];
     }
 }
