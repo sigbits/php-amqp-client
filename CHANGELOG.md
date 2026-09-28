@@ -17,3 +17,4 @@ must have release notes in this file before the tag is created.
 - Minimal AMQP CLOSE performative encode/decode foundation.
 - Minimal byte-driven connection engine for protocol header, OPEN, and CLOSE.
 - Connection engine lifecycle and protocol error handling.
+- In-memory connection engine loopback proof script.
