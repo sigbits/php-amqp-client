@@ -7,11 +7,13 @@ namespace Sigbits\Amqp\Protocol\Message;
 final class MessageCodec
 {
     private const string HEADER_DESCRIPTOR = "\x00\x53\x70";
+    private const string DELIVERY_ANNOTATIONS_DESCRIPTOR = "\x00\x53\x71";
     private const string MESSAGE_ANNOTATIONS_DESCRIPTOR = "\x00\x53\x72";
     private const string PROPERTIES_DESCRIPTOR = "\x00\x53\x73";
     private const string APPLICATION_PROPERTIES_DESCRIPTOR = "\x00\x53\x74";
     private const string DATA_DESCRIPTOR = "\x00\x53\x75";
     private const int HEADER_DESCRIPTOR_LENGTH = 3;
+    private const int DELIVERY_ANNOTATIONS_DESCRIPTOR_LENGTH = 3;
     private const int MESSAGE_ANNOTATIONS_DESCRIPTOR_LENGTH = 3;
     private const int PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int APPLICATION_PROPERTIES_DESCRIPTOR_LENGTH = 3;
@@ -35,6 +37,10 @@ final class MessageCodec
 
         if ($message->header !== null) {
             $sections .= $this->encodeHeader($message->header);
+        }
+
+        if ($message->deliveryAnnotations !== []) {
+            $sections .= $this->encodeDeliveryAnnotations($message->deliveryAnnotations);
         }
 
         if ($message->messageAnnotations !== []) {
@@ -63,6 +69,12 @@ final class MessageCodec
 
         if (substr($bytes, 0, self::HEADER_DESCRIPTOR_LENGTH) === self::HEADER_DESCRIPTOR) {
             [$header, $cursor] = $this->decodeHeader($bytes, $cursor);
+        }
+
+        $deliveryAnnotations = [];
+
+        if (substr($bytes, $cursor, self::DELIVERY_ANNOTATIONS_DESCRIPTOR_LENGTH) === self::DELIVERY_ANNOTATIONS_DESCRIPTOR) {
+            [$deliveryAnnotations, $cursor] = $this->decodeDeliveryAnnotations($bytes, $cursor);
         }
 
         $messageAnnotations = [];
@@ -113,6 +125,7 @@ final class MessageCodec
         return new Message(
             body: substr($bytes, $cursor, $length),
             header: $header,
+            deliveryAnnotations: $deliveryAnnotations,
             messageAnnotations: $messageAnnotations,
             properties: $properties,
             applicationProperties: $applicationProperties,
@@ -260,6 +273,30 @@ final class MessageCodec
     private function encodeSymbol(string $value): string
     {
         return chr(self::CONSTRUCTOR_SYMBOL8) . chr(strlen($value)) . $value;
+    }
+
+    /**
+     * @param array<string, string> $annotations
+     */
+    private function encodeDeliveryAnnotations(array $annotations): string
+    {
+        $entries = '';
+
+        foreach ($annotations as $name => $value) {
+            $entries .= $this->encodeSymbol($name) . $this->encodeString($value);
+        }
+
+        $mapSize = 1 + strlen($entries);
+
+        if ($mapSize > 255) {
+            throw new \InvalidArgumentException('AMQP delivery annotations must fit in map8 encoding.');
+        }
+
+        return self::DELIVERY_ANNOTATIONS_DESCRIPTOR
+            . chr(self::CONSTRUCTOR_MAP8)
+            . chr($mapSize)
+            . chr(count($annotations) * 2)
+            . $entries;
     }
 
     /**
@@ -455,6 +492,110 @@ final class MessageCodec
         }
 
         return $cursor + 1;
+    }
+
+    /**
+     * @return array{0: array<string, string>, 1: int}
+     */
+    private function decodeDeliveryAnnotations(string $bytes, int $cursor): array
+    {
+        if (strlen($bytes) < $cursor + self::DELIVERY_ANNOTATIONS_DESCRIPTOR_LENGTH + 1) {
+            throw MessageException::truncatedDeliveryAnnotations();
+        }
+
+        if (substr($bytes, $cursor, self::DELIVERY_ANNOTATIONS_DESCRIPTOR_LENGTH) !== self::DELIVERY_ANNOTATIONS_DESCRIPTOR) {
+            throw MessageException::malformedDeliveryAnnotations();
+        }
+
+        $cursor += self::DELIVERY_ANNOTATIONS_DESCRIPTOR_LENGTH;
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_MAP8) {
+            throw MessageException::malformedDeliveryAnnotations();
+        }
+
+        ++$cursor;
+
+        if (strlen($bytes) < $cursor + 2) {
+            throw MessageException::truncatedDeliveryAnnotations();
+        }
+
+        $mapSize = ord($bytes[$cursor]);
+        ++$cursor;
+        $mapCount = ord($bytes[$cursor]);
+        ++$cursor;
+        $mapEnd = $cursor + $mapSize - 1;
+
+        if ($mapCount % 2 !== 0) {
+            throw MessageException::malformedDeliveryAnnotations();
+        }
+
+        if (strlen($bytes) < $mapEnd) {
+            throw MessageException::truncatedDeliveryAnnotations();
+        }
+
+        $annotations = [];
+
+        for ($i = 0; $i < $mapCount; $i += 2) {
+            [$name, $cursor] = $this->decodeDeliveryAnnotationSymbol($bytes, $cursor, $mapEnd);
+            [$value, $cursor] = $this->decodeDeliveryAnnotationString($bytes, $cursor, $mapEnd);
+            $annotations[$name] = $value;
+        }
+
+        return [$annotations, $cursor];
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeDeliveryAnnotationSymbol(string $bytes, int $cursor, int $mapEnd): array
+    {
+        if ($cursor >= $mapEnd) {
+            throw MessageException::truncatedDeliveryAnnotations();
+        }
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYMBOL8) {
+            throw MessageException::malformedDeliveryAnnotations();
+        }
+
+        return $this->decodeDeliveryAnnotationString8($bytes, $cursor + 1, $mapEnd);
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeDeliveryAnnotationString(string $bytes, int $cursor, int $mapEnd): array
+    {
+        if ($cursor >= $mapEnd) {
+            throw MessageException::truncatedDeliveryAnnotations();
+        }
+
+        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
+            throw MessageException::malformedDeliveryAnnotations();
+        }
+
+        return $this->decodeDeliveryAnnotationString8($bytes, $cursor + 1, $mapEnd);
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeDeliveryAnnotationString8(string $bytes, int $cursor, int $mapEnd): array
+    {
+        if ($cursor >= $mapEnd) {
+            throw MessageException::truncatedDeliveryAnnotations();
+        }
+
+        $length = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($cursor + $length > $mapEnd) {
+            throw MessageException::truncatedDeliveryAnnotations();
+        }
+
+        return [
+            substr($bytes, $cursor, $length),
+            $cursor + $length,
+        ];
     }
 
     /**

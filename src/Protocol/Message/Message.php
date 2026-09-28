@@ -9,18 +9,34 @@ use InvalidArgumentException;
 final readonly class Message
 {
     /**
+     * @param array<string, string> $deliveryAnnotations
      * @param array<string, string> $messageAnnotations
      * @param array<string, string> $applicationProperties
      */
     public function __construct(
         public string $body,
         public ?Header $header = null,
+        public array $deliveryAnnotations = [],
         public array $messageAnnotations = [],
         public ?Properties $properties = null,
         public array $applicationProperties = [],
     ) {
         if (strlen($body) > 255) {
             throw new InvalidArgumentException('AMQP message body must fit in vbin8 data encoding.');
+        }
+
+        foreach ($deliveryAnnotations as $name => $value) {
+            if ($name === '') {
+                throw new InvalidArgumentException('AMQP delivery annotation name must not be empty.');
+            }
+
+            if (strlen($name) > 255) {
+                throw new InvalidArgumentException('AMQP delivery annotation name must fit in symbol8 encoding.');
+            }
+
+            if (strlen($value) > 255) {
+                throw new InvalidArgumentException('AMQP delivery annotation value must fit in string8 encoding.');
+            }
         }
 
         foreach ($messageAnnotations as $name => $value) {

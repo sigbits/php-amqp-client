@@ -33,6 +33,16 @@ final class MessageException extends RuntimeException
         return new self('Truncated AMQP header section.');
     }
 
+    public static function malformedDeliveryAnnotations(): self
+    {
+        return new self('Malformed AMQP delivery annotations section.');
+    }
+
+    public static function truncatedDeliveryAnnotations(): self
+    {
+        return new self('Truncated AMQP delivery annotations section.');
+    }
+
     public static function malformedMessageAnnotations(): self
     {
         return new self('Malformed AMQP message annotations section.');
