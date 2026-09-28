@@ -7,6 +7,7 @@ namespace Sigbits\Amqp\Tests\Protocol\Message;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Message\Header;
 use Sigbits\Amqp\Protocol\Message\Message;
+use Sigbits\Amqp\Protocol\Message\MessageBodySection;
 use Sigbits\Amqp\Protocol\Message\MessageCodec;
 use Sigbits\Amqp\Protocol\Message\MessageException;
 use Sigbits\Amqp\Protocol\Message\Properties;
@@ -30,6 +31,32 @@ final class MessageCodecTest extends TestCase
         self::assertEquals(
             new Message(body: 'hello'),
             $codec->decode("\x00\x53\x75\xa0\x05hello"),
+        );
+    }
+
+    public function testEncodesAmqpValueBodyMessage(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x77\xa1\x05hello",
+            $codec->encode(new Message(
+                body: 'hello',
+                bodySection: MessageBodySection::AmqpValue,
+            )),
+        );
+    }
+
+    public function testDecodesAmqpValueBodyMessage(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'hello',
+                bodySection: MessageBodySection::AmqpValue,
+            ),
+            $codec->decode("\x00\x53\x77\xa1\x05hello"),
         );
     }
 

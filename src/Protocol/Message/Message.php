@@ -16,6 +16,7 @@ final readonly class Message
      */
     public function __construct(
         public string $body,
+        public MessageBodySection $bodySection = MessageBodySection::Data,
         public ?Header $header = null,
         public array $deliveryAnnotations = [],
         public array $messageAnnotations = [],
@@ -24,7 +25,7 @@ final readonly class Message
         public array $footer = [],
     ) {
         if (strlen($body) > 255) {
-            throw new InvalidArgumentException('AMQP message body must fit in vbin8 data encoding.');
+            throw new InvalidArgumentException('AMQP message body must fit in string8/vbin8 encoding.');
         }
 
         foreach ($deliveryAnnotations as $name => $value) {
