@@ -7,6 +7,8 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+## v0.0.1 - 2026-09-28
+
 ### Added
 
 - Project roadmap and Docker-first development workflow.
