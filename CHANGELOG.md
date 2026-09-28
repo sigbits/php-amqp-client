@@ -7,6 +7,8 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+## v0.1.0 - 2026-09-28
+
 ### Added
 
 - Sender link TRANSFER frame emission with message payload fragmentation.
