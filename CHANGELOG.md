@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Minimal synchronous blocking receiver API over the receiver link engine.
 - Receiver link accept, release, and reject settlement frame emission.
 - AMQP DISPOSITION encode/decode foundation for accepted, released, and rejected settlements.
 - Receiver link incoming TRANSFER assembly for DATA body messages.
