@@ -8,6 +8,8 @@ use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
 use Sigbits\Amqp\Protocol\Type\UByte;
+use Sigbits\Amqp\Protocol\Type\UInt;
+use Sigbits\Amqp\Protocol\Type\UShort;
 
 final class DecoderTest extends TestCase
 {
@@ -78,6 +80,54 @@ final class DecoderTest extends TestCase
         $this->expectExceptionMessage('Truncated AMQP ubyte value.');
 
         $decoder->decode("\x50");
+    }
+
+    public function testDecodesUShortZero(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new UShort(0), $decoder->decode("\x60\x00\x00"));
+    }
+
+    public function testDecodesUShortMaximum(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new UShort(65535), $decoder->decode("\x60\xff\xff"));
+    }
+
+    public function testRejectsTruncatedUShort(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP ushort value.');
+
+        $decoder->decode("\x60\x00");
+    }
+
+    public function testDecodesUIntZero(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new UInt(0), $decoder->decode("\x70\x00\x00\x00\x00"));
+    }
+
+    public function testDecodesUIntMaximum(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new UInt(4294967295), $decoder->decode("\x70\xff\xff\xff\xff"));
+    }
+
+    public function testRejectsTruncatedUInt(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP uint value.');
+
+        $decoder->decode("\x70\x00\x00\x00");
     }
 
     public function testRejectsUnsupportedFormatCode(): void

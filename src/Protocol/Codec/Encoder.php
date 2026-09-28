@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Protocol\Codec;
 
 use Sigbits\Amqp\Protocol\Type\UByte;
+use Sigbits\Amqp\Protocol\Type\UInt;
+use Sigbits\Amqp\Protocol\Type\UShort;
 
 final class Encoder
 {
@@ -24,6 +26,14 @@ final class Encoder
 
         if ($value instanceof UByte) {
             return "\x50" . chr($value->value);
+        }
+
+        if ($value instanceof UShort) {
+            return "\x60" . pack('n', $value->value);
+        }
+
+        if ($value instanceof UInt) {
+            return "\x70" . pack('N', $value->value);
         }
 
         throw EncodeException::unsupportedValue($value);
