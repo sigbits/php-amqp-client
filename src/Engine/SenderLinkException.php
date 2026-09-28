@@ -23,6 +23,11 @@ final class SenderLinkException extends RuntimeException
         return new self('Cannot claim AMQP sender link credit when none is available.');
     }
 
+    public static function transferFrameSizeTooSmall(): self
+    {
+        return new self('AMQP sender link transfer frame size leaves no room for payload.');
+    }
+
     public static function unsupportedSenderLinkPerformative(): self
     {
         return new self('Unsupported AMQP sender link performative.');

@@ -8,12 +8,16 @@ use Sigbits\Amqp\Protocol\Frame\Frame;
 use Sigbits\Amqp\Protocol\Frame\FrameHeader;
 use Sigbits\Amqp\Protocol\Frame\FrameHeaderCodec;
 use Sigbits\Amqp\Protocol\Frame\FrameParser;
+use Sigbits\Amqp\Protocol\Message\Message;
+use Sigbits\Amqp\Protocol\Message\MessageCodec;
 use Sigbits\Amqp\Protocol\Performative\Attach;
 use Sigbits\Amqp\Protocol\Performative\AttachCodec;
 use Sigbits\Amqp\Protocol\Performative\Detach;
 use Sigbits\Amqp\Protocol\Performative\DetachCodec;
 use Sigbits\Amqp\Protocol\Performative\FlowCodec;
 use Sigbits\Amqp\Protocol\Performative\LinkRole;
+use Sigbits\Amqp\Protocol\Performative\Transfer;
+use Sigbits\Amqp\Protocol\Performative\TransferCodec;
 
 final class SenderLinkEngine
 {
@@ -30,6 +34,8 @@ final class SenderLinkEngine
         private readonly AttachCodec $attachCodec = new AttachCodec(),
         private readonly DetachCodec $detachCodec = new DetachCodec(),
         private readonly FlowCodec $flowCodec = new FlowCodec(),
+        private readonly TransferCodec $transferCodec = new TransferCodec(),
+        private readonly MessageCodec $messageCodec = new MessageCodec(),
     ) {
     }
 
@@ -54,6 +60,47 @@ final class SenderLinkEngine
         --$this->availableCredit;
 
         return $deliveryId;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function transfer(Message $message, int $maxFrameSize = 512): array
+    {
+        $deliveryTag = sprintf('delivery-%d', $this->nextDeliveryId);
+        $transferOverhead = strlen($this->transferCodec->encode(new Transfer(
+            handle: $this->handle,
+            deliveryId: $this->nextDeliveryId,
+            deliveryTag: $deliveryTag,
+            messageFormat: 0,
+            more: true,
+        )));
+        $maxPayloadChunkSize = $maxFrameSize - FrameHeader::LENGTH - $transferOverhead;
+
+        if ($maxPayloadChunkSize < 1) {
+            throw SenderLinkException::transferFrameSizeTooSmall();
+        }
+
+        $deliveryId = $this->claimCredit();
+        $messageBytes = $this->messageCodec->encode($message);
+        $messageChunks = str_split($messageBytes, $maxPayloadChunkSize);
+        $frames = [];
+        $lastChunkIndex = count($messageChunks) - 1;
+
+        foreach ($messageChunks as $index => $messageChunk) {
+            $more = $index < $lastChunkIndex;
+            $frames[] = $this->frame(
+                $this->transferCodec->encode(new Transfer(
+                    handle: $this->handle,
+                    deliveryId: $deliveryId,
+                    deliveryTag: $deliveryTag,
+                    messageFormat: 0,
+                    more: $more,
+                )) . $messageChunk,
+            );
+        }
+
+        return $frames;
     }
 
     /**
