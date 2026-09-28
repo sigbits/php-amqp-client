@@ -45,6 +45,66 @@ final class SenderLinkEngineTest extends TestCase
         self::assertSame(SenderLinkState::Attached, $engine->state());
     }
 
+    public function testRemoteFlowUpdatesAvailableLinkCredit(): void
+    {
+        $engine = new SenderLinkEngine(sessionChannel: 1, name: 'sender', handle: 0);
+        $engine->attach();
+        $engine->push(
+            "\x00\x00\x00\x1c\x02\x00\x00\x01"
+            . "\x00\x53\x12\xc0\x0f\x03\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x41",
+        );
+
+        self::assertSame(
+            [SenderLinkEvent::LinkCreditUpdated],
+            $engine->push(
+                "\x00\x00\x00\x21\x02\x00\x00\x01"
+                . "\x00\x53\x13\xc0\x14\x07"
+                . "\x40\x40\x40\x40"
+                . "\x70\x00\x00\x00\x00"
+                . "\x70\x00\x00\x00\x00"
+                . "\x70\x00\x00\x00\x02",
+            ),
+        );
+        self::assertSame(2, $engine->availableCredit());
+    }
+
+    public function testClaimCreditReturnsDeliveryIdAndConsumesAvailableCredit(): void
+    {
+        $engine = new SenderLinkEngine(sessionChannel: 1, name: 'sender', handle: 0);
+        $engine->attach();
+        $engine->push(
+            "\x00\x00\x00\x1c\x02\x00\x00\x01"
+            . "\x00\x53\x12\xc0\x0f\x03\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x41",
+        );
+        $engine->push(
+            "\x00\x00\x00\x21\x02\x00\x00\x01"
+            . "\x00\x53\x13\xc0\x14\x07"
+            . "\x40\x40\x40\x40"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x02",
+        );
+
+        self::assertSame(0, $engine->claimCredit());
+        self::assertSame(1, $engine->availableCredit());
+        self::assertSame(1, $engine->claimCredit());
+        self::assertSame(0, $engine->availableCredit());
+    }
+
+    public function testRejectsClaimCreditWhenNoCreditIsAvailable(): void
+    {
+        $engine = new SenderLinkEngine(sessionChannel: 1, name: 'sender', handle: 0);
+
+        $this->expectException(SenderLinkException::class);
+        $this->expectExceptionMessage('Cannot claim AMQP sender link credit when none is available.');
+
+        $engine->claimCredit();
+    }
+
     public function testDetachEmitsDetachFrameAndTransitionsToDetachSent(): void
     {
         $engine = new SenderLinkEngine(sessionChannel: 1, name: 'sender', handle: 0);

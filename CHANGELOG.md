@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Sender link credit tracking from remote AMQP FLOW frames.
 - Minimal AMQP FLOW performative encode/decode foundation for link credit.
 - Byte-driven sender link engine for ATTACH and DETACH lifecycle frames.
 - Minimal AMQP ATTACH and DETACH performative encode/decode foundation.

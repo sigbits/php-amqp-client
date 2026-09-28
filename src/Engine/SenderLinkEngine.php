@@ -12,11 +12,14 @@ use Sigbits\Amqp\Protocol\Performative\Attach;
 use Sigbits\Amqp\Protocol\Performative\AttachCodec;
 use Sigbits\Amqp\Protocol\Performative\Detach;
 use Sigbits\Amqp\Protocol\Performative\DetachCodec;
+use Sigbits\Amqp\Protocol\Performative\FlowCodec;
 use Sigbits\Amqp\Protocol\Performative\LinkRole;
 
 final class SenderLinkEngine
 {
     private SenderLinkState $state = SenderLinkState::Idle;
+    private int $nextDeliveryId = 0;
+    private int $availableCredit = 0;
 
     public function __construct(
         private readonly int $sessionChannel,
@@ -26,12 +29,31 @@ final class SenderLinkEngine
         private readonly FrameParser $frameParser = new FrameParser(),
         private readonly AttachCodec $attachCodec = new AttachCodec(),
         private readonly DetachCodec $detachCodec = new DetachCodec(),
+        private readonly FlowCodec $flowCodec = new FlowCodec(),
     ) {
     }
 
     public function state(): SenderLinkState
     {
         return $this->state;
+    }
+
+    public function availableCredit(): int
+    {
+        return $this->availableCredit;
+    }
+
+    public function claimCredit(): int
+    {
+        if ($this->availableCredit <= 0) {
+            throw SenderLinkException::noCreditAvailable();
+        }
+
+        $deliveryId = $this->nextDeliveryId;
+        ++$this->nextDeliveryId;
+        --$this->availableCredit;
+
+        return $deliveryId;
     }
 
     /**
@@ -113,6 +135,14 @@ final class SenderLinkEngine
             $this->state = SenderLinkState::Detached;
 
             return [SenderLinkEvent::LinkDetached];
+        }
+
+        if (str_starts_with($frame->payload, "\x00\x53\x13")) {
+            $flow = $this->flowCodec->decode($frame->payload);
+            $creditLimit = $flow->deliveryCount + $flow->linkCredit;
+            $this->availableCredit = max(0, $creditLimit - $this->nextDeliveryId);
+
+            return [SenderLinkEvent::LinkCreditUpdated];
         }
 
         throw SenderLinkException::unsupportedSenderLinkPerformative();

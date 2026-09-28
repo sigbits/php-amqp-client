@@ -7,5 +7,6 @@ namespace Sigbits\Amqp\Engine;
 enum SenderLinkEvent
 {
     case LinkAttached;
+    case LinkCreditUpdated;
     case LinkDetached;
 }
