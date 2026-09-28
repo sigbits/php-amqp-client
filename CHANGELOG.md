@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Byte-driven AMQP session engine for BEGIN and END lifecycle frames.
 - Minimal AMQP BEGIN and END performative encode/decode foundation.
 
 ## v0.0.1 - 2026-09-28
