@@ -17,4 +17,9 @@ final class TransportException extends RuntimeException
     {
         return new self('AMQP connection URI requires a host.');
     }
+
+    public static function connectionFailed(string $target, string $reason): self
+    {
+        return new self(sprintf('Could not open AMQP stream %s: %s', $target, $reason));
+    }
 }
