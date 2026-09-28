@@ -10,6 +10,7 @@ must have release notes in this file before the tag is created.
 ### Added
 
 - AMQP SASL init encode/decode foundation for ANONYMOUS and PLAIN credentials.
+- Transport-independent SASL client negotiator for ANONYMOUS and PLAIN mechanisms.
 - AMQP SASL mechanisms encode/decode foundation for offered server mechanisms.
 - AMQP SASL outcome encode/decode foundation for OK and failure responses.
 
