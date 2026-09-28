@@ -18,6 +18,11 @@ final class MessageException extends RuntimeException
         return new self('AMQP message body must use vbin8 data encoding.');
     }
 
+    public static function unsupportedAmqpValueEncoding(): self
+    {
+        return new self('AMQP value body must use string8 encoding.');
+    }
+
     public static function truncatedDataBody(): self
     {
         return new self('Truncated AMQP data body section.');

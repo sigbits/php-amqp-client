@@ -12,6 +12,7 @@ final class MessageCodec
     private const string PROPERTIES_DESCRIPTOR = "\x00\x53\x73";
     private const string APPLICATION_PROPERTIES_DESCRIPTOR = "\x00\x53\x74";
     private const string DATA_DESCRIPTOR = "\x00\x53\x75";
+    private const string AMQP_VALUE_DESCRIPTOR = "\x00\x53\x77";
     private const string FOOTER_DESCRIPTOR = "\x00\x53\x78";
     private const int HEADER_DESCRIPTOR_LENGTH = 3;
     private const int DELIVERY_ANNOTATIONS_DESCRIPTOR_LENGTH = 3;
@@ -19,6 +20,7 @@ final class MessageCodec
     private const int PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int APPLICATION_PROPERTIES_DESCRIPTOR_LENGTH = 3;
     private const int DATA_DESCRIPTOR_LENGTH = 3;
+    private const int AMQP_VALUE_DESCRIPTOR_LENGTH = 3;
     private const int FOOTER_DESCRIPTOR_LENGTH = 3;
     private const int CONSTRUCTOR_BOOL = 0x56;
     private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
@@ -57,10 +59,16 @@ final class MessageCodec
             $sections .= $this->encodeApplicationProperties($message->applicationProperties);
         }
 
-        $sections .= self::DATA_DESCRIPTOR
-            . chr(self::CONSTRUCTOR_VBIN8)
-            . chr(strlen($message->body))
-            . $message->body;
+        $sections .= match ($message->bodySection) {
+            MessageBodySection::Data => self::DATA_DESCRIPTOR
+                . chr(self::CONSTRUCTOR_VBIN8)
+                . chr(strlen($message->body))
+                . $message->body,
+            MessageBodySection::AmqpValue => self::AMQP_VALUE_DESCRIPTOR
+                . chr(self::CONSTRUCTOR_STRING8)
+                . chr(strlen($message->body))
+                . $message->body,
+        };
 
         if ($message->footer !== []) {
             $sections .= $this->encodeFooter($message->footer);
@@ -106,14 +114,27 @@ final class MessageCodec
             throw MessageException::truncatedDataBody();
         }
 
-        if (substr($bytes, $cursor, self::DATA_DESCRIPTOR_LENGTH) !== self::DATA_DESCRIPTOR) {
+        $bodySection = MessageBodySection::Data;
+        $bodyDescriptor = substr($bytes, $cursor, self::DATA_DESCRIPTOR_LENGTH);
+
+        if ($bodyDescriptor !== self::DATA_DESCRIPTOR && $bodyDescriptor !== self::AMQP_VALUE_DESCRIPTOR) {
             throw MessageException::expectedDataBodyDescriptor();
         }
 
-        $cursor += self::DATA_DESCRIPTOR_LENGTH;
+        if ($bodyDescriptor === self::AMQP_VALUE_DESCRIPTOR) {
+            $bodySection = MessageBodySection::AmqpValue;
+        }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_VBIN8) {
+        $cursor += $bodySection === MessageBodySection::Data
+            ? self::DATA_DESCRIPTOR_LENGTH
+            : self::AMQP_VALUE_DESCRIPTOR_LENGTH;
+
+        if ($bodySection === MessageBodySection::Data && ord($bytes[$cursor]) !== self::CONSTRUCTOR_VBIN8) {
             throw MessageException::unsupportedDataBodyEncoding();
+        }
+
+        if ($bodySection === MessageBodySection::AmqpValue && ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
+            throw MessageException::unsupportedAmqpValueEncoding();
         }
 
         ++$cursor;
@@ -139,6 +160,7 @@ final class MessageCodec
 
         return new Message(
             body: $body,
+            bodySection: $bodySection,
             header: $header,
             deliveryAnnotations: $deliveryAnnotations,
             messageAnnotations: $messageAnnotations,
