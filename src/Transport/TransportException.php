@@ -28,6 +28,11 @@ final class TransportException extends RuntimeException
         return new self('Unexpected end of AMQP stream.');
     }
 
+    public static function readTimedOut(): self
+    {
+        return new self('Timed out waiting for AMQP stream bytes.');
+    }
+
     public static function writeFailed(): self
     {
         return new self('Could not write complete AMQP stream payload.');

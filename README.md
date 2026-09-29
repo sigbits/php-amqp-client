@@ -42,6 +42,17 @@ Current limitations:
   Broker-J and ActiveMQ Artemis, and DATA message round-trip behavior through
   ActiveMQ Artemis.
 
+## Public API Semantics
+
+`Connection::connect($uri, timeoutSeconds: ...)` uses the timeout for opening
+the stream and for blocking protocol reads on the public connection, session,
+sender, and receiver paths.
+
+Blocking protocol reads throw `TransportException` when the stream times out,
+when the peer closes the stream unexpectedly, or when a complete payload cannot
+be written. `Receiver::receive($timeoutMilliseconds)` returns `null` when no
+message arrives before its receive deadline.
+
 ## Development
 
 Development commands must run inside Docker:

@@ -36,6 +36,7 @@ final class Connection
             $saslClient ?? self::saslClientFromUri($connectionUri),
             $timeoutSeconds,
         );
+        self::setReadTimeout($stream, $timeoutSeconds);
         $engine = new ConnectionEngine(localContainerId: $containerId);
         $connection = new self($stream, $engine);
 
@@ -86,6 +87,17 @@ final class Connection
     }
 
     /**
+     * @param resource $stream
+     */
+    private static function setReadTimeout(mixed $stream, float $timeoutSeconds): void
+    {
+        $seconds = (int) floor($timeoutSeconds);
+        $microseconds = (int) (($timeoutSeconds - $seconds) * 1_000_000);
+
+        stream_set_timeout($stream, $seconds, $microseconds);
+    }
+
+    /**
      * @param list<string> $frames
      */
     private function writeAll(array $frames): void
@@ -129,6 +141,12 @@ final class Connection
             $chunk = fread($this->stream, $length - strlen($bytes));
 
             if ($chunk === false || $chunk === '') {
+                $metadata = stream_get_meta_data($this->stream);
+
+                if ($metadata['timed_out'] === true) {
+                    throw TransportException::readTimedOut();
+                }
+
                 throw TransportException::unexpectedEndOfStream();
             }
 

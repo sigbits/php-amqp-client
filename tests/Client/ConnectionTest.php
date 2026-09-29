@@ -14,6 +14,7 @@ use Sigbits\Amqp\Protocol\Message\Message;
 use Sigbits\Amqp\Transport\SaslStreamAuthenticator;
 use Sigbits\Amqp\Transport\SaslStreamConnector;
 use Sigbits\Amqp\Transport\StreamConnector;
+use Sigbits\Amqp\Transport\TransportException;
 
 final class ConnectionTest extends TestCase
 {
@@ -35,6 +36,27 @@ final class ConnectionTest extends TestCase
 
         self::assertSame(ConnectionState::Opened, $connection->state());
         self::assertStringContainsString('PLAIN', $this->readAvailable($server));
+    }
+
+    public function testConnectReportsReadTimeout(): void
+    {
+        [$client, $server] = $this->streamPair();
+        stream_set_timeout($client, 0, 1_000);
+        fwrite($server, $this->serverGreetingWithoutOpen());
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+
+        $this->expectException(TransportException::class);
+        $this->expectExceptionMessage('Timed out waiting for AMQP stream bytes.');
+
+        Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 0.001,
+            connector: $connector,
+        );
     }
 
     public function testCloseEmitsAmqpCloseFrameAndClosesStream(): void
@@ -271,14 +293,19 @@ final class ConnectionTest extends TestCase
 
     private function serverGreeting(): string
     {
+        return $this->serverGreetingWithoutOpen()
+            . $this->frame("\x00\x53\x10\xc0\x09\x01\xa1\x06server");
+    }
+
+    private function serverGreetingWithoutOpen(): string
+    {
         return "AMQP\x03\x01\x00\x00"
             . $this->frame(
                 "\x00\x53\x40\xc0\x15\x01\xe0\x12\x02\xa3\x09ANONYMOUS\x05PLAIN",
                 type: 1,
             )
             . $this->frame("\x00\x53\x44\xc0\x03\x01\x50\x00", type: 1)
-            . "AMQP\x00\x01\x00\x00"
-            . $this->frame("\x00\x53\x10\xc0\x09\x01\xa1\x06server");
+            . "AMQP\x00\x01\x00\x00";
     }
 
     private function beginFrame(int $channel): string
