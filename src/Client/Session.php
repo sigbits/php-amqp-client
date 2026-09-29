@@ -50,6 +50,7 @@ final class Session
             name: $name,
             handle: $handle,
             targetAddress: $address,
+            sourceAddress: $address,
         );
 
         ($this->writeAll)($engine->attach());
