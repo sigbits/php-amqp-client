@@ -109,6 +109,35 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
+    public function testPublicReceiverReceivesMessageAgainstQpid(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $address = 'sigbits.public.receiver.' . bin2hex(random_bytes(4));
+        $this->createQpidQueue($address);
+
+        $connection = Connection::connect(getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address);
+
+        $sender->send('hello qpid receiver');
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect(getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $message = $receiver->receive(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($message);
+        self::assertSame('hello qpid receiver', $message->body);
+
+        $session->end();
+        $connection->close();
+    }
+
     public function testPublicReceiverAcceptsDeliveryAgainstArtemis(): void
     {
         if (getenv('RUN_BROKER_TESTS') !== '1') {

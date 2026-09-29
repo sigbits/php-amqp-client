@@ -56,7 +56,11 @@ final class Session
         ($this->writeAll)($engine->attach());
 
         while ($engine->state() !== SenderLinkState::Attached || $engine->availableCredit() <= 0) {
-            $engine->push(($this->readFrame)());
+            $frame = ($this->readFrame)();
+
+            if ($this->isAttach($frame) || $this->isDetach($frame) || $this->isFlow($frame)) {
+                $engine->push($frame);
+            }
 
             if ($engine->state() === SenderLinkState::Detached) {
                 throw ClientException::senderLinkDetachedDuringOpen($engine->lastRemoteDetachError());
@@ -73,12 +77,17 @@ final class Session
             name: $name,
             handle: $handle,
             sourceAddress: $address,
+            targetAddress: $address,
         );
 
         ($this->writeAll)($engine->attach());
 
         while ($engine->state() !== ReceiverLinkState::Attached) {
-            $engine->push(($this->readFrame)());
+            $frame = ($this->readFrame)();
+
+            if ($this->isAttach($frame) || $this->isDetach($frame)) {
+                $engine->push($frame);
+            }
 
             if ($engine->state() === ReceiverLinkState::Detached) {
                 throw ClientException::receiverLinkDetachedDuringOpen($engine->lastRemoteDetachError());
@@ -109,5 +118,20 @@ final class Session
                 $this->engine->push($frame);
             }
         }
+    }
+
+    private function isAttach(string $frame): bool
+    {
+        return substr($frame, 8, 3) === "\x00\x53\x12";
+    }
+
+    private function isFlow(string $frame): bool
+    {
+        return substr($frame, 8, 3) === "\x00\x53\x13";
+    }
+
+    private function isDetach(string $frame): bool
+    {
+        return substr($frame, 8, 3) === "\x00\x53\x16";
     }
 }

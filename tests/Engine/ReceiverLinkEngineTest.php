@@ -52,6 +52,30 @@ final class ReceiverLinkEngineTest extends TestCase
         );
     }
 
+    public function testAttachCanIncludeSourceAndTargetAddress(): void
+    {
+        $engine = new ReceiverLinkEngine(
+            sessionChannel: 1,
+            name: 'receiver',
+            handle: 0,
+            sourceAddress: 'orders.test',
+            targetAddress: 'orders.test',
+        );
+
+        self::assertSame(
+            [
+                "\x00\x00\x00\x46\x02\x00\x00\x01"
+                . "\x00\x53\x12\xc0\x39\x07\xa1\x08receiver"
+                . "\x70\x00\x00\x00\x00"
+                . "\x41"
+                . "\x40\x40"
+                . "\x00\x53\x28\xc0\x0e\x01\xa1\x0borders.test"
+                . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test",
+            ],
+            $engine->attach(),
+        );
+    }
+
     public function testRemoteSenderAttachTransitionsLinkToAttached(): void
     {
         $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);

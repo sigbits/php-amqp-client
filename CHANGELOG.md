@@ -13,11 +13,13 @@ must have release notes in this file before the tag is created.
 - Public `Sender::detach()` and `Receiver::detach()` lifecycle methods with clear client exceptions for post-detach send/receive attempts.
 - Deterministic public client exceptions when a remote peer detaches a sender or receiver link while it is opening.
 - Broker integration coverage for public DATA message sending through Qpid Broker-J with an explicitly created test queue.
+- Broker integration coverage for public DATA message receiving through Qpid Broker-J with an explicitly created test queue.
 - Public link-open exceptions now include remote AMQP DETACH error condition and description when the peer supplies them.
 
 ### Fixed
 
 - Public sender attach now includes a source terminus as well as a target terminus, allowing Qpid Broker-J to accept the sender link.
+- Public receiver attach now includes a source terminus and target terminus, allowing Qpid Broker-J to accept the receiver link and deliver queued messages.
 - DETACH decoding now accepts compact AMQP uint encodings such as `uint0` handles sent by Qpid Broker-J.
 
 ## v0.5.0 - 2026-09-29
