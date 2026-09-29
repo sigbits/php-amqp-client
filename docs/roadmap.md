@@ -63,6 +63,8 @@ installable through Composer.
   against ActiveMQ Artemis and Qpid Broker-J.
 - Repeated public send, receive, and accepted-delivery settlement cycles
   against ActiveMQ Artemis and Qpid Broker-J.
+- Bounded receiver credit-window cycles with public credit replenishment against
+  ActiveMQ Artemis and Qpid Broker-J.
 - Repeated reconnect send, receive, and accepted-delivery settlement cycles
   against ActiveMQ Artemis and Qpid Broker-J.
 - Fragmented large DATA message round trips against ActiveMQ Artemis and Qpid

@@ -35,6 +35,7 @@ The current development line supports:
 - Documented public timeout, lifecycle, and transport error semantics.
 - Public receiver delivery settlement through accepted, released, and rejected
   outcomes.
+- Public receiver credit replenishment for bounded-credit worker loops.
 
 Current limitations:
 
@@ -76,6 +77,9 @@ details are included in the exception message.
 `Receiver::receiveDelivery()` when the application needs to explicitly settle a
 delivery with `accept()`, `release()`, or `reject()`.
 
+Use `Receiver::grantCredit($credit)` to replenish receiver link credit after
+consuming deliveries in bounded-credit worker loops.
+
 ## Development
 
 Development commands must run inside Docker:
@@ -103,8 +107,8 @@ make broker-down
 
 Long-running worker hardening tests are opt-in and also use the broker
 containers. They cover repeated public lifecycle cycles, repeated public send,
-receive, and accepted-delivery settlement cycles, repeated reconnect message
-cycles, and fragmented large DATA messages:
+receive, and accepted-delivery settlement cycles, bounded receiver credit
+windows, repeated reconnect message cycles, and fragmented large DATA messages:
 
 ```sh
 make test-long
@@ -113,6 +117,8 @@ make broker-down
 
 Tune the default 100 lifecycle cycles with `LONG_TEST_CYCLES`, and tune the
 default 8 MiB memory-growth threshold with `LONG_TEST_MAX_MEMORY_GROWTH_BYTES`.
+Tune credit-window coverage with `LONG_TEST_CREDIT_CYCLES` and
+`LONG_TEST_CREDIT_WINDOW`.
 Tune large-message coverage with `LONG_TEST_LARGE_MESSAGE_CYCLES` and
 `LONG_TEST_LARGE_MESSAGE_BYTES`. Tune reconnect coverage with
 `LONG_TEST_RECONNECT_CYCLES`.

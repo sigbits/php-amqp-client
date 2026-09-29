@@ -12,6 +12,8 @@ use Sigbits\Amqp\Protocol\Message\Message;
 
 final class Receiver
 {
+    private int $receivedDeliveryCount = 0;
+
     /**
      * @param callable(int): ?string $read
      * @param null|callable(list<string>): void $writeAll
@@ -76,6 +78,22 @@ final class Receiver
         return null;
     }
 
+    public function grantCredit(int $credit): void
+    {
+        if ($this->link->state() === ReceiverLinkState::Detached) {
+            throw ClientException::receiverLinkDetached();
+        }
+
+        if ($this->writeAll === null) {
+            return;
+        }
+
+        ($this->writeAll)($this->link->grantCredit(
+            deliveryCount: $this->receivedDeliveryCount,
+            linkCredit: $credit,
+        ));
+    }
+
     public function detach(): void
     {
         if ($this->link->state() === ReceiverLinkState::Detached) {
@@ -106,6 +124,8 @@ final class Receiver
 
     private function delivery(ReceivedDelivery $delivery): Delivery
     {
+        ++$this->receivedDeliveryCount;
+
         return new Delivery(
             deliveryId: $delivery->deliveryId,
             message: $delivery->message,

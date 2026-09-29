@@ -11,6 +11,8 @@ must have release notes in this file before the tag is created.
 
 - Opt-in long-running worker hardening test harness for repeated public connection, session, sender, and receiver lifecycle cycles against ActiveMQ Artemis and Qpid Broker-J.
 - Long-running worker hardening coverage for repeated public send, receive, and accepted-delivery settlement cycles against ActiveMQ Artemis and Qpid Broker-J.
+- Public receiver credit replenishment with `Receiver::grantCredit()`.
+- Long-running worker hardening coverage for draining messages in bounded receiver credit windows against ActiveMQ Artemis and Qpid Broker-J.
 - Long-running worker hardening coverage for fragmented large DATA messages against ActiveMQ Artemis and Qpid Broker-J.
 - Long-running worker hardening coverage for repeated reconnect send, receive, and accepted-delivery settlement cycles against ActiveMQ Artemis and Qpid Broker-J.
 - AMQP DATA body encode/decode support for `vbin32` payloads larger than 255 bytes.
