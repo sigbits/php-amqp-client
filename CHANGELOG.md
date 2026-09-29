@@ -7,8 +7,12 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+## v0.3.0 - 2026-09-29
+
 ### Added
 
+- TLS-capable AMQP stream connection support through PHP stream contexts and `amqps://` URIs.
+- SASL ANONYMOUS and PLAIN negotiation over AMQP streams.
 - AMQP message header encode/decode support for durable, priority, and TTL fields.
 - AMQP delivery annotations encode/decode support for symbol keys and string values.
 - AMQP message annotations encode/decode support for symbol keys and string values.
@@ -27,6 +31,11 @@ must have release notes in this file before the tag is created.
 - AMQP application properties encode/decode support for string keys and string values.
 - Docker broker integration test matrix for Apache Qpid Broker-J and Apache ActiveMQ Artemis AMQP 1.0 handshakes.
 - Apache ActiveMQ Artemis integration test that round-trips a DATA message through a broker address.
+
+### Notes
+
+- Message map support is intentionally constrained to symbol/string keys and string values.
+- Broker interoperability coverage includes connection handshakes against Qpid Broker-J and ActiveMQ Artemis, plus a DATA message round trip through ActiveMQ Artemis.
 
 ## v0.2.0 - 2026-09-28
 

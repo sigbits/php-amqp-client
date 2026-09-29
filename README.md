@@ -9,8 +9,36 @@ later driven by blocking streams or async transports.
 
 ## Status
 
-This project is in early development. The first implementation focus is the
-AMQP 1.0 binary codec, frame parser, and protocol engine foundation.
+This project is in early development. The current release line includes the
+protocol engine foundation, sender and receiver link engines, synchronous PHP
+stream transport, TLS stream setup, SASL ANONYMOUS/PLAIN negotiation, and
+practical AMQP message section encoding.
+
+The public developer API is not stable yet. Stable connection, session, sender,
+and receiver APIs are planned for the `v0.5.0` milestone.
+
+## Supported Surface
+
+`v0.3.0` supports:
+
+- PHP 8.3 and newer.
+- `amqp://` TCP streams and `amqps://` TLS streams through PHP stream contexts.
+- SASL ANONYMOUS and PLAIN.
+- AMQP 1.0 protocol header, frame parsing, OPEN/CLOSE, BEGIN/END, ATTACH/DETACH,
+  FLOW, TRANSFER, and DISPOSITION foundations.
+- Message DATA, AMQP value, and AMQP sequence body sections.
+- Header, properties, delivery annotations, message annotations, application
+  properties, and footer sections for practical string-oriented messages.
+
+Current limitations:
+
+- Message map support is intentionally constrained to symbol/string keys and
+  string values.
+- The high-level developer API is still minimal; most behavior is exposed
+  through protocol and engine classes.
+- Broker interoperability coverage currently proves handshakes against Qpid
+  Broker-J and ActiveMQ Artemis, and DATA message round-trip behavior through
+  ActiveMQ Artemis.
 
 ## Development
 
