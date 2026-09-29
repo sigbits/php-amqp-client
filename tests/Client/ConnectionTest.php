@@ -234,6 +234,37 @@ final class ConnectionTest extends TestCase
         $session->openSender('orders.test', name: 'sender', handle: 0);
     }
 
+    public function testOpenSenderReportsRemoteDetachErrorDetails(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteSenderAttachFrame(channel: 1)
+            . $this->detachFrameWithError(channel: 1, handle: 0),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 0.001,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage(
+            'Cannot open AMQP sender link because the remote peer detached it: '
+            . 'amqp:invalid-field - received Attach with remote null terminus.',
+        );
+
+        $session->openSender('orders.test', name: 'sender', handle: 0);
+    }
+
     public function testSenderSendEmitsTransferAfterCreditArrives(): void
     {
         [$client, $server] = $this->streamPair();
@@ -380,6 +411,36 @@ final class ConnectionTest extends TestCase
 
         $this->expectException(ClientException::class);
         $this->expectExceptionMessage('Cannot open AMQP receiver link because the remote peer detached it.');
+
+        $session->openReceiver('orders.test', name: 'receiver', handle: 1);
+    }
+
+    public function testOpenReceiverReportsRemoteDetachErrorDetails(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->detachFrameWithError(channel: 1, handle: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 0.001,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage(
+            'Cannot open AMQP receiver link because the remote peer detached it: '
+            . 'amqp:invalid-field - received Attach with remote null terminus.',
+        );
 
         $session->openReceiver('orders.test', name: 'receiver', handle: 1);
     }
@@ -556,6 +617,19 @@ final class ConnectionTest extends TestCase
         return $this->frame(
             "\x00\x53\x16\xc0\x06\x01"
             . "\x70" . pack('N', $handle),
+            channel: $channel,
+        );
+    }
+
+    private function detachFrameWithError(int $channel, int $handle): string
+    {
+        return $this->frame(
+            "\x00\x53\x16\xc0\x4d\x03"
+            . "\x70" . pack('N', $handle)
+            . "\x41"
+            . "\x00\x53\x1d\xc0\x41\x02"
+            . "\xa3\x12amqp:invalid-field"
+            . "\xa1\x2areceived Attach with remote null terminus.",
             channel: $channel,
         );
     }

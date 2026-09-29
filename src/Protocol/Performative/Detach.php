@@ -10,6 +10,8 @@ final readonly class Detach
 {
     public function __construct(
         public int $handle,
+        public ?bool $closed = null,
+        public ?PerformativeError $error = null,
     ) {
         new UInt($handle);
     }

@@ -12,9 +12,16 @@ final class DetachCodec
     private const int DESCRIPTOR_LENGTH = 3;
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
+    private const int CONSTRUCTOR_NULL = 0x40;
+    private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
+    private const int CONSTRUCTOR_BOOL_FALSE = 0x42;
+    private const int CONSTRUCTOR_BOOL = 0x56;
     private const int CONSTRUCTOR_UINT0 = 0x43;
     private const int CONSTRUCTOR_SMALLUINT = 0x52;
     private const int CONSTRUCTOR_UINT = 0x70;
+    private const int CONSTRUCTOR_STR8 = 0xa1;
+    private const int CONSTRUCTOR_SYM8 = 0xa3;
+    private const string ERROR_DESCRIPTOR = "\x00\x53\x1d";
 
     public function encode(Detach $detach): string
     {
@@ -69,9 +76,11 @@ final class DetachCodec
             throw PerformativeException::truncatedDetach();
         }
 
-        [$handle] = $this->decodeUInt($bytes, $cursor, $listEnd);
+        [$handle, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
+        [$closed, $cursor] = $this->decodeOptionalBool($bytes, $cursor, $listEnd, $fieldCount >= 2);
+        $error = $fieldCount >= 3 && $cursor < $listEnd ? $this->decodeError($bytes, $cursor, $listEnd) : null;
 
-        return new Detach(handle: $handle);
+        return new Detach(handle: $handle, closed: $closed, error: $error);
     }
 
     private function encodeUInt(int $value): string
@@ -118,5 +127,136 @@ final class DetachCodec
             | ord($bytes[$cursor + 3]),
             $cursor + 4,
         ];
+    }
+
+    /**
+     * @return array{0: ?bool, 1: int}
+     */
+    private function decodeOptionalBool(string $bytes, int $cursor, int $listEnd, bool $present): array
+    {
+        if (!$present || $cursor >= $listEnd) {
+            return [null, $cursor];
+        }
+
+        $constructor = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($constructor === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor];
+        }
+
+        if ($constructor === self::CONSTRUCTOR_BOOL_TRUE) {
+            return [true, $cursor];
+        }
+
+        if ($constructor === self::CONSTRUCTOR_BOOL_FALSE) {
+            return [false, $cursor];
+        }
+
+        if ($constructor !== self::CONSTRUCTOR_BOOL) {
+            throw PerformativeException::truncatedDetach();
+        }
+
+        if ($cursor >= $listEnd) {
+            throw PerformativeException::truncatedDetach();
+        }
+
+        return [ord($bytes[$cursor]) !== 0, $cursor + 1];
+    }
+
+    private function decodeError(string $bytes, int $cursor, int $listEnd): ?PerformativeError
+    {
+        if ($cursor >= $listEnd) {
+            return null;
+        }
+
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
+            return null;
+        }
+
+        if ($cursor + self::DESCRIPTOR_LENGTH > $listEnd || substr($bytes, $cursor, self::DESCRIPTOR_LENGTH) !== self::ERROR_DESCRIPTOR) {
+            throw PerformativeException::truncatedDetach();
+        }
+
+        $cursor += self::DESCRIPTOR_LENGTH;
+
+        if ($cursor >= $listEnd || ord($bytes[$cursor]) !== self::CONSTRUCTOR_LIST8) {
+            throw PerformativeException::truncatedDetach();
+        }
+
+        ++$cursor;
+
+        if ($cursor + 2 > $listEnd) {
+            throw PerformativeException::truncatedDetach();
+        }
+
+        $errorListSize = ord($bytes[$cursor]);
+        ++$cursor;
+        $errorFieldCount = ord($bytes[$cursor]);
+        ++$cursor;
+        $errorListEnd = $cursor + $errorListSize - 1;
+
+        if ($errorFieldCount < 1 || $errorListEnd > $listEnd || strlen($bytes) < $errorListEnd) {
+            throw PerformativeException::truncatedDetach();
+        }
+
+        [$condition, $cursor] = $this->decodeSymbol($bytes, $cursor, $errorListEnd);
+        [$description] = $this->decodeOptionalString($bytes, $cursor, $errorListEnd, $errorFieldCount >= 2);
+
+        return new PerformativeError(condition: $condition, description: $description);
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeSymbol(string $bytes, int $cursor, int $listEnd): array
+    {
+        if ($cursor >= $listEnd || ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYM8) {
+            throw PerformativeException::truncatedDetach();
+        }
+
+        return $this->decodeVariableString($bytes, $cursor + 1, $listEnd);
+    }
+
+    /**
+     * @return array{0: ?string, 1: int}
+     */
+    private function decodeOptionalString(string $bytes, int $cursor, int $listEnd, bool $present): array
+    {
+        if (!$present || $cursor >= $listEnd) {
+            return [null, $cursor];
+        }
+
+        $constructor = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($constructor === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor];
+        }
+
+        if ($constructor !== self::CONSTRUCTOR_STR8) {
+            throw PerformativeException::truncatedDetach();
+        }
+
+        return $this->decodeVariableString($bytes, $cursor, $listEnd);
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function decodeVariableString(string $bytes, int $cursor, int $listEnd): array
+    {
+        if ($cursor >= $listEnd) {
+            throw PerformativeException::truncatedDetach();
+        }
+
+        $length = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($cursor + $length > $listEnd) {
+            throw PerformativeException::truncatedDetach();
+        }
+
+        return [substr($bytes, $cursor, $length), $cursor + $length];
     }
 }

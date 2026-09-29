@@ -16,6 +16,7 @@ use Sigbits\Amqp\Protocol\Performative\Detach;
 use Sigbits\Amqp\Protocol\Performative\DetachCodec;
 use Sigbits\Amqp\Protocol\Performative\FlowCodec;
 use Sigbits\Amqp\Protocol\Performative\LinkRole;
+use Sigbits\Amqp\Protocol\Performative\PerformativeError;
 use Sigbits\Amqp\Protocol\Performative\Transfer;
 use Sigbits\Amqp\Protocol\Performative\TransferCodec;
 
@@ -24,6 +25,7 @@ final class SenderLinkEngine
     private SenderLinkState $state = SenderLinkState::Idle;
     private int $nextDeliveryId = 0;
     private int $availableCredit = 0;
+    private ?PerformativeError $lastRemoteDetachError = null;
 
     public function __construct(
         private readonly int $sessionChannel,
@@ -48,6 +50,11 @@ final class SenderLinkEngine
     public function availableCredit(): int
     {
         return $this->availableCredit;
+    }
+
+    public function lastRemoteDetachError(): ?PerformativeError
+    {
+        return $this->lastRemoteDetachError;
     }
 
     public function claimCredit(): int
@@ -181,7 +188,8 @@ final class SenderLinkEngine
         }
 
         if (str_starts_with($frame->payload, "\x00\x53\x16")) {
-            $this->detachCodec->decode($frame->payload);
+            $detach = $this->detachCodec->decode($frame->payload);
+            $this->lastRemoteDetachError = $detach->error;
             $this->state = SenderLinkState::Detached;
 
             return [SenderLinkEvent::LinkDetached];

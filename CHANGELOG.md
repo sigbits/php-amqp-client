@@ -13,6 +13,7 @@ must have release notes in this file before the tag is created.
 - Public `Sender::detach()` and `Receiver::detach()` lifecycle methods with clear client exceptions for post-detach send/receive attempts.
 - Deterministic public client exceptions when a remote peer detaches a sender or receiver link while it is opening.
 - Broker integration coverage for Qpid Broker-J sender attach rejection during the current unmanaged target-address flow.
+- Public link-open exceptions now include remote AMQP DETACH error condition and description when the peer supplies them.
 
 ### Fixed
 

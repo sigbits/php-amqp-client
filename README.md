@@ -67,7 +67,9 @@ throws `ClientException` with a link-specific message.
 
 If a peer detaches a link while `Session::openSender()` or
 `Session::openReceiver()` is still opening it, the public API throws
-`ClientException` instead of continuing to read until a stream timeout.
+`ClientException` instead of continuing to read until a stream timeout. When the
+peer includes an AMQP error condition and description on the DETACH, those
+details are included in the exception message.
 
 `Receiver::receive()` returns only the decoded message. Use
 `Receiver::receiveDelivery()` when the application needs to explicitly settle a

@@ -35,17 +35,20 @@ final class DetachCodecTest extends TestCase
     {
         $codec = new DetachCodec();
 
-        self::assertEquals(
-            new Detach(handle: 0),
-            $codec->decode(
-                "\x00\x53\x16\xc0\x49\x03"
-                . "\x43"
-                . "\x41"
-                . "\x00\x53\x1d\xc0\x41\x02"
-                . "\xa3\x12amqp:invalid-field"
-                . "\xa1\x2areceived Attach with remote null terminus.",
-            ),
+        $detach = $codec->decode(
+            "\x00\x53\x16\xc0\x49\x03"
+            . "\x43"
+            . "\x41"
+            . "\x00\x53\x1d\xc0\x41\x02"
+            . "\xa3\x12amqp:invalid-field"
+            . "\xa1\x2areceived Attach with remote null terminus.",
         );
+
+        self::assertSame(0, $detach->handle);
+        self::assertTrue($detach->closed);
+        self::assertNotNull($detach->error);
+        self::assertSame('amqp:invalid-field', $detach->error->condition);
+        self::assertSame('received Attach with remote null terminus.', $detach->error->description);
     }
 
     public function testRejectsWrongDescriptor(): void
