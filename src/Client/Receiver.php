@@ -6,6 +6,7 @@ namespace Sigbits\Amqp\Client;
 
 use Closure;
 use Sigbits\Amqp\Engine\ReceiverLinkEngine;
+use Sigbits\Amqp\Engine\ReceiverLinkState;
 use Sigbits\Amqp\Protocol\Message\Message;
 
 final class Receiver
@@ -24,6 +25,11 @@ final class Receiver
      * @var Closure(int): ?string
      */
     private readonly Closure $read;
+
+    public function state(): ReceiverLinkState
+    {
+        return $this->link->state();
+    }
 
     public function receive(int $timeoutMilliseconds): ?Message
     {

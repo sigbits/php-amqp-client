@@ -7,8 +7,10 @@ namespace Sigbits\Amqp\Tests\Client;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Client\Connection;
 use Sigbits\Amqp\Engine\ConnectionState;
+use Sigbits\Amqp\Engine\ReceiverLinkState;
 use Sigbits\Amqp\Engine\SenderLinkState;
 use Sigbits\Amqp\Engine\SessionState;
+use Sigbits\Amqp\Protocol\Message\Message;
 use Sigbits\Amqp\Transport\SaslStreamAuthenticator;
 use Sigbits\Amqp\Transport\SaslStreamConnector;
 use Sigbits\Amqp\Transport\StreamConnector;
@@ -162,6 +164,64 @@ final class ConnectionTest extends TestCase
         self::assertSame($this->transferFrame(channel: 1, body: 'hello'), $this->readAvailable($server));
     }
 
+    public function testOpenReceiverAttachesPublicReceiverAndGrantsCredit(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteReceiverAttachFrame(channel: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $this->readAvailable($server);
+
+        $receiver = $session->openReceiver('orders.test', name: 'receiver', handle: 1, credit: 2);
+
+        self::assertSame(ReceiverLinkState::Attached, $receiver->state());
+        self::assertSame(
+            $this->receiverAttachFrame(channel: 1) . $this->receiverCreditFrame(channel: 1, handle: 1, linkCredit: 2),
+            $this->readAvailable($server),
+        );
+    }
+
+    public function testReceiverReceiveReadsTransferMessage(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteReceiverAttachFrame(channel: 1)
+            . $this->transferFrame(channel: 1, body: 'hello'),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $receiver = $session->openReceiver('orders.test', name: 'receiver', handle: 1);
+        $this->readAvailable($server);
+
+        self::assertEquals(new Message(body: 'hello'), $receiver->receive(timeoutMilliseconds: 100));
+    }
+
     public function testEndSessionIgnoresLinkFramesBeforeRemoteEnd(): void
     {
         [$client, $server] = $this->streamPair();
@@ -283,6 +343,44 @@ final class ConnectionTest extends TestCase
             . "\x40"
             . "\x42"
             . "\x00\x53\x75\xa0" . chr(strlen($body)) . $body,
+            channel: $channel,
+        );
+    }
+
+    private function receiverAttachFrame(int $channel): string
+    {
+        return $this->frame(
+            "\x00\x53\x12\xc0\x27\x07\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x01"
+            . "\x41"
+            . "\x40\x40"
+            . "\x00\x53\x28\xc0\x0e\x01\xa1\x0borders.test"
+            . "\x40",
+            channel: $channel,
+        );
+    }
+
+    private function remoteReceiverAttachFrame(int $channel): string
+    {
+        return $this->frame(
+            "\x00\x53\x12\xc0\x11\x03\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x01"
+            . "\x42",
+            channel: $channel,
+        );
+    }
+
+    private function receiverCreditFrame(int $channel, int $handle, int $linkCredit): string
+    {
+        return $this->frame(
+            "\x00\x53\x13\xc0\x20\x07"
+            . "\x40"
+            . "\x70\x7f\xff\xff\xff"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x7f\xff\xff\xff"
+            . "\x70" . pack('N', $handle)
+            . "\x70\x00\x00\x00\x00"
+            . "\x70" . pack('N', $linkCredit),
             channel: $channel,
         );
     }
