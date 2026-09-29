@@ -78,7 +78,11 @@ final class Session
 
         ($this->writeAll)($engine->grantCredit(deliveryCount: 0, linkCredit: $credit));
 
-        return new Receiver($engine, fn (int $_timeoutMilliseconds): string => ($this->readFrame)());
+        return new Receiver(
+            $engine,
+            fn (int $_timeoutMilliseconds): string => ($this->readFrame)(),
+            $this->writeAll,
+        );
     }
 
     public function end(): void
