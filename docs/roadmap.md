@@ -56,6 +56,13 @@ installable through Composer.
 - Broker coverage for public send, receive, accepted settlement, and link
   detach against ActiveMQ Artemis and Qpid Broker-J.
 
+### v0.7.0: Long-Running Worker Hardening
+
+- Opt-in long-running worker test harness.
+- Repeated public connection, session, sender, and receiver lifecycle cycles
+  against ActiveMQ Artemis and Qpid Broker-J.
+- Basic memory-growth guard for lifecycle-cycle tests.
+
 ### v1.0.0: Production-Oriented Release
 
 - Broad interoperability across Azure Service Bus, RabbitMQ AMQP 1.0, Apache
