@@ -12,6 +12,8 @@ final class DetachCodec
     private const int DESCRIPTOR_LENGTH = 3;
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
+    private const int CONSTRUCTOR_UINT0 = 0x43;
+    private const int CONSTRUCTOR_SMALLUINT = 0x52;
     private const int CONSTRUCTOR_UINT = 0x70;
 
     public function encode(Detach $detach): string
@@ -86,11 +88,24 @@ final class DetachCodec
             throw PerformativeException::truncatedDetach();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_UINT) {
-            throw PerformativeException::missingDetachHandle();
+        $constructor = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($constructor === self::CONSTRUCTOR_UINT0) {
+            return [0, $cursor];
         }
 
-        ++$cursor;
+        if ($constructor === self::CONSTRUCTOR_SMALLUINT) {
+            if ($cursor >= $listEnd) {
+                throw PerformativeException::truncatedDetach();
+            }
+
+            return [ord($bytes[$cursor]), $cursor + 1];
+        }
+
+        if ($constructor !== self::CONSTRUCTOR_UINT) {
+            throw PerformativeException::missingDetachHandle();
+        }
 
         if ($cursor + 4 > $listEnd) {
             throw PerformativeException::truncatedDetach();

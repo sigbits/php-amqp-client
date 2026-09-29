@@ -6,6 +6,7 @@ namespace Sigbits\Amqp\Tests\Integration;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Sigbits\Amqp\Client\ClientException;
 use Sigbits\Amqp\Client\Connection;
 use Sigbits\Amqp\Engine\ConnectionState;
 use Sigbits\Amqp\Engine\SessionState;
@@ -62,6 +63,21 @@ final class PublicConnectionTest extends TestCase
 
         $session->end();
         $connection->close();
+    }
+
+    public function testPublicSenderOpenReportsQpidRemoteDetach(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $connection = Connection::connect(getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('Cannot open AMQP sender link because the remote peer detached it.');
+
+        $session->openSender('sigbits.public.sender.' . bin2hex(random_bytes(4)));
     }
 
     public function testPublicReceiverReceivesMessageAgainstArtemis(): void

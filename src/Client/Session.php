@@ -56,6 +56,10 @@ final class Session
 
         while ($engine->state() !== SenderLinkState::Attached || $engine->availableCredit() <= 0) {
             $engine->push(($this->readFrame)());
+
+            if ($engine->state() === SenderLinkState::Detached) {
+                throw ClientException::senderLinkDetachedDuringOpen();
+            }
         }
 
         return new Sender($engine, $this->writeAll, $this->readFrame);
@@ -74,6 +78,10 @@ final class Session
 
         while ($engine->state() !== ReceiverLinkState::Attached) {
             $engine->push(($this->readFrame)());
+
+            if ($engine->state() === ReceiverLinkState::Detached) {
+                throw ClientException::receiverLinkDetachedDuringOpen();
+            }
         }
 
         ($this->writeAll)($engine->grantCredit(deliveryCount: 0, linkCredit: $credit));
