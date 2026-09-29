@@ -14,6 +14,7 @@ must have release notes in this file before the tag is created.
 - Deterministic public client exceptions when a remote peer detaches a sender or receiver link while it is opening.
 - Broker integration coverage for public DATA message sending through Qpid Broker-J with an explicitly created test queue.
 - Broker integration coverage for public DATA message receiving through Qpid Broker-J with an explicitly created test queue.
+- Broker integration coverage for public accepted-delivery settlement through Qpid Broker-J with an explicitly created test queue.
 - Public link-open exceptions now include remote AMQP DETACH error condition and description when the peer supplies them.
 
 ### Fixed

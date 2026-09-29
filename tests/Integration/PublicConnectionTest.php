@@ -162,6 +162,37 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
+    public function testPublicReceiverAcceptsDeliveryAgainstQpid(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $address = 'sigbits.public.accept.' . bin2hex(random_bytes(4));
+        $this->createQpidQueue($address);
+
+        $connection = Connection::connect(getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address);
+
+        $sender->send('hello qpid accepted delivery');
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect(getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame('hello qpid accepted delivery', $delivery->message()->body);
+
+        $delivery->accept();
+
+        $session->end();
+        $connection->close();
+    }
+
     /**
      * @return array<string, array{string}>
      */
