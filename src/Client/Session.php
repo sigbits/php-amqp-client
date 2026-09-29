@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Client;
 
 use Closure;
+use Sigbits\Amqp\Engine\ReceiverLinkEngine;
+use Sigbits\Amqp\Engine\ReceiverLinkState;
 use Sigbits\Amqp\Engine\SenderLinkEngine;
 use Sigbits\Amqp\Engine\SenderLinkState;
 use Sigbits\Amqp\Engine\SessionEngine;
@@ -57,6 +59,26 @@ final class Session
         }
 
         return new Sender($engine, $this->writeAll, $this->readFrame);
+    }
+
+    public function openReceiver(string $address, string $name = 'receiver', int $handle = 1, int $credit = 1): Receiver
+    {
+        $engine = new ReceiverLinkEngine(
+            sessionChannel: $this->channel,
+            name: $name,
+            handle: $handle,
+            sourceAddress: $address,
+        );
+
+        ($this->writeAll)($engine->attach());
+
+        while ($engine->state() !== ReceiverLinkState::Attached) {
+            $engine->push(($this->readFrame)());
+        }
+
+        ($this->writeAll)($engine->grantCredit(deliveryCount: 0, linkCredit: $credit));
+
+        return new Receiver($engine, fn (int $_timeoutMilliseconds): string => ($this->readFrame)());
     }
 
     public function end(): void
