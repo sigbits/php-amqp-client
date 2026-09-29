@@ -12,16 +12,16 @@ later driven by blocking streams or async transports.
 This project is in early development. The current release line includes the
 protocol engine foundation, sender and receiver link engines, synchronous PHP
 stream transport, TLS stream setup, SASL ANONYMOUS/PLAIN negotiation, and
-practical AMQP message section encoding. The in-progress public API can open
+practical AMQP message section encoding. The public API can open
 connections, begin/end AMQP sessions, send messages, and receive messages.
 
-The public developer API is not stable yet. Timeout semantics, lifecycle
-semantics, and the documented error model are planned for the `v0.5.0`
-milestone.
+The public developer API is still pre-1.0, but the `v0.5.0` release stabilizes
+the synchronous Connection, Session, Sender, and Receiver surface for continued
+iteration.
 
 ## Supported Surface
 
-`v0.3.0` supports:
+`v0.5.0` supports:
 
 - PHP 8.3 and newer.
 - `amqp://` TCP streams and `amqps://` TLS streams through PHP stream contexts.
@@ -31,16 +31,16 @@ milestone.
 - Message DATA, AMQP value, and AMQP sequence body sections.
 - Header, properties, delivery annotations, message annotations, application
   properties, and footer sections for practical string-oriented messages.
+- Public synchronous Connection, Session, Sender, and Receiver APIs.
+- Documented public timeout, lifecycle, and transport error semantics.
 
 Current limitations:
 
 - Message map support is intentionally constrained to symbol/string keys and
   string values.
-- The high-level developer API currently covers opening/closing connections,
-  beginning/ending sessions, sending messages, and receiving messages.
-- Broker interoperability coverage currently proves handshakes against Qpid
-  Broker-J and ActiveMQ Artemis, and DATA message round-trip behavior through
-  ActiveMQ Artemis.
+- Broker interoperability coverage currently proves handshakes and public
+  connection/session lifecycle against Qpid Broker-J and ActiveMQ Artemis, plus
+  DATA message send/receive behavior through ActiveMQ Artemis.
 
 ## Public API Semantics
 
