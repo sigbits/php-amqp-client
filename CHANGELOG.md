@@ -7,6 +7,10 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+### Added
+
+- Public receiver delivery settlement with `Receiver::receiveDelivery()` and delivery `accept()`, `release()`, and `reject()` methods.
+
 ## v0.5.0 - 2026-09-29
 
 ### Added

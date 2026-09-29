@@ -21,7 +21,7 @@ iteration.
 
 ## Supported Surface
 
-`v0.5.0` supports:
+The current development line supports:
 
 - PHP 8.3 and newer.
 - `amqp://` TCP streams and `amqps://` TLS streams through PHP stream contexts.
@@ -33,6 +33,8 @@ iteration.
   properties, and footer sections for practical string-oriented messages.
 - Public synchronous Connection, Session, Sender, and Receiver APIs.
 - Documented public timeout, lifecycle, and transport error semantics.
+- Public receiver delivery settlement through accepted, released, and rejected
+  outcomes.
 
 Current limitations:
 
@@ -56,6 +58,10 @@ message arrives before its receive deadline.
 `Connection::close()` and `Session::end()` are idempotent once their lifecycle
 has completed. The lower-level protocol engines remain strict state machines
 and throw when used out of order.
+
+`Receiver::receive()` returns only the decoded message. Use
+`Receiver::receiveDelivery()` when the application needs to explicitly settle a
+delivery with `accept()`, `release()`, or `reject()`.
 
 ## Development
 

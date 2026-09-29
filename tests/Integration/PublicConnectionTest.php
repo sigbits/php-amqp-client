@@ -86,6 +86,30 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
+    public function testPublicReceiverAcceptsDeliveryAgainstArtemis(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $address = 'sigbits.public.accept.' . bin2hex(random_bytes(4));
+        $connection = Connection::connect(getenv('AMQP_ARTEMIS_URI') ?: 'amqp://guest:guest@artemis:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $sender = $session->openSender($address);
+
+        $sender->send('hello accepted delivery');
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame('hello accepted delivery', $delivery->message()->body);
+
+        $delivery->accept();
+
+        $session->end();
+        $connection->close();
+    }
+
     /**
      * @return array<string, array{string}>
      */

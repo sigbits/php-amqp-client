@@ -28,11 +28,12 @@ final class ReceiverLinkEngine
 
     private ReceiverLinkState $state = ReceiverLinkState::Idle;
     private string $incomingTransferPayload = '';
+    private ?int $incomingTransferDeliveryId = null;
 
     /**
-     * @var list<Message>
+     * @var list<ReceivedDelivery>
      */
-    private array $receivedMessages = [];
+    private array $receivedDeliveries = [];
 
     public function __construct(
         private readonly int $sessionChannel,
@@ -57,7 +58,12 @@ final class ReceiverLinkEngine
 
     public function receive(): ?Message
     {
-        return array_shift($this->receivedMessages);
+        return $this->receiveDelivery()?->message;
+    }
+
+    public function receiveDelivery(): ?ReceivedDelivery
+    {
+        return array_shift($this->receivedDeliveries);
     }
 
     /**
@@ -186,13 +192,18 @@ final class ReceiverLinkEngine
         if (str_starts_with($frame->payload, "\x00\x53\x14")) {
             $transferPayloadOffset = $this->transferPayloadOffset($frame->payload);
             $transfer = $this->transferCodec->decode(substr($frame->payload, 0, $transferPayloadOffset));
+            $this->incomingTransferDeliveryId = $transfer->deliveryId;
             $this->incomingTransferPayload .= substr($frame->payload, $transferPayloadOffset);
 
             if ($transfer->more) {
                 return [];
             }
 
-            $this->receivedMessages[] = $this->messageCodec->decode($this->incomingTransferPayload);
+            $this->receivedDeliveries[] = new ReceivedDelivery(
+                deliveryId: $this->incomingTransferDeliveryId,
+                message: $this->messageCodec->decode($this->incomingTransferPayload),
+            );
+            $this->incomingTransferDeliveryId = null;
             $this->incomingTransferPayload = '';
 
             return [ReceiverLinkEvent::MessageReceived];

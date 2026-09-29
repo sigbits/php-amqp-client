@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Client;
 
 use Closure;
+use Sigbits\Amqp\Engine\ReceivedDelivery;
 use Sigbits\Amqp\Engine\ReceiverLinkEngine;
 use Sigbits\Amqp\Engine\ReceiverLinkState;
 use Sigbits\Amqp\Protocol\Message\Message;
@@ -13,18 +14,26 @@ final class Receiver
 {
     /**
      * @param callable(int): ?string $read
+     * @param null|callable(list<string>): void $writeAll
      */
     public function __construct(
         private readonly ReceiverLinkEngine $link,
         callable $read,
+        ?callable $writeAll = null,
     ) {
         $this->read = $read(...);
+        $this->writeAll = $writeAll === null ? null : $writeAll(...);
     }
 
     /**
      * @var Closure(int): ?string
      */
     private readonly Closure $read;
+
+    /**
+     * @var null|Closure(list<string>): void
+     */
+    private readonly ?Closure $writeAll;
 
     public function state(): ReceiverLinkState
     {
@@ -33,10 +42,15 @@ final class Receiver
 
     public function receive(int $timeoutMilliseconds): ?Message
     {
-        $message = $this->link->receive();
+        return $this->receiveDelivery($timeoutMilliseconds)?->message();
+    }
 
-        if ($message !== null) {
-            return $message;
+    public function receiveDelivery(int $timeoutMilliseconds): ?Delivery
+    {
+        $delivery = $this->link->receiveDelivery();
+
+        if ($delivery !== null) {
+            return $this->delivery($delivery);
         }
 
         $deadline = microtime(true) + ($timeoutMilliseconds / 1000);
@@ -47,14 +61,41 @@ final class Receiver
 
             if ($bytes !== null && $bytes !== '') {
                 $this->link->push($bytes);
-                $message = $this->link->receive();
+                $delivery = $this->link->receiveDelivery();
 
-                if ($message !== null) {
-                    return $message;
+                if ($delivery !== null) {
+                    return $this->delivery($delivery);
                 }
             }
         } while (microtime(true) < $deadline);
 
         return null;
+    }
+
+    private function delivery(ReceivedDelivery $delivery): Delivery
+    {
+        return new Delivery(
+            deliveryId: $delivery->deliveryId,
+            message: $delivery->message,
+            accept: $this->settle($this->link->accept(...)),
+            release: $this->settle($this->link->release(...)),
+            reject: $this->settle($this->link->reject(...)),
+        );
+    }
+
+    /**
+     * @param callable(int): list<string> $settle
+     *
+     * @return callable(int): void
+     */
+    private function settle(callable $settle): callable
+    {
+        return function (int $deliveryId) use ($settle): void {
+            if ($this->writeAll === null) {
+                return;
+            }
+
+            ($this->writeAll)($settle($deliveryId));
+        };
     }
 }
