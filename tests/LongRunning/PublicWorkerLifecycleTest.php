@@ -171,6 +171,85 @@ final class PublicWorkerLifecycleTest extends TestCase
     }
 
     #[DataProvider('brokerProvider')]
+    public function testRepeatedPublicReconnectMessageCyclesDoNotLeakMemory(string $broker, string $uri): void
+    {
+        if (getenv('RUN_LONG_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_LONG_TESTS=1 to run long-running worker hardening tests.');
+        }
+
+        $cycles = self::positiveIntegerFromEnvironment('AMQP_LONG_RECONNECT_CYCLES', 25);
+        $maxGrowthBytes = self::positiveIntegerFromEnvironment('AMQP_LONG_MAX_MEMORY_GROWTH_BYTES', 8 * 1024 * 1024);
+        $runId = bin2hex(random_bytes(4));
+
+        gc_collect_cycles();
+        $startMemory = memory_get_usage(true);
+
+        for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+            $address = sprintf('sigbits.long.reconnect.%s.%s.%d', $broker, $runId, $cycle);
+            $body = sprintf('reconnect worker message %s %d', $broker, $cycle);
+
+            if ($broker === 'qpid') {
+                $this->createQpidQueue($address);
+                $this->sendOneMessage(
+                    uri: $uri,
+                    address: $address,
+                    body: $body,
+                    containerId: sprintf('sigbits-long-reconnect-producer-%s-%s-%d', $broker, $runId, $cycle),
+                    linkName: sprintf('sender-%s-%d', $runId, $cycle),
+                );
+                $this->receiveOneMessage(
+                    uri: $uri,
+                    address: $address,
+                    expectedBody: $body,
+                    containerId: sprintf('sigbits-long-reconnect-consumer-%s-%s-%d', $broker, $runId, $cycle),
+                    linkName: sprintf('receiver-%s-%d', $runId, $cycle),
+                );
+            } else {
+                $consumerConnection = Connection::connect(
+                    $uri,
+                    containerId: sprintf('sigbits-long-reconnect-consumer-%s-%s-%d', $broker, $runId, $cycle),
+                    timeoutSeconds: 5.0,
+                );
+                $consumerSession = $consumerConnection->beginSession();
+                $receiver = $consumerSession->openReceiver(
+                    $address,
+                    name: sprintf('receiver-%s-%d', $runId, $cycle),
+                );
+
+                $this->sendOneMessage(
+                    uri: $uri,
+                    address: $address,
+                    body: $body,
+                    containerId: sprintf('sigbits-long-reconnect-producer-%s-%s-%d', $broker, $runId, $cycle),
+                    linkName: sprintf('sender-%s-%d', $runId, $cycle),
+                );
+
+                $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+                self::assertNotNull($delivery);
+                self::assertSame($body, $delivery->message()->body);
+
+                $delivery->accept();
+                $consumerSession->end();
+                $consumerConnection->close();
+            }
+
+            if ($cycle % 10 === 0) {
+                gc_collect_cycles();
+            }
+        }
+
+        gc_collect_cycles();
+        $memoryGrowth = memory_get_usage(true) - $startMemory;
+
+        self::assertLessThanOrEqual(
+            $maxGrowthBytes,
+            $memoryGrowth,
+            sprintf('Memory grew by %d bytes across %d %s reconnect message cycles.', $memoryGrowth, $cycles, $broker),
+        );
+    }
+
+    #[DataProvider('brokerProvider')]
     public function testFragmentedLargePublicMessagesRoundTrip(string $broker, string $uri): void
     {
         if (getenv('RUN_LONG_TESTS') !== '1') {
@@ -299,6 +378,43 @@ final class PublicWorkerLifecycleTest extends TestCase
         $prefix = sprintf('large worker message %s %d ', $broker, $cycle);
 
         return $prefix . str_repeat('x', max(0, $bytes - strlen($prefix)));
+    }
+
+    private function sendOneMessage(
+        string $uri,
+        string $address,
+        string $body,
+        string $containerId,
+        string $linkName,
+    ): void {
+        $connection = Connection::connect($uri, containerId: $containerId, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address, name: $linkName);
+
+        $sender->send($body);
+
+        $session->end();
+        $connection->close();
+    }
+
+    private function receiveOneMessage(
+        string $uri,
+        string $address,
+        string $expectedBody,
+        string $containerId,
+        string $linkName,
+    ): void {
+        $connection = Connection::connect($uri, containerId: $containerId, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address, name: $linkName);
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame($expectedBody, $delivery->message()->body);
+
+        $delivery->accept();
+        $session->end();
+        $connection->close();
     }
 
     private function createQpidQueue(string $name): void
