@@ -10,6 +10,7 @@ must have release notes in this file before the tag is created.
 ### Added
 
 - Minimal public `Connection::connect()` API for opening authenticated AMQP 1.0 stream connections.
+- Minimal public session API with `Connection::beginSession()` and `Session::end()` lifecycle methods.
 
 ## v0.3.0 - 2026-09-29
 

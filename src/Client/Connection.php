@@ -6,6 +6,8 @@ namespace Sigbits\Amqp\Client;
 
 use Sigbits\Amqp\Engine\ConnectionEngine;
 use Sigbits\Amqp\Engine\ConnectionState;
+use Sigbits\Amqp\Engine\SessionEngine;
+use Sigbits\Amqp\Engine\SessionState;
 use Sigbits\Amqp\Protocol\Sasl\SaslClient;
 use Sigbits\Amqp\Transport\ConnectionUri;
 use Sigbits\Amqp\Transport\SaslStreamConnector;
@@ -50,6 +52,19 @@ final class Connection
     public function state(): ConnectionState
     {
         return $this->engine->state();
+    }
+
+    public function beginSession(int $channel = 0): Session
+    {
+        $engine = new SessionEngine(localChannel: $channel);
+
+        $this->writeAll($engine->begin());
+
+        while ($engine->state() !== SessionState::Mapped) {
+            $engine->push($this->readFrame());
+        }
+
+        return new Session($engine, $this->writeAll(...), $this->readFrame(...));
     }
 
     public function close(): void
