@@ -7,6 +7,10 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+### Added
+
+- Minimal public `Connection::connect()` API for opening authenticated AMQP 1.0 stream connections.
+
 ## v0.3.0 - 2026-09-29
 
 ### Added
