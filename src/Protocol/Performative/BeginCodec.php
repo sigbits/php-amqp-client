@@ -14,6 +14,8 @@ final class BeginCodec
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
     private const int CONSTRUCTOR_NULL = 0x40;
+    private const int CONSTRUCTOR_UINT0 = 0x43;
+    private const int CONSTRUCTOR_SMALLUINT = 0x52;
     private const int CONSTRUCTOR_USHORT = 0x60;
     private const int CONSTRUCTOR_UINT = 0x70;
 
@@ -135,11 +137,24 @@ final class BeginCodec
             throw PerformativeException::truncatedBegin();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_UINT) {
-            throw PerformativeException::missingBeginRequiredFields();
+        $constructor = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($constructor === self::CONSTRUCTOR_UINT0) {
+            return [0, $cursor];
         }
 
-        ++$cursor;
+        if ($constructor === self::CONSTRUCTOR_SMALLUINT) {
+            if ($cursor >= $listEnd) {
+                throw PerformativeException::truncatedBegin();
+            }
+
+            return [ord($bytes[$cursor]), $cursor + 1];
+        }
+
+        if ($constructor !== self::CONSTRUCTOR_UINT) {
+            throw PerformativeException::missingBeginRequiredFields();
+        }
 
         if ($cursor + 4 > $listEnd) {
             throw PerformativeException::truncatedBegin();

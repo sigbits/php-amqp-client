@@ -26,6 +26,7 @@ must have release notes in this file before the tag is created.
 - AMQP message properties encode/decode support for message ID, correlation ID, content type, and subject.
 - AMQP application properties encode/decode support for string keys and string values.
 - Docker broker integration test matrix for Apache Qpid Broker-J and Apache ActiveMQ Artemis AMQP 1.0 handshakes.
+- Apache ActiveMQ Artemis integration test that round-trips a DATA message through a broker address.
 
 ## v0.2.0 - 2026-09-28
 

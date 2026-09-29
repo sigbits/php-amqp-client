@@ -29,6 +29,29 @@ final class ReceiverLinkEngineTest extends TestCase
         self::assertSame(ReceiverLinkState::AttachSent, $engine->state());
     }
 
+    public function testAttachCanIncludeSourceAddress(): void
+    {
+        $engine = new ReceiverLinkEngine(
+            sessionChannel: 1,
+            name: 'receiver',
+            handle: 0,
+            sourceAddress: 'orders.test',
+        );
+
+        self::assertSame(
+            [
+                "\x00\x00\x00\x34\x02\x00\x00\x01"
+                . "\x00\x53\x12\xc0\x27\x07\xa1\x08receiver"
+                . "\x70\x00\x00\x00\x00"
+                . "\x41"
+                . "\x40\x40"
+                . "\x00\x53\x28\xc0\x0e\x01\xa1\x0borders.test"
+                . "\x40",
+            ],
+            $engine->attach(),
+        );
+    }
+
     public function testRemoteSenderAttachTransitionsLinkToAttached(): void
     {
         $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
@@ -44,6 +67,26 @@ final class ReceiverLinkEngineTest extends TestCase
             ),
         );
         self::assertSame(ReceiverLinkState::Attached, $engine->state());
+    }
+
+    public function testGrantCreditEmitsFlowFrame(): void
+    {
+        $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+
+        self::assertSame(
+            [
+                "\x00\x00\x00\x2d\x02\x00\x00\x01"
+                . "\x00\x53\x13\xc0\x20\x07"
+                . "\x40"
+                . "\x70\x7f\xff\xff\xff"
+                . "\x70\x00\x00\x00\x00"
+                . "\x70\x7f\xff\xff\xff"
+                . "\x70\x00\x00\x00\x00"
+                . "\x70\x00\x00\x00\x00"
+                . "\x70\x00\x00\x00\x01",
+            ],
+            $engine->grantCredit(deliveryCount: 0, linkCredit: 1),
+        );
     }
 
     public function testRemoteTransferCompletesMessageAndQueuesItForReceive(): void

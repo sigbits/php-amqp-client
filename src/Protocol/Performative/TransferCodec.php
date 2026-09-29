@@ -15,6 +15,8 @@ final class TransferCodec
     private const int CONSTRUCTOR_NULL = 0x40;
     private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
     private const int CONSTRUCTOR_BOOL_FALSE = 0x42;
+    private const int CONSTRUCTOR_UINT0 = 0x43;
+    private const int CONSTRUCTOR_SMALLUINT = 0x52;
     private const int CONSTRUCTOR_UINT = 0x70;
     private const int CONSTRUCTOR_VBIN8 = 0xa0;
 
@@ -66,7 +68,7 @@ final class TransferCodec
         $fieldCount = ord($bytes[$cursor]);
         ++$cursor;
 
-        if ($fieldCount < 6) {
+        if ($fieldCount < 4) {
             throw PerformativeException::missingTransferRequiredFields();
         }
 
@@ -80,8 +82,15 @@ final class TransferCodec
         [$deliveryId, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
         [$deliveryTag, $cursor] = $this->decodeBinary($bytes, $cursor, $listEnd);
         [$messageFormat, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
-        $cursor = $this->skipNull($bytes, $cursor, $listEnd);
-        [$more] = $this->decodeBoolean($bytes, $cursor, $listEnd);
+        $more = false;
+
+        if ($fieldCount >= 5) {
+            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        }
+
+        if ($fieldCount >= 6) {
+            [$more] = $this->decodeBoolean($bytes, $cursor, $listEnd);
+        }
 
         return new Transfer(
             handle: $handle,
@@ -111,11 +120,24 @@ final class TransferCodec
             throw PerformativeException::truncatedTransfer();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_UINT) {
-            throw PerformativeException::missingTransferRequiredFields();
+        $constructor = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($constructor === self::CONSTRUCTOR_UINT0) {
+            return [0, $cursor];
         }
 
-        ++$cursor;
+        if ($constructor === self::CONSTRUCTOR_SMALLUINT) {
+            if ($cursor >= $listEnd) {
+                throw PerformativeException::truncatedTransfer();
+            }
+
+            return [ord($bytes[$cursor]), $cursor + 1];
+        }
+
+        if ($constructor !== self::CONSTRUCTOR_UINT) {
+            throw PerformativeException::missingTransferRequiredFields();
+        }
 
         if ($cursor + 4 > $listEnd) {
             throw PerformativeException::truncatedTransfer();
@@ -162,17 +184,21 @@ final class TransferCodec
         ];
     }
 
-    private function skipNull(string $bytes, int $cursor, int $listEnd): int
+    private function skipValue(string $bytes, int $cursor, int $listEnd): int
     {
         if ($cursor >= $listEnd) {
             throw PerformativeException::truncatedTransfer();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_NULL) {
-            throw PerformativeException::missingTransferRequiredFields();
-        }
-
-        return $cursor + 1;
+        return match (ord($bytes[$cursor])) {
+            self::CONSTRUCTOR_NULL,
+            self::CONSTRUCTOR_BOOL_TRUE,
+            self::CONSTRUCTOR_BOOL_FALSE,
+            self::CONSTRUCTOR_UINT0 => $cursor + 1,
+            self::CONSTRUCTOR_SMALLUINT => $cursor + 2 <= $listEnd ? $cursor + 2 : throw PerformativeException::truncatedTransfer(),
+            self::CONSTRUCTOR_UINT => $cursor + 5 <= $listEnd ? $cursor + 5 : throw PerformativeException::truncatedTransfer(),
+            default => throw PerformativeException::missingTransferRequiredFields(),
+        };
     }
 
     /**
