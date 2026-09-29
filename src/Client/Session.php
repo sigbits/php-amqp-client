@@ -83,6 +83,10 @@ final class Session
 
     public function end(): void
     {
+        if ($this->engine->state() === SessionState::Ended) {
+            return;
+        }
+
         ($this->writeAll)($this->engine->end());
 
         while ($this->engine->state() !== SessionState::Ended) {

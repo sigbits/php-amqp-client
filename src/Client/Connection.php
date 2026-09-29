@@ -16,6 +16,8 @@ use Sigbits\Amqp\Transport\TransportException;
 
 final class Connection
 {
+    private bool $closed = false;
+
     private function __construct(
         private mixed $stream,
         private readonly ConnectionEngine $engine,
@@ -70,11 +72,19 @@ final class Connection
 
     public function close(): void
     {
-        $this->writeAll($this->engine->close());
+        if ($this->closed) {
+            return;
+        }
+
+        if ($this->engine->state() === ConnectionState::Opened) {
+            $this->writeAll($this->engine->close());
+        }
 
         if (is_resource($this->stream)) {
             fclose($this->stream);
         }
+
+        $this->closed = true;
     }
 
     private static function saslClientFromUri(ConnectionUri $uri): SaslClient

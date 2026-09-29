@@ -53,6 +53,10 @@ when the peer closes the stream unexpectedly, or when a complete payload cannot
 be written. `Receiver::receive($timeoutMilliseconds)` returns `null` when no
 message arrives before its receive deadline.
 
+`Connection::close()` and `Session::end()` are idempotent once their lifecycle
+has completed. The lower-level protocol engines remain strict state machines
+and throw when used out of order.
+
 ## Development
 
 Development commands must run inside Docker:

@@ -81,6 +81,30 @@ final class ConnectionTest extends TestCase
         self::assertSame("\x00\x00\x00\x0c\x02\x00\x00\x00\x00\x53\x18\x45", $this->readAvailable($server));
     }
 
+    public function testCloseIsIdempotent(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite($server, $this->serverGreeting());
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $this->readAvailable($server);
+
+        $connection->close();
+        $this->readAvailable($server);
+        $connection->close();
+
+        self::assertSame(ConnectionState::CloseSent, $connection->state());
+        self::assertSame('', $this->readAvailable($server));
+    }
+
     public function testBeginSessionMapsPublicSession(): void
     {
         [$client, $server] = $this->streamPair();
@@ -124,6 +148,31 @@ final class ConnectionTest extends TestCase
 
         self::assertSame(SessionState::Ended, $session->state());
         self::assertSame($this->endFrame(channel: 1), $this->readAvailable($server));
+    }
+
+    public function testEndSessionIsIdempotent(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite($server, $this->serverGreeting() . $this->beginFrame(channel: 1) . $this->endFrame(channel: 1));
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $this->readAvailable($server);
+
+        $session->end();
+        $this->readAvailable($server);
+        $session->end();
+
+        self::assertSame(SessionState::Ended, $session->state());
+        self::assertSame('', $this->readAvailable($server));
     }
 
     public function testOpenSenderAttachesPublicSender(): void

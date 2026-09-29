@@ -14,6 +14,7 @@ must have release notes in this file before the tag is created.
 - Minimal public sender API with `Session::openSender()` and `Sender::send()` for string or message payloads.
 - Minimal public receiver API with `Session::openReceiver()` and blocking `Receiver::receive()`.
 - Public stream reads now distinguish timeout failures from unexpected EOF with a dedicated transport error.
+- Public `Connection::close()` and `Session::end()` lifecycle calls are idempotent.
 
 ## v0.3.0 - 2026-09-29
 
