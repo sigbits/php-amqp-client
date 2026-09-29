@@ -13,10 +13,10 @@ This project is in early development. The current release line includes the
 protocol engine foundation, sender and receiver link engines, synchronous PHP
 stream transport, TLS stream setup, SASL ANONYMOUS/PLAIN negotiation, and
 practical AMQP message section encoding. The in-progress public API can open
-connections and begin/end AMQP sessions.
+connections, begin/end AMQP sessions, and send messages.
 
-The public developer API is not stable yet. Stable sender and receiver APIs,
-timeout semantics, and the documented error model are planned for the `v0.5.0`
+The public developer API is not stable yet. Stable receiver APIs, timeout
+semantics, and the documented error model are planned for the `v0.5.0`
 milestone.
 
 ## Supported Surface
@@ -36,9 +36,9 @@ Current limitations:
 
 - Message map support is intentionally constrained to symbol/string keys and
   string values.
-- The high-level developer API currently covers opening/closing connections and
-  beginning/ending sessions; sender and receiver APIs are still exposed through
-  lower-level engine classes.
+- The high-level developer API currently covers opening/closing connections,
+  beginning/ending sessions, and sending messages; receiver APIs are still
+  exposed through lower-level engine classes.
 - Broker interoperability coverage currently proves handshakes against Qpid
   Broker-J and ActiveMQ Artemis, and DATA message round-trip behavior through
   ActiveMQ Artemis.
