@@ -48,6 +48,14 @@ installable through Composer.
 - Clear timeout and lifecycle semantics.
 - Documented error model.
 
+### v0.6.0: Broker Interoperability Hardening
+
+- Public receiver delivery settlement API.
+- Public sender and receiver detach lifecycle API.
+- Deterministic public exceptions for remote link detach during open.
+- Broker coverage for public send, receive, accepted settlement, and link
+  detach against ActiveMQ Artemis and Qpid Broker-J.
+
 ### v1.0.0: Production-Oriented Release
 
 - Broad interoperability across Azure Service Bus, RabbitMQ AMQP 1.0, Apache

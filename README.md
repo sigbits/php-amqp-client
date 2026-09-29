@@ -15,9 +15,9 @@ stream transport, TLS stream setup, SASL ANONYMOUS/PLAIN negotiation, and
 practical AMQP message section encoding. The public API can open
 connections, begin/end AMQP sessions, send messages, and receive messages.
 
-The public developer API is still pre-1.0, but the `v0.5.0` release stabilizes
-the synchronous Connection, Session, Sender, and Receiver surface for continued
-iteration.
+The public developer API is still pre-1.0, but the `v0.6.0` release hardens
+the synchronous Connection, Session, Sender, and Receiver surface with broker
+interoperability coverage for sending, receiving, settlement, and link detach.
 
 ## Supported Surface
 
