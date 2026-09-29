@@ -15,6 +15,7 @@ must have release notes in this file before the tag is created.
 - Broker integration coverage for public DATA message sending through Qpid Broker-J with an explicitly created test queue.
 - Broker integration coverage for public DATA message receiving through Qpid Broker-J with an explicitly created test queue.
 - Broker integration coverage for public accepted-delivery settlement through Qpid Broker-J with an explicitly created test queue.
+- Broker integration coverage for public sender and receiver detach lifecycle through ActiveMQ Artemis and Qpid Broker-J.
 - Public link-open exceptions now include remote AMQP DETACH error condition and description when the peer supplies them.
 
 ### Fixed

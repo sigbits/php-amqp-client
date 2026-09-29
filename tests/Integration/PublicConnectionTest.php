@@ -8,6 +8,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Client\Connection;
 use Sigbits\Amqp\Engine\ConnectionState;
+use Sigbits\Amqp\Engine\ReceiverLinkState;
+use Sigbits\Amqp\Engine\SenderLinkState;
 use Sigbits\Amqp\Engine\SessionState;
 
 final class PublicConnectionTest extends TestCase
@@ -188,6 +190,84 @@ final class PublicConnectionTest extends TestCase
         self::assertSame('hello qpid accepted delivery', $delivery->message()->body);
 
         $delivery->accept();
+
+        $session->end();
+        $connection->close();
+    }
+
+    public function testPublicSenderDetachesAgainstArtemis(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $connection = Connection::connect(getenv('AMQP_ARTEMIS_URI') ?: 'amqp://guest:guest@artemis:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender('sigbits.public.sender.detach.' . bin2hex(random_bytes(4)));
+
+        $sender->detach();
+
+        self::assertSame(SenderLinkState::Detached, $sender->state());
+
+        $session->end();
+        $connection->close();
+    }
+
+    public function testPublicSenderDetachesAgainstQpid(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $address = 'sigbits.public.sender.detach.' . bin2hex(random_bytes(4));
+        $this->createQpidQueue($address);
+
+        $connection = Connection::connect(getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address);
+
+        $sender->detach();
+
+        self::assertSame(SenderLinkState::Detached, $sender->state());
+
+        $session->end();
+        $connection->close();
+    }
+
+    public function testPublicReceiverDetachesAgainstArtemis(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $connection = Connection::connect(getenv('AMQP_ARTEMIS_URI') ?: 'amqp://guest:guest@artemis:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver('sigbits.public.receiver.detach.' . bin2hex(random_bytes(4)));
+
+        $receiver->detach();
+
+        self::assertSame(ReceiverLinkState::Detached, $receiver->state());
+
+        $session->end();
+        $connection->close();
+    }
+
+    public function testPublicReceiverDetachesAgainstQpid(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $address = 'sigbits.public.receiver.detach.' . bin2hex(random_bytes(4));
+        $this->createQpidQueue($address);
+
+        $connection = Connection::connect(getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+
+        $receiver->detach();
+
+        self::assertSame(ReceiverLinkState::Detached, $receiver->state());
 
         $session->end();
         $connection->close();
