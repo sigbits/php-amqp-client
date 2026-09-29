@@ -58,6 +58,22 @@ final class FrameParserTest extends TestCase
         );
     }
 
+    public function testDefaultMaximumAcceptsLargerBrokerFrames(): void
+    {
+        $parser = new FrameParser();
+        $payload = str_repeat('x', 1024);
+
+        self::assertEquals(
+            [
+                new Frame(
+                    new FrameHeader(size: FrameHeader::LENGTH + strlen($payload), dataOffset: 2, type: 0, channel: 1),
+                    $payload,
+                ),
+            ],
+            $parser->push(pack('N', FrameHeader::LENGTH + strlen($payload)) . "\x02\x00\x00\x01" . $payload),
+        );
+    }
+
     public function testRejectsFrameExceedingConfiguredMaximum(): void
     {
         $parser = new FrameParser(maxFrameSize: 8);

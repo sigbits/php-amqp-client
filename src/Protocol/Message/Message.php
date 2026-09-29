@@ -26,8 +26,8 @@ final readonly class Message
         public array $applicationProperties = [],
         public array $footer = [],
     ) {
-        if (strlen($body) > 255) {
-            throw new InvalidArgumentException('AMQP message body must fit in string8/vbin8 encoding.');
+        if ($bodySection === MessageBodySection::AmqpValue && strlen($body) > 255) {
+            throw new InvalidArgumentException('AMQP value body must fit in string8 encoding.');
         }
 
         foreach ($bodySequence as $item) {
