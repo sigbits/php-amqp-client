@@ -58,7 +58,7 @@ final class Session
             $engine->push(($this->readFrame)());
 
             if ($engine->state() === SenderLinkState::Detached) {
-                throw ClientException::senderLinkDetachedDuringOpen();
+                throw ClientException::senderLinkDetachedDuringOpen($engine->lastRemoteDetachError());
             }
         }
 
@@ -80,7 +80,7 @@ final class Session
             $engine->push(($this->readFrame)());
 
             if ($engine->state() === ReceiverLinkState::Detached) {
-                throw ClientException::receiverLinkDetachedDuringOpen();
+                throw ClientException::receiverLinkDetachedDuringOpen($engine->lastRemoteDetachError());
             }
         }
 

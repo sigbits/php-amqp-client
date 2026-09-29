@@ -19,6 +19,7 @@ use Sigbits\Amqp\Protocol\Performative\DispositionCodec;
 use Sigbits\Amqp\Protocol\Performative\Flow;
 use Sigbits\Amqp\Protocol\Performative\FlowCodec;
 use Sigbits\Amqp\Protocol\Performative\LinkRole;
+use Sigbits\Amqp\Protocol\Performative\PerformativeError;
 use Sigbits\Amqp\Protocol\Performative\SettlementOutcome;
 use Sigbits\Amqp\Protocol\Performative\TransferCodec;
 
@@ -29,6 +30,7 @@ final class ReceiverLinkEngine
     private ReceiverLinkState $state = ReceiverLinkState::Idle;
     private string $incomingTransferPayload = '';
     private ?int $incomingTransferDeliveryId = null;
+    private ?PerformativeError $lastRemoteDetachError = null;
 
     /**
      * @var list<ReceivedDelivery>
@@ -64,6 +66,11 @@ final class ReceiverLinkEngine
     public function receiveDelivery(): ?ReceivedDelivery
     {
         return array_shift($this->receivedDeliveries);
+    }
+
+    public function lastRemoteDetachError(): ?PerformativeError
+    {
+        return $this->lastRemoteDetachError;
     }
 
     /**
@@ -183,7 +190,8 @@ final class ReceiverLinkEngine
         }
 
         if (str_starts_with($frame->payload, "\x00\x53\x16")) {
-            $this->detachCodec->decode($frame->payload);
+            $detach = $this->detachCodec->decode($frame->payload);
+            $this->lastRemoteDetachError = $detach->error;
             $this->state = ReceiverLinkState::Detached;
 
             return [ReceiverLinkEvent::LinkDetached];

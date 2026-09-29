@@ -75,7 +75,10 @@ final class PublicConnectionTest extends TestCase
         $session = $connection->beginSession();
 
         $this->expectException(ClientException::class);
-        $this->expectExceptionMessage('Cannot open AMQP sender link because the remote peer detached it.');
+        $this->expectExceptionMessage(
+            'Cannot open AMQP sender link because the remote peer detached it: '
+            . 'amqp:invalid-field - received Attach with remote null terminus.',
+        );
 
         $session->openSender('sigbits.public.sender.' . bin2hex(random_bytes(4)));
     }
