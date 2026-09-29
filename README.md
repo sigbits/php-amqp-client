@@ -84,6 +84,7 @@ Development commands must run inside Docker:
 make install
 make test
 make test-integration
+make test-long
 make cs
 make stan
 make ci
@@ -99,6 +100,17 @@ Artemis containers:
 make test-integration
 make broker-down
 ```
+
+Long-running worker hardening tests are opt-in and also use the broker
+containers:
+
+```sh
+make test-long
+make broker-down
+```
+
+Tune the default 100 lifecycle cycles with `LONG_TEST_CYCLES`, and tune the
+default 8 MiB memory-growth threshold with `LONG_TEST_MAX_MEMORY_GROWTH_BYTES`.
 
 The broker AMQP ports are also exposed on the host as `56720` for Qpid and
 `56730` for Artemis.
