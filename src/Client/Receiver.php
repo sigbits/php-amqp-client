@@ -63,7 +63,7 @@ final class Receiver
             $remainingMilliseconds = max(0, (int) ceil(($deadline - microtime(true)) * 1000));
             $bytes = ($this->read)($remainingMilliseconds);
 
-            if ($bytes !== null && $bytes !== '') {
+            if ($bytes !== null && $bytes !== '' && $this->isReceiverLinkFrame($bytes)) {
                 $this->link->push($bytes);
                 $delivery = $this->link->receiveDelivery();
 
@@ -95,6 +95,13 @@ final class Receiver
                 $this->link->push($bytes);
             }
         }
+    }
+
+    private function isReceiverLinkFrame(string $frame): bool
+    {
+        $descriptor = substr($frame, 8, 3);
+
+        return $descriptor === "\x00\x53\x14" || $descriptor === "\x00\x53\x16";
     }
 
     private function delivery(ReceivedDelivery $delivery): Delivery

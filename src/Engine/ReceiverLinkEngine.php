@@ -42,6 +42,7 @@ final class ReceiverLinkEngine
         private readonly string $name,
         private readonly int $handle,
         private readonly ?string $sourceAddress = null,
+        private readonly ?string $targetAddress = null,
         private readonly FrameHeaderCodec $frameHeaderCodec = new FrameHeaderCodec(),
         private readonly FrameParser $frameParser = new FrameParser(),
         private readonly AttachCodec $attachCodec = new AttachCodec(),
@@ -131,6 +132,7 @@ final class ReceiverLinkEngine
                 handle: $this->handle,
                 role: LinkRole::Receiver,
                 sourceAddress: $this->sourceAddress,
+                targetAddress: $this->targetAddress,
             ))),
         ];
     }

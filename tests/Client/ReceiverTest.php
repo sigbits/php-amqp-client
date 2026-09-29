@@ -53,6 +53,29 @@ final class ReceiverTest extends TestCase
         self::assertEquals(new Message(body: 'hello'), $receiver->receive(timeoutMilliseconds: 100));
     }
 
+    public function testReceiveIgnoresUnrelatedFramesWhileWaitingForMessage(): void
+    {
+        $receiver = new Receiver($this->attachedReceiverLink(), $this->reader([
+            "\x00\x00\x00\x21\x02\x00\x00\x01"
+            . "\x00\x53\x13\xc0\x14\x07"
+            . "\x40\x40\x40\x40"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x01",
+            "\x00\x00\x00\x35\x02\x00\x00\x01"
+            . "\x00\x53\x14\xc0\x1e\x06"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\xa0\x0adelivery-0"
+            . "\x70\x00\x00\x00\x00"
+            . "\x40"
+            . "\x42"
+            . "\x00\x53\x75\xa0\x05hello",
+        ]));
+
+        self::assertEquals(new Message(body: 'hello'), $receiver->receive(timeoutMilliseconds: 100));
+    }
+
     public function testReceiveReturnsNullWhenTimeoutExpiresWithoutMessage(): void
     {
         $receiver = new Receiver($this->attachedReceiverLink(), static fn (): ?string => null);
