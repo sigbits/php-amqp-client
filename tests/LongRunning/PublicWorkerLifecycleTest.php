@@ -250,6 +250,94 @@ final class PublicWorkerLifecycleTest extends TestCase
     }
 
     #[DataProvider('brokerProvider')]
+    public function testRepeatedPublicCreditWindowCyclesDoNotLeakMemory(string $broker, string $uri): void
+    {
+        if (getenv('RUN_LONG_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_LONG_TESTS=1 to run long-running worker hardening tests.');
+        }
+
+        $cycles = self::positiveIntegerFromEnvironment('AMQP_LONG_CREDIT_CYCLES', 20);
+        $creditWindow = self::positiveIntegerFromEnvironment('AMQP_LONG_CREDIT_WINDOW', 2);
+        $maxGrowthBytes = self::positiveIntegerFromEnvironment('AMQP_LONG_MAX_MEMORY_GROWTH_BYTES', 8 * 1024 * 1024);
+        $runId = bin2hex(random_bytes(4));
+        $address = sprintf('sigbits.long.credit.%s.%s', $broker, $runId);
+
+        if ($broker === 'qpid') {
+            $this->createQpidQueue($address);
+            $producerConnection = Connection::connect(
+                $uri,
+                containerId: sprintf('sigbits-long-credit-producer-%s-%s', $broker, $runId),
+                timeoutSeconds: 5.0,
+            );
+            $producerSession = $producerConnection->beginSession();
+            $sender = $producerSession->openSender($address, name: sprintf('sender-%s', $runId));
+
+            for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+                $sender->send(sprintf('credit worker message %s %d', $broker, $cycle));
+            }
+
+            $producerSession->end();
+            $producerConnection->close();
+        }
+
+        gc_collect_cycles();
+        $startMemory = memory_get_usage(true);
+
+        $consumerConnection = Connection::connect(
+            $uri,
+            containerId: sprintf('sigbits-long-credit-consumer-%s-%s', $broker, $runId),
+            timeoutSeconds: 5.0,
+        );
+        $consumerSession = $consumerConnection->beginSession();
+        $receiver = $consumerSession->openReceiver(
+            $address,
+            name: sprintf('receiver-%s', $runId),
+            credit: min($creditWindow, $cycles),
+        );
+
+        if ($broker === 'artemis') {
+            $sender = $consumerSession->openSender($address, name: sprintf('sender-%s', $runId));
+
+            for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+                $sender->send(sprintf('credit worker message %s %d', $broker, $cycle));
+            }
+        }
+
+        $messagesInCurrentWindow = 0;
+
+        for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+            $body = sprintf('credit worker message %s %d', $broker, $cycle);
+            $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+            self::assertNotNull($delivery);
+            self::assertSame($body, $delivery->message()->body);
+
+            $delivery->accept();
+            ++$messagesInCurrentWindow;
+
+            $remaining = $cycles - $cycle - 1;
+
+            if ($messagesInCurrentWindow === $creditWindow && $remaining > 0) {
+                $receiver->grantCredit(min($creditWindow, $remaining));
+                $messagesInCurrentWindow = 0;
+                gc_collect_cycles();
+            }
+        }
+
+        $consumerSession->end();
+        $consumerConnection->close();
+
+        gc_collect_cycles();
+        $memoryGrowth = memory_get_usage(true) - $startMemory;
+
+        self::assertLessThanOrEqual(
+            $maxGrowthBytes,
+            $memoryGrowth,
+            sprintf('Memory grew by %d bytes across %d %s credit-window cycles.', $memoryGrowth, $cycles, $broker),
+        );
+    }
+
+    #[DataProvider('brokerProvider')]
     public function testFragmentedLargePublicMessagesRoundTrip(string $broker, string $uri): void
     {
         if (getenv('RUN_LONG_TESTS') !== '1') {

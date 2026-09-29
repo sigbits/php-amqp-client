@@ -198,6 +198,44 @@ final class ReceiverTest extends TestCase
         ], $written);
     }
 
+    public function testGrantCreditEmitsFlowWithAdvancedDeliveryCount(): void
+    {
+        $written = [];
+        $receiver = new Receiver(
+            $this->attachedReceiverLink(),
+            $this->reader([
+                "\x00\x00\x00\x35\x02\x00\x00\x01"
+                . "\x00\x53\x14\xc0\x1e\x06"
+                . "\x70\x00\x00\x00\x00"
+                . "\x70\x00\x00\x00\x00"
+                . "\xa0\x0adelivery-0"
+                . "\x70\x00\x00\x00\x00"
+                . "\x40"
+                . "\x42"
+                . "\x00\x53\x75\xa0\x05hello",
+            ]),
+            static function (array $frames) use (&$written): void {
+                array_push($written, ...$frames);
+            },
+        );
+
+        self::assertNotNull($receiver->receiveDelivery(timeoutMilliseconds: 100));
+
+        $receiver->grantCredit(2);
+
+        self::assertSame([
+            "\x00\x00\x00\x2d\x02\x00\x00\x01"
+            . "\x00\x53\x13\xc0\x20\x07"
+            . "\x40"
+            . "\x70\x7f\xff\xff\xff"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x7f\xff\xff\xff"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x01"
+            . "\x70\x00\x00\x00\x02",
+        ], $written);
+    }
+
     private function attachedReceiverLink(): ReceiverLinkEngine
     {
         $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
