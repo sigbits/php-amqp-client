@@ -170,6 +170,102 @@ final class PublicWorkerLifecycleTest extends TestCase
         );
     }
 
+    #[DataProvider('brokerProvider')]
+    public function testFragmentedLargePublicMessagesRoundTrip(string $broker, string $uri): void
+    {
+        if (getenv('RUN_LONG_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_LONG_TESTS=1 to run long-running worker hardening tests.');
+        }
+
+        $cycles = self::positiveIntegerFromEnvironment('AMQP_LONG_LARGE_MESSAGE_CYCLES', 5);
+        $bodyBytes = self::positiveIntegerFromEnvironment('AMQP_LONG_LARGE_MESSAGE_BYTES', 4096);
+        $maxGrowthBytes = self::positiveIntegerFromEnvironment('AMQP_LONG_MAX_MEMORY_GROWTH_BYTES', 8 * 1024 * 1024);
+        $runId = bin2hex(random_bytes(4));
+        $address = sprintf('sigbits.long.large.%s.%s', $broker, $runId);
+
+        if ($broker === 'qpid') {
+            $this->createQpidQueue($address);
+        }
+
+        gc_collect_cycles();
+        $startMemory = memory_get_usage(true);
+
+        if ($broker === 'artemis') {
+            $connection = Connection::connect(
+                $uri,
+                containerId: sprintf('sigbits-long-large-%s-%s', $broker, $runId),
+                timeoutSeconds: 5.0,
+            );
+            $session = $connection->beginSession();
+            $receiver = $session->openReceiver($address, name: sprintf('receiver-%s', $runId), credit: $cycles);
+            $sender = $session->openSender($address, name: sprintf('sender-%s', $runId));
+
+            for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+                $body = self::largeMessageBody($broker, $cycle, $bodyBytes);
+
+                $sender->send($body, maxFrameSize: 256);
+                $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+                self::assertNotNull($delivery);
+                self::assertSame($body, $delivery->message()->body);
+
+                $delivery->accept();
+
+                gc_collect_cycles();
+            }
+
+            $session->end();
+            $connection->close();
+        } else {
+            $producerConnection = Connection::connect(
+                $uri,
+                containerId: sprintf('sigbits-long-large-producer-%s-%s', $broker, $runId),
+                timeoutSeconds: 5.0,
+            );
+            $producerSession = $producerConnection->beginSession();
+            $sender = $producerSession->openSender($address, name: sprintf('sender-%s', $runId));
+
+            for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+                $sender->send(self::largeMessageBody($broker, $cycle, $bodyBytes), maxFrameSize: 256);
+            }
+
+            $producerSession->end();
+            $producerConnection->close();
+
+            $consumerConnection = Connection::connect(
+                $uri,
+                containerId: sprintf('sigbits-long-large-consumer-%s-%s', $broker, $runId),
+                timeoutSeconds: 5.0,
+            );
+            $consumerSession = $consumerConnection->beginSession();
+            $receiver = $consumerSession->openReceiver($address, name: sprintf('receiver-%s', $runId), credit: $cycles);
+
+            for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+                $body = self::largeMessageBody($broker, $cycle, $bodyBytes);
+                $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+                self::assertNotNull($delivery);
+                self::assertSame($body, $delivery->message()->body);
+
+                $delivery->accept();
+
+                gc_collect_cycles();
+            }
+
+            $consumerSession->end();
+            $consumerConnection->close();
+        }
+
+        gc_collect_cycles();
+        $memoryGrowth = memory_get_usage(true) - $startMemory;
+
+        self::assertLessThanOrEqual(
+            $maxGrowthBytes,
+            $memoryGrowth,
+            sprintf('Memory grew by %d bytes across %d %s large-message cycles.', $memoryGrowth, $cycles, $broker),
+        );
+    }
+
     /**
      * @return array<string, array{string, string}>
      */
@@ -196,6 +292,13 @@ final class PublicWorkerLifecycleTest extends TestCase
         }
 
         return $integer;
+    }
+
+    private static function largeMessageBody(string $broker, int $cycle, int $bytes): string
+    {
+        $prefix = sprintf('large worker message %s %d ', $broker, $cycle);
+
+        return $prefix . str_repeat('x', max(0, $bytes - strlen($prefix)));
     }
 
     private function createQpidQueue(string $name): void

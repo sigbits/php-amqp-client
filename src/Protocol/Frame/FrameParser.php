@@ -9,7 +9,7 @@ final class FrameParser
     private string $buffer = '';
 
     public function __construct(
-        private readonly int $maxFrameSize = 512,
+        private readonly int $maxFrameSize = 1024 * 1024,
         private readonly FrameHeaderCodec $headerCodec = new FrameHeaderCodec(),
     ) {
     }

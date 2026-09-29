@@ -4,6 +4,8 @@ DOCKER_RUN = PHP_VERSION=$(PHP_VERSION) $(DOCKER_COMPOSE) run --rm php
 BROKER_COMPOSE = PHP_VERSION=$(PHP_VERSION) $(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.broker.yml
 BROKER_READY_TIMEOUT ?= 60
 LONG_TEST_CYCLES ?= 100
+LONG_TEST_LARGE_MESSAGE_BYTES ?= 4096
+LONG_TEST_LARGE_MESSAGE_CYCLES ?= 5
 LONG_TEST_MAX_MEMORY_GROWTH_BYTES ?= 8388608
 
 .PHONY: build install validate test test-integration test-long broker-up broker-wait broker-down cs cs-fix stan proof-connection ci shell
@@ -24,7 +26,7 @@ test-integration: broker-up
 	$(BROKER_COMPOSE) run --rm -e RUN_BROKER_TESTS=1 php composer test:integration
 
 test-long: broker-up
-	$(BROKER_COMPOSE) run --rm -e RUN_LONG_TESTS=1 -e AMQP_LONG_CYCLES=$(LONG_TEST_CYCLES) -e AMQP_LONG_MAX_MEMORY_GROWTH_BYTES=$(LONG_TEST_MAX_MEMORY_GROWTH_BYTES) php composer test:long
+	$(BROKER_COMPOSE) run --rm -e RUN_LONG_TESTS=1 -e AMQP_LONG_CYCLES=$(LONG_TEST_CYCLES) -e AMQP_LONG_LARGE_MESSAGE_BYTES=$(LONG_TEST_LARGE_MESSAGE_BYTES) -e AMQP_LONG_LARGE_MESSAGE_CYCLES=$(LONG_TEST_LARGE_MESSAGE_CYCLES) -e AMQP_LONG_MAX_MEMORY_GROWTH_BYTES=$(LONG_TEST_MAX_MEMORY_GROWTH_BYTES) php composer test:long
 
 broker-up:
 	$(BROKER_COMPOSE) up -d qpid artemis

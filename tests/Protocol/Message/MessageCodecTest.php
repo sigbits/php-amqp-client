@@ -34,6 +34,28 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesLargeDataBodyMessageWithVbin32(): void
+    {
+        $codec = new MessageCodec();
+        $body = str_repeat('x', 300);
+
+        self::assertSame(
+            "\x00\x53\x75\xb0\x00\x00\x01\x2c" . $body,
+            $codec->encode(new Message(body: $body)),
+        );
+    }
+
+    public function testDecodesLargeDataBodyMessageWithVbin32(): void
+    {
+        $codec = new MessageCodec();
+        $body = str_repeat('x', 300);
+
+        self::assertEquals(
+            new Message(body: $body),
+            $codec->decode("\x00\x53\x75\xb0\x00\x00\x01\x2c" . $body),
+        );
+    }
+
     public function testEncodesAmqpValueBodyMessage(): void
     {
         $codec = new MessageCodec();
@@ -317,7 +339,7 @@ final class MessageCodecTest extends TestCase
         $codec = new MessageCodec();
 
         $this->expectException(MessageException::class);
-        $this->expectExceptionMessage('AMQP message body must use vbin8 data encoding.');
+        $this->expectExceptionMessage('AMQP message body must use vbin8 or vbin32 data encoding.');
 
         $codec->decode("\x00\x53\x75\xa1\x05hello");
     }

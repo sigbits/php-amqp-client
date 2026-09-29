@@ -15,7 +15,7 @@ final class MessageException extends RuntimeException
 
     public static function unsupportedDataBodyEncoding(): self
     {
-        return new self('AMQP message body must use vbin8 data encoding.');
+        return new self('AMQP message body must use vbin8 or vbin32 data encoding.');
     }
 
     public static function unsupportedAmqpValueEncoding(): self
