@@ -46,6 +46,10 @@ final class Sender
 
     public function send(Message|string $message, int $maxFrameSize = 512): void
     {
+        if ($this->engine->state() === SenderLinkState::Detached) {
+            throw ClientException::senderLinkDetached();
+        }
+
         while ($this->engine->availableCredit() <= 0) {
             $this->engine->push(($this->readFrame)());
         }
@@ -54,5 +58,18 @@ final class Sender
             $message instanceof Message ? $message : new Message(body: $message),
             maxFrameSize: $maxFrameSize,
         ));
+    }
+
+    public function detach(): void
+    {
+        if ($this->engine->state() === SenderLinkState::Detached) {
+            return;
+        }
+
+        ($this->writeAll)($this->engine->detach());
+
+        while ($this->engine->state() !== SenderLinkState::Detached) {
+            $this->engine->push(($this->readFrame)());
+        }
     }
 }

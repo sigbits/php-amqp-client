@@ -10,6 +10,7 @@ must have release notes in this file before the tag is created.
 ### Added
 
 - Public receiver delivery settlement with `Receiver::receiveDelivery()` and delivery `accept()`, `release()`, and `reject()` methods.
+- Public `Sender::detach()` and `Receiver::detach()` lifecycle methods with clear client exceptions for post-detach send/receive attempts.
 
 ## v0.5.0 - 2026-09-29
 

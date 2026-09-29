@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Tests\Client;
 
 use PHPUnit\Framework\TestCase;
+use Sigbits\Amqp\Client\ClientException;
 use Sigbits\Amqp\Client\Connection;
 use Sigbits\Amqp\Engine\ConnectionState;
 use Sigbits\Amqp\Engine\ReceiverLinkState;
@@ -235,6 +236,68 @@ final class ConnectionTest extends TestCase
         self::assertSame($this->transferFrame(channel: 1, body: 'hello'), $this->readAvailable($server));
     }
 
+    public function testSenderDetachEmitsDetachFrameAndWaitsForRemoteDetach(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteSenderAttachFrame(channel: 1)
+            . $this->senderCreditFrame(channel: 1, linkCredit: 1)
+            . $this->detachFrame(channel: 1, handle: 0),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $sender = $session->openSender('orders.test', name: 'sender', handle: 0);
+        $this->readAvailable($server);
+
+        $sender->detach();
+
+        self::assertSame(SenderLinkState::Detached, $sender->state());
+        self::assertSame($this->detachFrame(channel: 1, handle: 0), $this->readAvailable($server));
+    }
+
+    public function testSenderSendAfterDetachFailsClearly(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteSenderAttachFrame(channel: 1)
+            . $this->senderCreditFrame(channel: 1, linkCredit: 1)
+            . $this->detachFrame(channel: 1, handle: 0),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $sender = $session->openSender('orders.test', name: 'sender', handle: 0);
+        $sender->detach();
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('Cannot send on detached AMQP sender link.');
+
+        $sender->send('hello');
+    }
+
     public function testOpenReceiverAttachesPublicReceiverAndGrantsCredit(): void
     {
         [$client, $server] = $this->streamPair();
@@ -291,6 +354,66 @@ final class ConnectionTest extends TestCase
         $this->readAvailable($server);
 
         self::assertEquals(new Message(body: 'hello'), $receiver->receive(timeoutMilliseconds: 100));
+    }
+
+    public function testReceiverDetachEmitsDetachFrameAndWaitsForRemoteDetach(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteReceiverAttachFrame(channel: 1)
+            . $this->detachFrame(channel: 1, handle: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $receiver = $session->openReceiver('orders.test', name: 'receiver', handle: 1);
+        $this->readAvailable($server);
+
+        $receiver->detach();
+
+        self::assertSame(ReceiverLinkState::Detached, $receiver->state());
+        self::assertSame($this->detachFrame(channel: 1, handle: 1), $this->readAvailable($server));
+    }
+
+    public function testReceiverReceiveAfterDetachFailsClearly(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteReceiverAttachFrame(channel: 1)
+            . $this->detachFrame(channel: 1, handle: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $receiver = $session->openReceiver('orders.test', name: 'receiver', handle: 1);
+        $receiver->detach();
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('Cannot receive from detached AMQP receiver link.');
+
+        $receiver->receive(timeoutMilliseconds: 100);
     }
 
     public function testEndSessionIgnoresLinkFramesBeforeRemoteEnd(): void
@@ -371,6 +494,15 @@ final class ConnectionTest extends TestCase
     private function endFrame(int $channel): string
     {
         return $this->frame("\x00\x53\x17\x45", channel: $channel);
+    }
+
+    private function detachFrame(int $channel, int $handle): string
+    {
+        return $this->frame(
+            "\x00\x53\x16\xc0\x06\x01"
+            . "\x70" . pack('N', $handle),
+            channel: $channel,
+        );
     }
 
     private function senderAttachFrame(int $channel): string
