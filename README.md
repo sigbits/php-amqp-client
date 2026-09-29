@@ -42,9 +42,10 @@ Current limitations:
   string values.
 - Broker interoperability coverage currently proves handshakes and public
   connection/session lifecycle against Qpid Broker-J and ActiveMQ Artemis,
-  DATA message send/receive behavior through both brokers, and DATA settlement
-  behavior through both brokers. Qpid Broker-J public link tests create an
-  explicit queue because this test broker does not auto-create random targets.
+  public sender/receiver detach lifecycle through both brokers, DATA message
+  send/receive behavior through both brokers, and DATA settlement behavior
+  through both brokers. Qpid Broker-J public link tests create an explicit
+  queue because this test broker does not auto-create random targets.
 
 ## Public API Semantics
 
