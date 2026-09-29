@@ -41,10 +41,10 @@ Current limitations:
 - Message map support is intentionally constrained to symbol/string keys and
   string values.
 - Broker interoperability coverage currently proves handshakes and public
-  connection/session lifecycle against Qpid Broker-J and ActiveMQ Artemis, plus
-  DATA message send/receive behavior through ActiveMQ Artemis. Qpid Broker-J
-  sender attach rejection for this library's current unmanaged target-address
-  flow is surfaced as a deterministic `ClientException`.
+  connection/session lifecycle against Qpid Broker-J and ActiveMQ Artemis,
+  DATA message sending through both brokers, and DATA receive/settlement
+  behavior through ActiveMQ Artemis. Qpid Broker-J sender tests create an
+  explicit queue because this test broker does not auto-create random targets.
 
 ## Public API Semantics
 

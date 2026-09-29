@@ -6,7 +6,6 @@ namespace Sigbits\Amqp\Tests\Integration;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Sigbits\Amqp\Client\ClientException;
 use Sigbits\Amqp\Client\Connection;
 use Sigbits\Amqp\Engine\ConnectionState;
 use Sigbits\Amqp\Engine\SessionState;
@@ -65,22 +64,27 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
-    public function testPublicSenderOpenReportsQpidRemoteDetach(): void
+    public function testPublicSenderSendsMessageAgainstQpid(): void
     {
         if (getenv('RUN_BROKER_TESTS') !== '1') {
             self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
         }
 
+        $address = 'sigbits.public.sender.' . bin2hex(random_bytes(4));
+        $this->createQpidQueue($address);
+
         $connection = Connection::connect(getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672', timeoutSeconds: 5.0);
         $session = $connection->beginSession();
+        $sender = $session->openSender($address);
+        $creditBeforeSend = $sender->availableCredit();
 
-        $this->expectException(ClientException::class);
-        $this->expectExceptionMessage(
-            'Cannot open AMQP sender link because the remote peer detached it: '
-            . 'amqp:invalid-field - received Attach with remote null terminus.',
-        );
+        $sender->send('hello qpid');
 
-        $session->openSender('sigbits.public.sender.' . bin2hex(random_bytes(4)));
+        self::assertGreaterThan(0, $creditBeforeSend);
+        self::assertSame($creditBeforeSend - 1, $sender->availableCredit());
+
+        $session->end();
+        $connection->close();
     }
 
     public function testPublicReceiverReceivesMessageAgainstArtemis(): void
@@ -138,5 +142,37 @@ final class PublicConnectionTest extends TestCase
             'qpid' => [getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672'],
             'artemis' => [getenv('AMQP_ARTEMIS_URI') ?: 'amqp://guest:guest@artemis:5672'],
         ];
+    }
+
+    private function createQpidQueue(string $name): void
+    {
+        $body = json_encode([
+            'type' => 'standard',
+            'durable' => false,
+        ]);
+
+        if ($body === false) {
+            self::fail('Could not encode Qpid queue creation payload.');
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'PUT',
+                'header' => 'Authorization: Basic ' . base64_encode('guest:guest') . "\r\n"
+                    . "Content-Type: application/json\r\n",
+                'content' => $body,
+                'ignore_errors' => true,
+            ],
+        ]);
+        $response = file_get_contents(
+            'http://qpid:8080/api/latest/queue/default/default/' . rawurlencode($name),
+            false,
+            $context,
+        );
+        $status = $http_response_header[0] ?? '';
+
+        if ($response === false || !str_contains($status, '201 Created')) {
+            self::fail('Could not create Qpid test queue: ' . $status);
+        }
     }
 }
