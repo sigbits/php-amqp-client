@@ -57,6 +57,29 @@ final class TransferCodecTest extends TestCase
         );
     }
 
+    public function testDecodesBrokerTransferWithCompactIntegersAndOmittedMoreField(): void
+    {
+        $codec = new TransferCodec();
+
+        self::assertEquals(
+            new Transfer(
+                handle: 0,
+                deliveryId: 0,
+                deliveryTag: "\x00",
+                messageFormat: 0,
+                more: false,
+            ),
+            $codec->decode(
+                "\x00\x53\x14\xc0\x08\x05"
+                . "\x43"
+                . "\x43"
+                . "\xa0\x01\x00"
+                . "\x43"
+                . "\x42",
+            ),
+        );
+    }
+
     public function testEncodesTransferWithMoreFlag(): void
     {
         $codec = new TransferCodec();

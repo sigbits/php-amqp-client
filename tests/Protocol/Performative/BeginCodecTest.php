@@ -49,6 +49,49 @@ final class BeginCodecTest extends TestCase
         );
     }
 
+    public function testDecodesQpidBeginPerformativeWithUint0(): void
+    {
+        $codec = new BeginCodec();
+
+        self::assertEquals(
+            new Begin(
+                remoteChannel: 0,
+                nextOutgoingId: 0,
+                incomingWindow: 16_384,
+                outgoingWindow: 2_048,
+            ),
+            $codec->decode(
+                "\x00\x53\x11\xc0\x0f\x04"
+                . "\x60\x00\x00"
+                . "\x43"
+                . "\x70\x00\x00\x40\x00"
+                . "\x70\x00\x00\x08\x00",
+            ),
+        );
+    }
+
+    public function testDecodesArtemisBeginPerformativeWithSmallUintAndExtraFields(): void
+    {
+        $codec = new BeginCodec();
+
+        self::assertEquals(
+            new Begin(
+                remoteChannel: 0,
+                nextOutgoingId: 1,
+                incomingWindow: 2_147_483_647,
+                outgoingWindow: 2_147_483_647,
+            ),
+            $codec->decode(
+                "\x00\x53\x11\xc0\x15\x05"
+                . "\x60\x00\x00"
+                . "\x52\x01"
+                . "\x70\x7f\xff\xff\xff"
+                . "\x70\x7f\xff\xff\xff"
+                . "\x70\x00\x00\xff\xff",
+            ),
+        );
+    }
+
     public function testRejectsWrongDescriptor(): void
     {
         $codec = new BeginCodec();

@@ -32,6 +32,29 @@ final class SenderLinkEngineTest extends TestCase
         self::assertSame(SenderLinkState::AttachSent, $engine->state());
     }
 
+    public function testAttachCanIncludeTargetAddress(): void
+    {
+        $engine = new SenderLinkEngine(
+            sessionChannel: 1,
+            name: 'sender',
+            handle: 0,
+            targetAddress: 'orders.test',
+        );
+
+        self::assertSame(
+            [
+                "\x00\x00\x00\x35\x02\x00\x00\x01"
+                . "\x00\x53\x12\xc0\x28\x0a\xa1\x06sender"
+                . "\x70\x00\x00\x00\x00"
+                . "\x42"
+                . "\x40\x40\x40"
+                . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test"
+                . "\x40\x40\x43",
+            ],
+            $engine->attach(),
+        );
+    }
+
     public function testRemoteReceiverAttachTransitionsLinkToAttached(): void
     {
         $engine = new SenderLinkEngine(sessionChannel: 1, name: 'sender', handle: 0);

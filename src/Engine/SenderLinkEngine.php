@@ -29,6 +29,7 @@ final class SenderLinkEngine
         private readonly int $sessionChannel,
         private readonly string $name,
         private readonly int $handle,
+        private readonly ?string $targetAddress = null,
         private readonly FrameHeaderCodec $frameHeaderCodec = new FrameHeaderCodec(),
         private readonly FrameParser $frameParser = new FrameParser(),
         private readonly AttachCodec $attachCodec = new AttachCodec(),
@@ -119,6 +120,8 @@ final class SenderLinkEngine
                 name: $this->name,
                 handle: $this->handle,
                 role: LinkRole::Sender,
+                targetAddress: $this->targetAddress,
+                initialDeliveryCount: $this->targetAddress === null ? null : 0,
             ))),
         ];
     }

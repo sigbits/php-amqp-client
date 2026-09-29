@@ -16,12 +16,16 @@ use Sigbits\Amqp\Protocol\Performative\Detach;
 use Sigbits\Amqp\Protocol\Performative\DetachCodec;
 use Sigbits\Amqp\Protocol\Performative\Disposition;
 use Sigbits\Amqp\Protocol\Performative\DispositionCodec;
+use Sigbits\Amqp\Protocol\Performative\Flow;
+use Sigbits\Amqp\Protocol\Performative\FlowCodec;
 use Sigbits\Amqp\Protocol\Performative\LinkRole;
 use Sigbits\Amqp\Protocol\Performative\SettlementOutcome;
 use Sigbits\Amqp\Protocol\Performative\TransferCodec;
 
 final class ReceiverLinkEngine
 {
+    private const int DEFAULT_INCOMING_WINDOW = 2_147_483_647;
+
     private ReceiverLinkState $state = ReceiverLinkState::Idle;
     private string $incomingTransferPayload = '';
 
@@ -34,10 +38,12 @@ final class ReceiverLinkEngine
         private readonly int $sessionChannel,
         private readonly string $name,
         private readonly int $handle,
+        private readonly ?string $sourceAddress = null,
         private readonly FrameHeaderCodec $frameHeaderCodec = new FrameHeaderCodec(),
         private readonly FrameParser $frameParser = new FrameParser(),
         private readonly AttachCodec $attachCodec = new AttachCodec(),
         private readonly DetachCodec $detachCodec = new DetachCodec(),
+        private readonly FlowCodec $flowCodec = new FlowCodec(),
         private readonly TransferCodec $transferCodec = new TransferCodec(),
         private readonly MessageCodec $messageCodec = new MessageCodec(),
         private readonly DispositionCodec $dispositionCodec = new DispositionCodec(),
@@ -52,6 +58,23 @@ final class ReceiverLinkEngine
     public function receive(): ?Message
     {
         return array_shift($this->receivedMessages);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function grantCredit(int $deliveryCount, int $linkCredit): array
+    {
+        return [
+            $this->frame($this->flowCodec->encode(new Flow(
+                handle: $this->handle,
+                deliveryCount: $deliveryCount,
+                linkCredit: $linkCredit,
+                incomingWindow: self::DEFAULT_INCOMING_WINDOW,
+                nextOutgoingId: 0,
+                outgoingWindow: self::DEFAULT_INCOMING_WINDOW,
+            ))),
+        ];
     }
 
     /**
@@ -94,6 +117,7 @@ final class ReceiverLinkEngine
                 name: $this->name,
                 handle: $this->handle,
                 role: LinkRole::Receiver,
+                sourceAddress: $this->sourceAddress,
             ))),
         ];
     }

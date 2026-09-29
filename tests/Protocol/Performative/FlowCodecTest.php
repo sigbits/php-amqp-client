@@ -29,6 +29,30 @@ final class FlowCodecTest extends TestCase
         );
     }
 
+    public function testEncodesIncomingWindowWhenPresent(): void
+    {
+        $codec = new FlowCodec();
+
+        self::assertSame(
+            "\x00\x53\x13\xc0\x20\x07"
+            . "\x40"
+            . "\x70\x7f\xff\xff\xff"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x7f\xff\xff\xff"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x01",
+            $codec->encode(new Flow(
+                handle: 0,
+                deliveryCount: 0,
+                linkCredit: 1,
+                incomingWindow: 2_147_483_647,
+                nextOutgoingId: 0,
+                outgoingWindow: 2_147_483_647,
+            )),
+        );
+    }
+
     public function testDecodesLinkCreditFlowPerformative(): void
     {
         $codec = new FlowCodec();
@@ -45,6 +69,29 @@ final class FlowCodecTest extends TestCase
                 . "\x70\x00\x00\x00\x00"
                 . "\x70\x00\x00\x00\x05"
                 . "\x70\x00\x00\x00\x0a",
+            ),
+        );
+    }
+
+    public function testDecodesBrokerFlowWithSessionFieldsAndCompactHandle(): void
+    {
+        $codec = new FlowCodec();
+
+        self::assertEquals(
+            new Flow(
+                handle: 0,
+                deliveryCount: 0,
+                linkCredit: 1_000,
+            ),
+            $codec->decode(
+                "\x00\x53\x13\xc0\x15\x07"
+                . "\x43"
+                . "\x70\x7f\xff\xff\xff"
+                . "\x52\x01"
+                . "\x70\x7f\xff\xff\xff"
+                . "\x43"
+                . "\x40"
+                . "\x70\x00\x00\x03\xe8",
             ),
         );
     }

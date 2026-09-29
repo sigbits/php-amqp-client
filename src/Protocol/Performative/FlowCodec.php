@@ -13,11 +13,16 @@ final class FlowCodec
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
     private const int CONSTRUCTOR_NULL = 0x40;
+    private const int CONSTRUCTOR_UINT0 = 0x43;
+    private const int CONSTRUCTOR_SMALLUINT = 0x52;
     private const int CONSTRUCTOR_UINT = 0x70;
 
     public function encode(Flow $flow): string
     {
-        $fields = "\x40\x40\x40\x40"
+        $fields = "\x40"
+            . ($flow->incomingWindow === null ? "\x40" : $this->encodeUInt($flow->incomingWindow))
+            . ($flow->nextOutgoingId === null ? "\x40" : $this->encodeUInt($flow->nextOutgoingId))
+            . ($flow->outgoingWindow === null ? "\x40" : $this->encodeUInt($flow->outgoingWindow))
             . $this->encodeUInt($flow->handle)
             . $this->encodeUInt($flow->deliveryCount)
             . $this->encodeUInt($flow->linkCredit);
@@ -71,18 +76,18 @@ final class FlowCodec
             throw PerformativeException::truncatedFlow();
         }
 
-        $cursor = $this->skipNull($bytes, $cursor, $listEnd);
-        $cursor = $this->skipNull($bytes, $cursor, $listEnd);
-        $cursor = $this->skipNull($bytes, $cursor, $listEnd);
-        $cursor = $this->skipNull($bytes, $cursor, $listEnd);
+        $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        $cursor = $this->skipValue($bytes, $cursor, $listEnd);
 
         [$handle, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
-        [$deliveryCount, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
+        [$deliveryCount, $cursor] = $this->decodeNullableUInt($bytes, $cursor, $listEnd);
         [$linkCredit] = $this->decodeUInt($bytes, $cursor, $listEnd);
 
         return new Flow(
             handle: $handle,
-            deliveryCount: $deliveryCount,
+            deliveryCount: $deliveryCount ?? 0,
             linkCredit: $linkCredit,
         );
     }
@@ -92,17 +97,18 @@ final class FlowCodec
         return chr(self::CONSTRUCTOR_UINT) . pack('N', (new UInt($value))->value);
     }
 
-    private function skipNull(string $bytes, int $cursor, int $listEnd): int
+    private function skipValue(string $bytes, int $cursor, int $listEnd): int
     {
         if ($cursor >= $listEnd) {
             throw PerformativeException::truncatedFlow();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_NULL) {
-            throw PerformativeException::missingFlowLinkCreditFields();
-        }
-
-        return $cursor + 1;
+        return match (ord($bytes[$cursor])) {
+            self::CONSTRUCTOR_NULL, self::CONSTRUCTOR_UINT0 => $cursor + 1,
+            self::CONSTRUCTOR_SMALLUINT => $cursor + 2 <= $listEnd ? $cursor + 2 : throw PerformativeException::truncatedFlow(),
+            self::CONSTRUCTOR_UINT => $cursor + 5 <= $listEnd ? $cursor + 5 : throw PerformativeException::truncatedFlow(),
+            default => throw PerformativeException::missingFlowLinkCreditFields(),
+        };
     }
 
     /**
@@ -110,15 +116,46 @@ final class FlowCodec
      */
     private function decodeUInt(string $bytes, int $cursor, int $listEnd): array
     {
+        [$value, $cursor] = $this->decodeNullableUInt($bytes, $cursor, $listEnd);
+
+        if ($value === null) {
+            throw PerformativeException::missingFlowLinkCreditFields();
+        }
+
+        return [$value, $cursor];
+    }
+
+    /**
+     * @return array{0: int|null, 1: int}
+     */
+    private function decodeNullableUInt(string $bytes, int $cursor, int $listEnd): array
+    {
         if ($cursor >= $listEnd) {
             throw PerformativeException::truncatedFlow();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_UINT) {
-            throw PerformativeException::missingFlowLinkCreditFields();
+        $constructor = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($constructor === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor];
         }
 
-        ++$cursor;
+        if ($constructor === self::CONSTRUCTOR_UINT0) {
+            return [0, $cursor];
+        }
+
+        if ($constructor === self::CONSTRUCTOR_SMALLUINT) {
+            if ($cursor >= $listEnd) {
+                throw PerformativeException::truncatedFlow();
+            }
+
+            return [ord($bytes[$cursor]), $cursor + 1];
+        }
+
+        if ($constructor !== self::CONSTRUCTOR_UINT) {
+            throw PerformativeException::missingFlowLinkCreditFields();
+        }
 
         if ($cursor + 4 > $listEnd) {
             throw PerformativeException::truncatedFlow();
