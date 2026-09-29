@@ -59,6 +59,10 @@ message arrives before its receive deadline.
 has completed. The lower-level protocol engines remain strict state machines
 and throw when used out of order.
 
+`Sender::detach()` and `Receiver::detach()` close the AMQP link and wait for the
+peer detach. Calling `Sender::send()` or `Receiver::receive()` after detach
+throws `ClientException` with a link-specific message.
+
 `Receiver::receive()` returns only the decoded message. Use
 `Receiver::receiveDelivery()` when the application needs to explicitly settle a
 delivery with `accept()`, `release()`, or `reject()`.

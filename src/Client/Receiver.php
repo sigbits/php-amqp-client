@@ -47,6 +47,10 @@ final class Receiver
 
     public function receiveDelivery(int $timeoutMilliseconds): ?Delivery
     {
+        if ($this->link->state() === ReceiverLinkState::Detached) {
+            throw ClientException::receiverLinkDetached();
+        }
+
         $delivery = $this->link->receiveDelivery();
 
         if ($delivery !== null) {
@@ -70,6 +74,27 @@ final class Receiver
         } while (microtime(true) < $deadline);
 
         return null;
+    }
+
+    public function detach(): void
+    {
+        if ($this->link->state() === ReceiverLinkState::Detached) {
+            return;
+        }
+
+        if ($this->writeAll === null) {
+            return;
+        }
+
+        ($this->writeAll)($this->link->detach());
+
+        while ($this->link->state() !== ReceiverLinkState::Detached) {
+            $bytes = ($this->read)(0);
+
+            if ($bytes !== null && $bytes !== '') {
+                $this->link->push($bytes);
+            }
+        }
     }
 
     private function delivery(ReceivedDelivery $delivery): Delivery
