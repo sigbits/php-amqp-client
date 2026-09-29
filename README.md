@@ -102,7 +102,8 @@ make broker-down
 ```
 
 Long-running worker hardening tests are opt-in and also use the broker
-containers:
+containers. They cover repeated public lifecycle cycles and repeated public
+send, receive, and accepted-delivery settlement cycles:
 
 ```sh
 make test-long

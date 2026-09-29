@@ -61,7 +61,9 @@ installable through Composer.
 - Opt-in long-running worker test harness.
 - Repeated public connection, session, sender, and receiver lifecycle cycles
   against ActiveMQ Artemis and Qpid Broker-J.
-- Basic memory-growth guard for lifecycle-cycle tests.
+- Repeated public send, receive, and accepted-delivery settlement cycles
+  against ActiveMQ Artemis and Qpid Broker-J.
+- Basic memory-growth guard for long-running worker tests.
 
 ### v1.0.0: Production-Oriented Release
 

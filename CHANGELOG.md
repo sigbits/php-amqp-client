@@ -10,6 +10,7 @@ must have release notes in this file before the tag is created.
 ### Added
 
 - Opt-in long-running worker hardening test harness for repeated public connection, session, sender, and receiver lifecycle cycles against ActiveMQ Artemis and Qpid Broker-J.
+- Long-running worker hardening coverage for repeated public send, receive, and accepted-delivery settlement cycles against ActiveMQ Artemis and Qpid Broker-J.
 
 ## v0.6.0 - 2026-09-29
 
