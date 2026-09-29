@@ -42,7 +42,9 @@ Current limitations:
   string values.
 - Broker interoperability coverage currently proves handshakes and public
   connection/session lifecycle against Qpid Broker-J and ActiveMQ Artemis, plus
-  DATA message send/receive behavior through ActiveMQ Artemis.
+  DATA message send/receive behavior through ActiveMQ Artemis. Qpid Broker-J
+  sender attach rejection for this library's current unmanaged target-address
+  flow is surfaced as a deterministic `ClientException`.
 
 ## Public API Semantics
 
@@ -62,6 +64,10 @@ and throw when used out of order.
 `Sender::detach()` and `Receiver::detach()` close the AMQP link and wait for the
 peer detach. Calling `Sender::send()` or `Receiver::receive()` after detach
 throws `ClientException` with a link-specific message.
+
+If a peer detaches a link while `Session::openSender()` or
+`Session::openReceiver()` is still opening it, the public API throws
+`ClientException` instead of continuing to read until a stream timeout.
 
 `Receiver::receive()` returns only the decoded message. Use
 `Receiver::receiveDelivery()` when the application needs to explicitly settle a

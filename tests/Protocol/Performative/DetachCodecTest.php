@@ -31,6 +31,23 @@ final class DetachCodecTest extends TestCase
         );
     }
 
+    public function testDecodesBrokerDetachWithUint0HandleAndExtraFields(): void
+    {
+        $codec = new DetachCodec();
+
+        self::assertEquals(
+            new Detach(handle: 0),
+            $codec->decode(
+                "\x00\x53\x16\xc0\x49\x03"
+                . "\x43"
+                . "\x41"
+                . "\x00\x53\x1d\xc0\x41\x02"
+                . "\xa3\x12amqp:invalid-field"
+                . "\xa1\x2areceived Attach with remote null terminus.",
+            ),
+        );
+    }
+
     public function testRejectsWrongDescriptor(): void
     {
         $codec = new DetachCodec();

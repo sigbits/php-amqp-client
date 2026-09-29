@@ -206,6 +206,34 @@ final class ConnectionTest extends TestCase
         self::assertSame($this->senderAttachFrame(channel: 1), $this->readAvailable($server));
     }
 
+    public function testOpenSenderFailsClearlyWhenRemoteDetachesBeforeCredit(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteSenderAttachFrame(channel: 1)
+            . $this->detachFrame(channel: 1, handle: 0),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 0.001,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('Cannot open AMQP sender link because the remote peer detached it.');
+
+        $session->openSender('orders.test', name: 'sender', handle: 0);
+    }
+
     public function testSenderSendEmitsTransferAfterCreditArrives(): void
     {
         [$client, $server] = $this->streamPair();
@@ -327,6 +355,33 @@ final class ConnectionTest extends TestCase
             $this->receiverAttachFrame(channel: 1) . $this->receiverCreditFrame(channel: 1, handle: 1, linkCredit: 2),
             $this->readAvailable($server),
         );
+    }
+
+    public function testOpenReceiverFailsClearlyWhenRemoteDetachesBeforeAttach(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->detachFrame(channel: 1, handle: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 0.001,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('Cannot open AMQP receiver link because the remote peer detached it.');
+
+        $session->openReceiver('orders.test', name: 'receiver', handle: 1);
     }
 
     public function testReceiverReceiveReadsTransferMessage(): void

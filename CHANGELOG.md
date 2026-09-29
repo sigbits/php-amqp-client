@@ -11,6 +11,12 @@ must have release notes in this file before the tag is created.
 
 - Public receiver delivery settlement with `Receiver::receiveDelivery()` and delivery `accept()`, `release()`, and `reject()` methods.
 - Public `Sender::detach()` and `Receiver::detach()` lifecycle methods with clear client exceptions for post-detach send/receive attempts.
+- Deterministic public client exceptions when a remote peer detaches a sender or receiver link while it is opening.
+- Broker integration coverage for Qpid Broker-J sender attach rejection during the current unmanaged target-address flow.
+
+### Fixed
+
+- DETACH decoding now accepts compact AMQP uint encodings such as `uint0` handles sent by Qpid Broker-J.
 
 ## v0.5.0 - 2026-09-29
 
