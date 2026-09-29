@@ -7,6 +7,7 @@ namespace Sigbits\Amqp\Tests\Client;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Client\Connection;
 use Sigbits\Amqp\Engine\ConnectionState;
+use Sigbits\Amqp\Engine\SenderLinkState;
 use Sigbits\Amqp\Engine\SessionState;
 use Sigbits\Amqp\Transport\SaslStreamAuthenticator;
 use Sigbits\Amqp\Transport\SaslStreamConnector;
@@ -101,6 +102,99 @@ final class ConnectionTest extends TestCase
         self::assertSame($this->endFrame(channel: 1), $this->readAvailable($server));
     }
 
+    public function testOpenSenderAttachesPublicSender(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteSenderAttachFrame(channel: 1)
+            . $this->senderCreditFrame(channel: 1, linkCredit: 2),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $this->readAvailable($server);
+
+        $sender = $session->openSender('orders.test', name: 'sender', handle: 0);
+
+        self::assertSame(SenderLinkState::Attached, $sender->state());
+        self::assertSame(2, $sender->availableCredit());
+        self::assertSame($this->senderAttachFrame(channel: 1), $this->readAvailable($server));
+    }
+
+    public function testSenderSendEmitsTransferAfterCreditArrives(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteSenderAttachFrame(channel: 1)
+            . $this->senderCreditFrame(channel: 1, linkCredit: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $sender = $session->openSender('orders.test', name: 'sender', handle: 0);
+        $this->readAvailable($server);
+
+        $sender->send('hello');
+
+        self::assertSame(0, $sender->availableCredit());
+        self::assertSame($this->transferFrame(channel: 1, body: 'hello'), $this->readAvailable($server));
+    }
+
+    public function testEndSessionIgnoresLinkFramesBeforeRemoteEnd(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteSenderAttachFrame(channel: 1)
+            . $this->senderCreditFrame(channel: 1, linkCredit: 1)
+            . $this->senderCreditFrame(channel: 1, linkCredit: 5)
+            . $this->endFrame(channel: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $sender = $session->openSender('orders.test', name: 'sender', handle: 0);
+        $sender->send('hello');
+        $this->readAvailable($server);
+
+        $session->end();
+
+        self::assertSame(SessionState::Ended, $session->state());
+        self::assertSame($this->endFrame(channel: 1), $this->readAvailable($server));
+    }
+
     /**
      * @return array{resource, resource}
      */
@@ -141,6 +235,56 @@ final class ConnectionTest extends TestCase
     private function endFrame(int $channel): string
     {
         return $this->frame("\x00\x53\x17\x45", channel: $channel);
+    }
+
+    private function senderAttachFrame(int $channel): string
+    {
+        return $this->frame(
+            "\x00\x53\x12\xc0\x28\x0a\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40"
+            . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test"
+            . "\x40\x40\x43",
+            channel: $channel,
+        );
+    }
+
+    private function remoteSenderAttachFrame(int $channel): string
+    {
+        return $this->frame(
+            "\x00\x53\x12\xc0\x0f\x03\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x41",
+            channel: $channel,
+        );
+    }
+
+    private function senderCreditFrame(int $channel, int $linkCredit): string
+    {
+        return $this->frame(
+            "\x00\x53\x13\xc0\x14\x07"
+            . "\x40\x40\x40\x40"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70" . pack('N', $linkCredit),
+            channel: $channel,
+        );
+    }
+
+    private function transferFrame(int $channel, string $body): string
+    {
+        return $this->frame(
+            "\x00\x53\x14\xc0\x1e\x06"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\xa0\x0adelivery-0"
+            . "\x70\x00\x00\x00\x00"
+            . "\x40"
+            . "\x42"
+            . "\x00\x53\x75\xa0" . chr(strlen($body)) . $body,
+            channel: $channel,
+        );
     }
 
     private function frame(string $payload, int $type = 0, int $channel = 0): string

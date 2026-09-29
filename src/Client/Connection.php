@@ -64,7 +64,7 @@ final class Connection
             $engine->push($this->readFrame());
         }
 
-        return new Session($engine, $this->writeAll(...), $this->readFrame(...));
+        return new Session($engine, $channel, $this->writeAll(...), $this->readFrame(...));
     }
 
     public function close(): void

@@ -44,6 +44,26 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
+    public function testPublicSenderSendsMessageAgainstArtemis(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $connection = Connection::connect(getenv('AMQP_ARTEMIS_URI') ?: 'amqp://guest:guest@artemis:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender('sigbits.public.sender.' . bin2hex(random_bytes(4)));
+        $creditBeforeSend = $sender->availableCredit();
+
+        $sender->send('hello broker');
+
+        self::assertGreaterThan(0, $creditBeforeSend);
+        self::assertSame($creditBeforeSend - 1, $sender->availableCredit());
+
+        $session->end();
+        $connection->close();
+    }
+
     /**
      * @return array<string, array{string}>
      */
