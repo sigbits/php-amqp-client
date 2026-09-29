@@ -9,6 +9,7 @@ final class EndCodec
     private const string DESCRIPTOR = "\x00\x53\x17";
     private const int DESCRIPTOR_LENGTH = 3;
     private const int CONSTRUCTOR_LIST0 = 0x45;
+    private const int CONSTRUCTOR_LIST8 = 0xc0;
 
     public function encode(End $end): string
     {
@@ -25,10 +26,27 @@ final class EndCodec
             throw PerformativeException::expectedEndDescriptor();
         }
 
-        if (ord($bytes[self::DESCRIPTOR_LENGTH]) !== self::CONSTRUCTOR_LIST0) {
+        $constructor = ord($bytes[self::DESCRIPTOR_LENGTH]);
+
+        if ($constructor === self::CONSTRUCTOR_LIST0) {
+            return new End();
+        }
+
+        if ($constructor === self::CONSTRUCTOR_LIST8) {
+            if (strlen($bytes) < self::DESCRIPTOR_LENGTH + 3) {
+                throw PerformativeException::truncatedEnd();
+            }
+
+            $listSize = ord($bytes[self::DESCRIPTOR_LENGTH + 1]);
+            $fieldCount = ord($bytes[self::DESCRIPTOR_LENGTH + 2]);
+
+            if ($listSize === 1 && $fieldCount === 0) {
+                return new End();
+            }
+
             throw PerformativeException::endErrorPayloadUnsupported();
         }
 
-        return new End();
+        throw PerformativeException::endErrorPayloadUnsupported();
     }
 }

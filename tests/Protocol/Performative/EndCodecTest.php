@@ -25,6 +25,13 @@ final class EndCodecTest extends TestCase
         self::assertEquals(new End(), $codec->decode("\x00\x53\x17\x45"));
     }
 
+    public function testDecodesEmptyEndPerformativeEncodedAsList8(): void
+    {
+        $codec = new EndCodec();
+
+        self::assertEquals(new End(), $codec->decode("\x00\x53\x17\xc0\x01\x00"));
+    }
+
     public function testRejectsWrongDescriptor(): void
     {
         $codec = new EndCodec();

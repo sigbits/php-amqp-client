@@ -8,6 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Client\Connection;
 use Sigbits\Amqp\Engine\ConnectionState;
+use Sigbits\Amqp\Engine\SessionState;
 
 final class PublicConnectionTest extends TestCase
 {
@@ -21,6 +22,24 @@ final class PublicConnectionTest extends TestCase
         $connection = Connection::connect($uri, timeoutSeconds: 5.0);
 
         self::assertSame(ConnectionState::Opened, $connection->state());
+
+        $connection->close();
+    }
+
+    #[DataProvider('brokerProvider')]
+    public function testBeginSessionMapsPublicSessionAgainstBroker(string $uri): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $connection = Connection::connect($uri, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+
+        self::assertSame(SessionState::Mapped, $session->state());
+
+        $session->end();
+        self::assertSame(SessionState::Ended, $session->state());
 
         $connection->close();
     }
