@@ -16,7 +16,7 @@ final class Delivery
      * @param callable(int): void $release
      * @param callable(int): void $reject
      */
-    public function __construct(
+    private function __construct(
         private readonly int $deliveryId,
         private readonly Message $message,
         callable $accept,

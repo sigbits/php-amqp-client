@@ -4,10 +4,10 @@ Date: 2026-09-30
 
 ## Decision
 
-v1.0.0 is not ready to tag until the exposed implementation constructors are
-resolved and the remaining user-facing API decisions are documented.
+v1.0.0 is not ready to tag until the remaining user-facing API decisions are
+documented and implemented.
 
-Audit status: v1.0.0 is not ready to tag until the exposed implementation constructors are resolved.
+Audit status: v1.0.0 is not ready to tag until the remaining user-facing API decisions are resolved.
 
 The current public client surface is close enough to begin the v1.0.0
 stabilization milestone, but it is not yet safe to promise backward
@@ -47,24 +47,15 @@ as an explicit API decision, not incidental cleanup.
 
 ### Exposed Implementation Constructors
 
-Session, Sender, Receiver, and Delivery constructors expose engine and callable
-internals. Those constructors are useful for tests and internal composition, but
-they are not appropriate as a 1.0 user-facing construction API.
+Resolved.
 
-Risk: Session, Sender, Receiver, and Delivery constructors expose engine and callable internals.
+Session, Sender, Receiver, and Delivery constructors are hidden from the supported public API.
 
-Before tagging v1.0.0, choose one of these approaches:
-
-- Hide construction behind public factories and make the constructors non-public
-  where PHP visibility allows it.
-- Keep the constructors public but explicitly document them as unsupported
-  internals and accept that the visibility remains part of the PHP surface.
-- Introduce interfaces for the user-facing surface and commit only to those
-  interfaces while implementation classes remain internal.
-
-The recommended path is to hide or replace the implementation constructors
-before the 1.0 compatibility promise. Keeping them public would make engine and
-callable details harder to evolve after 1.0.
+Construction now flows through the public lifecycle methods:
+`Connection::beginSession()`, `Session::openSender()`,
+`Session::openReceiver()`, and `Receiver::receiveDelivery()`. Internal
+composition and unit-test setup use `Sigbits\Amqp\Client\Internal\ClientObjectFactory`,
+which is explicitly outside the supported user-facing API.
 
 ### Connection Test Seam
 
@@ -111,5 +102,6 @@ Ready to continue v1.0.0 stabilization.
 
 Not ready to tag v1.0.0.
 
-The next implementation slice should resolve the exposed implementation
-constructors, then update this audit with the final compatibility commitment.
+The next implementation slice should decide whether the `Connection::connect()`
+connector parameter remains a supported extension point, then update this audit
+with that compatibility decision.

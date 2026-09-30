@@ -16,7 +16,7 @@ final class Sender
      * @param callable(list<string>): void $writeAll
      * @param callable(): string $readFrame
      */
-    public function __construct(
+    private function __construct(
         private readonly SenderLinkEngine $engine,
         callable $writeAll,
         callable $readFrame,

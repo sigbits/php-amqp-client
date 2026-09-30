@@ -153,7 +153,7 @@ final class MakefileBrokerWorkflowTest extends TestCase
         $audit = self::v100ApiStabilityAudit();
 
         self::assertStringContainsString('[v1.0.0 Public API Stability Audit](api-stability-v1.0.0.md)', $roadmap);
-        self::assertStringContainsString('v1.0.0 is not ready to tag until the exposed implementation constructors are resolved', $audit);
+        self::assertStringContainsString('Session, Sender, Receiver, and Delivery constructors are hidden from the supported public API', $audit);
         self::assertStringContainsString('Begin v1.0.0 production-oriented release work', $roadmap);
     }
 

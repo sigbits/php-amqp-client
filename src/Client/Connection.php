@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Client;
 
+use Sigbits\Amqp\Client\Internal\ClientObjectFactory;
 use Sigbits\Amqp\Engine\ConnectionEngine;
 use Sigbits\Amqp\Engine\ConnectionState;
 use Sigbits\Amqp\Engine\SessionEngine;
@@ -67,7 +68,7 @@ final class Connection
             $engine->push($this->readFrame());
         }
 
-        return new Session($engine, $channel, $this->writeAll(...), $this->readFrame(...));
+        return ClientObjectFactory::session($engine, $channel, $this->writeAll(...), $this->readFrame(...));
     }
 
     public function close(): void

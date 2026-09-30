@@ -6,7 +6,7 @@ namespace Sigbits\Amqp\Tests\Client;
 
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Client\ClientException;
-use Sigbits\Amqp\Client\Receiver;
+use Sigbits\Amqp\Client\Internal\ClientObjectFactory;
 use Sigbits\Amqp\Engine\ReceiverLinkEngine;
 use Sigbits\Amqp\Protocol\Message\Message;
 
@@ -27,7 +27,7 @@ final class ReceiverTest extends TestCase
             . "\x00\x53\x75\xa0\x05hello",
         );
         $readCalled = false;
-        $receiver = new Receiver($link, static function () use (&$readCalled): ?string {
+        $receiver = ClientObjectFactory::receiver($link, static function () use (&$readCalled): ?string {
             $readCalled = true;
 
             return null;
@@ -39,7 +39,7 @@ final class ReceiverTest extends TestCase
 
     public function testReceiveReadsUntilMessageArrives(): void
     {
-        $receiver = new Receiver($this->attachedReceiverLink(), $this->reader([
+        $receiver = ClientObjectFactory::receiver($this->attachedReceiverLink(), $this->reader([
             "\x00\x00\x00\x35\x02\x00\x00\x01"
             . "\x00\x53\x14\xc0\x1e\x06"
             . "\x70\x00\x00\x00\x00"
@@ -56,7 +56,7 @@ final class ReceiverTest extends TestCase
 
     public function testReceiveIgnoresUnrelatedFramesWhileWaitingForMessage(): void
     {
-        $receiver = new Receiver($this->attachedReceiverLink(), $this->reader([
+        $receiver = ClientObjectFactory::receiver($this->attachedReceiverLink(), $this->reader([
             "\x00\x00\x00\x21\x02\x00\x00\x01"
             . "\x00\x53\x13\xc0\x14\x07"
             . "\x40\x40\x40\x40"
@@ -79,7 +79,7 @@ final class ReceiverTest extends TestCase
 
     public function testReceiveReturnsNullWhenTimeoutExpiresWithoutMessage(): void
     {
-        $receiver = new Receiver($this->attachedReceiverLink(), static fn (): ?string => null);
+        $receiver = ClientObjectFactory::receiver($this->attachedReceiverLink(), static fn (): ?string => null);
 
         self::assertNull($receiver->receive(timeoutMilliseconds: 0));
     }
@@ -87,7 +87,7 @@ final class ReceiverTest extends TestCase
     public function testReceiveDeliveryCanAcceptReceivedMessage(): void
     {
         $written = [];
-        $receiver = new Receiver(
+        $receiver = ClientObjectFactory::receiver(
             $this->attachedReceiverLink(),
             $this->reader([
                 "\x00\x00\x00\x35\x02\x00\x00\x01"
@@ -126,7 +126,7 @@ final class ReceiverTest extends TestCase
     public function testReceiveDeliveryRejectsRepeatedSettlement(): void
     {
         $written = [];
-        $receiver = new Receiver(
+        $receiver = ClientObjectFactory::receiver(
             $this->attachedReceiverLink(),
             $this->reader([
                 "\x00\x00\x00\x35\x02\x00\x00\x01"
@@ -157,7 +157,7 @@ final class ReceiverTest extends TestCase
     public function testReceiveDeliveryRejectsSettlementAfterReceiverDetach(): void
     {
         $written = [];
-        $receiver = new Receiver(
+        $receiver = ClientObjectFactory::receiver(
             $this->attachedReceiverLink(),
             $this->reader([
                 "\x00\x00\x00\x35\x02\x00\x00\x01"
@@ -189,7 +189,7 @@ final class ReceiverTest extends TestCase
     public function testReceiveDeliveryCanReleaseReceivedMessage(): void
     {
         $written = [];
-        $receiver = new Receiver(
+        $receiver = ClientObjectFactory::receiver(
             $this->attachedReceiverLink(),
             $this->reader([
                 "\x00\x00\x00\x35\x02\x00\x00\x01"
@@ -227,7 +227,7 @@ final class ReceiverTest extends TestCase
     public function testReceiveDeliveryCanRejectReceivedMessage(): void
     {
         $written = [];
-        $receiver = new Receiver(
+        $receiver = ClientObjectFactory::receiver(
             $this->attachedReceiverLink(),
             $this->reader([
                 "\x00\x00\x00\x35\x02\x00\x00\x01"
@@ -265,7 +265,7 @@ final class ReceiverTest extends TestCase
     public function testGrantCreditEmitsFlowWithAdvancedDeliveryCount(): void
     {
         $written = [];
-        $receiver = new Receiver(
+        $receiver = ClientObjectFactory::receiver(
             $this->attachedReceiverLink(),
             $this->reader([
                 "\x00\x00\x00\x35\x02\x00\x00\x01"

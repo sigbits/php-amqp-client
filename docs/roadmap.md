@@ -133,8 +133,8 @@ as a documented local-matrix gap.
 
 Public API stability was audited in
 [v1.0.0 Public API Stability Audit](api-stability-v1.0.0.md). The milestone is
-not ready for tagging until the exposed implementation constructors and
-remaining user-facing API decisions are resolved.
+not ready for tagging until the remaining user-facing API decisions are
+resolved.
 
 ## Immediate Development Slice
 
@@ -143,7 +143,8 @@ steps:
 
 1. Resolve the public visibility of `Session`, `Sender`, `Receiver`, and
    `Delivery` implementation constructors before committing to 1.0
-   compatibility.
+   compatibility. This is complete; construction now flows through public
+   lifecycle methods and internal composition uses an internal factory.
 2. Decide whether `Connection::connect()` keeps `SaslStreamConnector` as a
    supported extension point or moves it behind a documented factory/test seam.
 3. Document the committed user-facing message model, timeout units, receiver
