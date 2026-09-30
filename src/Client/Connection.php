@@ -140,7 +140,15 @@ final class Connection
             | (ord($header[2]) << 8)
             | ord($header[3]);
 
-        return $header . $this->readExactly($frameSize - 8);
+        $frame = $header . $this->readExactly($frameSize - 8);
+
+        if ($this->isConnectionClose($frame)) {
+            $this->engine->push($frame);
+
+            throw ClientException::remoteConnectionClosed();
+        }
+
+        return $frame;
     }
 
     private function readExactly(int $length): string
@@ -164,5 +172,10 @@ final class Connection
         }
 
         return $bytes;
+    }
+
+    private function isConnectionClose(string $frame): bool
+    {
+        return substr($frame, 8, 3) === "\x00\x53\x18";
     }
 }

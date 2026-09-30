@@ -128,6 +128,30 @@ final class ConnectionTest extends TestCase
         self::assertSame($this->beginFrame(channel: 1), $this->readAvailable($server));
     }
 
+    public function testBeginSessionFailsClearlyWhenRemoteClosesConnection(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite($server, $this->serverGreeting() . $this->closeFrame());
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+
+        try {
+            $connection->beginSession(channel: 1);
+            self::fail('Expected remote connection close to fail the public session open.');
+        } catch (ClientException $exception) {
+            self::assertSame('AMQP connection was closed by the remote peer.', $exception->getMessage());
+            self::assertSame(ConnectionState::Closed, $connection->state());
+        }
+    }
+
     public function testEndSessionEmitsEndFrameAndWaitsForRemoteEnd(): void
     {
         [$client, $server] = $this->streamPair();
@@ -610,6 +634,11 @@ final class ConnectionTest extends TestCase
     private function endFrame(int $channel): string
     {
         return $this->frame("\x00\x53\x17\x45", channel: $channel);
+    }
+
+    private function closeFrame(): string
+    {
+        return $this->frame("\x00\x53\x18\x45");
     }
 
     private function detachFrame(int $channel, int $handle): string

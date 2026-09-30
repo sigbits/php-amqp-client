@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Public client regression coverage and deterministic exception mapping for remote AMQP connection close during public wait loops.
 - Shared scalar reader migration for AMQP BEGIN and DISPOSITION performative unsigned integer decoding.
 - Shared scalar reader migration for AMQP ATTACH and DETACH performative handle decoding.
 - Shared AMQP scalar reader for compact unsigned integer decoding and fixed-width value skipping in performative codecs.

@@ -122,7 +122,8 @@ installable through Composer.
 Continue v0.8.0 protocol completeness with the smallest codec and state-machine
 hardening steps:
 
-1. Add the first public protocol-state regression for remote connection close.
-2. Continue scalar primitive coverage with signed byte, signed short, and long
+1. Continue scalar primitive coverage with signed byte, signed short, and long
    encodings.
-3. Expand parser malformed and truncated payload regression coverage.
+2. Expand parser malformed and truncated payload regression coverage.
+3. Add public protocol-state regressions for remote session end and remote link
+   detach during active public operations.
