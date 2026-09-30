@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Performative;
 
+use Sigbits\Amqp\Protocol\Codec\DecodeException;
+use Sigbits\Amqp\Protocol\Codec\ScalarReader;
 use Sigbits\Amqp\Protocol\Type\UInt;
 
 final class AttachCodec
@@ -22,6 +24,13 @@ final class AttachCodec
     private const int CONSTRUCTOR_UINT = 0x70;
     private const string SOURCE_DESCRIPTOR = "\x00\x53\x28";
     private const string TARGET_DESCRIPTOR = "\x00\x53\x29";
+
+    private readonly ScalarReader $scalarReader;
+
+    public function __construct(?ScalarReader $scalarReader = null)
+    {
+        $this->scalarReader = $scalarReader ?? new ScalarReader();
+    }
 
     public function encode(Attach $attach): string
     {
@@ -186,40 +195,15 @@ final class AttachCodec
      */
     private function decodeUInt(string $bytes, int $cursor, int $listEnd): array
     {
-        if ($cursor >= $listEnd) {
-            throw PerformativeException::truncatedAttach();
-        }
-
-        $constructor = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($constructor === self::CONSTRUCTOR_UINT0) {
-            return [0, $cursor];
-        }
-
-        if ($constructor === self::CONSTRUCTOR_SMALLUINT) {
-            if ($cursor >= $listEnd) {
-                throw PerformativeException::truncatedAttach();
+        try {
+            return $this->scalarReader->readUInt($bytes, $cursor, $listEnd);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Unsupported AMQP format code')) {
+                throw PerformativeException::missingAttachRequiredFields();
             }
 
-            return [ord($bytes[$cursor]), $cursor + 1];
-        }
-
-        if ($constructor !== self::CONSTRUCTOR_UINT) {
-            throw PerformativeException::missingAttachRequiredFields();
-        }
-
-        if ($cursor + 4 > $listEnd) {
             throw PerformativeException::truncatedAttach();
         }
-
-        return [
-            (ord($bytes[$cursor]) << 24)
-            | (ord($bytes[$cursor + 1]) << 16)
-            | (ord($bytes[$cursor + 2]) << 8)
-            | ord($bytes[$cursor + 3]),
-            $cursor + 4,
-        ];
     }
 
     /**

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Performative;
 
+use Sigbits\Amqp\Protocol\Codec\DecodeException;
+use Sigbits\Amqp\Protocol\Codec\ScalarReader;
 use Sigbits\Amqp\Protocol\Type\UInt;
 
 final class DetachCodec
@@ -16,12 +18,17 @@ final class DetachCodec
     private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
     private const int CONSTRUCTOR_BOOL_FALSE = 0x42;
     private const int CONSTRUCTOR_BOOL = 0x56;
-    private const int CONSTRUCTOR_UINT0 = 0x43;
-    private const int CONSTRUCTOR_SMALLUINT = 0x52;
     private const int CONSTRUCTOR_UINT = 0x70;
     private const int CONSTRUCTOR_STR8 = 0xa1;
     private const int CONSTRUCTOR_SYM8 = 0xa3;
     private const string ERROR_DESCRIPTOR = "\x00\x53\x1d";
+
+    private readonly ScalarReader $scalarReader;
+
+    public function __construct(?ScalarReader $scalarReader = null)
+    {
+        $this->scalarReader = $scalarReader ?? new ScalarReader();
+    }
 
     public function encode(Detach $detach): string
     {
@@ -93,40 +100,15 @@ final class DetachCodec
      */
     private function decodeUInt(string $bytes, int $cursor, int $listEnd): array
     {
-        if ($cursor >= $listEnd) {
-            throw PerformativeException::truncatedDetach();
-        }
-
-        $constructor = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($constructor === self::CONSTRUCTOR_UINT0) {
-            return [0, $cursor];
-        }
-
-        if ($constructor === self::CONSTRUCTOR_SMALLUINT) {
-            if ($cursor >= $listEnd) {
-                throw PerformativeException::truncatedDetach();
+        try {
+            return $this->scalarReader->readUInt($bytes, $cursor, $listEnd);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Unsupported AMQP format code')) {
+                throw PerformativeException::missingDetachHandle();
             }
 
-            return [ord($bytes[$cursor]), $cursor + 1];
-        }
-
-        if ($constructor !== self::CONSTRUCTOR_UINT) {
-            throw PerformativeException::missingDetachHandle();
-        }
-
-        if ($cursor + 4 > $listEnd) {
             throw PerformativeException::truncatedDetach();
         }
-
-        return [
-            (ord($bytes[$cursor]) << 24)
-            | (ord($bytes[$cursor + 1]) << 16)
-            | (ord($bytes[$cursor + 2]) << 8)
-            | ord($bytes[$cursor + 3]),
-            $cursor + 4,
-        ];
     }
 
     /**

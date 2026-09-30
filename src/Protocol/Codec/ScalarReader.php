@@ -58,6 +58,20 @@ final class ScalarReader
         ];
     }
 
+    /**
+     * @return array{0: int, 1: int}
+     */
+    public function readUInt(string $bytes, int $cursor, int $end): array
+    {
+        [$value, $cursor] = $this->readNullableUInt($bytes, $cursor, $end);
+
+        if ($value === null) {
+            throw DecodeException::unsupportedFormatCode(self::CONSTRUCTOR_NULL);
+        }
+
+        return [$value, $cursor];
+    }
+
     public function skipValue(string $bytes, int $cursor, int $end): int
     {
         if ($cursor >= $end) {
