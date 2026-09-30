@@ -85,7 +85,15 @@ final class BeginCodec
         [$remoteChannel, $cursor] = $this->decodeNullableUShort($bytes, $cursor, $listEnd);
         [$nextOutgoingId, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
         [$incomingWindow, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
-        [$outgoingWindow] = $this->decodeUInt($bytes, $cursor, $listEnd);
+        [$outgoingWindow, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
+
+        for ($field = 4; $field < $fieldCount; ++$field) {
+            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        }
+
+        if ($cursor !== $listEnd) {
+            throw PerformativeException::malformedBegin();
+        }
 
         return new Begin(
             remoteChannel: $remoteChannel,
@@ -142,6 +150,19 @@ final class BeginCodec
     {
         try {
             return $this->scalarReader->readUInt($bytes, $cursor, $listEnd);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Unsupported AMQP format code')) {
+                throw PerformativeException::missingBeginRequiredFields();
+            }
+
+            throw PerformativeException::truncatedBegin();
+        }
+    }
+
+    private function skipValue(string $bytes, int $cursor, int $listEnd): int
+    {
+        try {
+            return $this->scalarReader->skipValue($bytes, $cursor, $listEnd);
         } catch (DecodeException $exception) {
             if (str_starts_with($exception->getMessage(), 'Unsupported AMQP format code')) {
                 throw PerformativeException::missingBeginRequiredFields();

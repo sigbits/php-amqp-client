@@ -89,7 +89,15 @@ final class FlowCodec
 
         [$handle, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
         [$deliveryCount, $cursor] = $this->decodeNullableUInt($bytes, $cursor, $listEnd);
-        [$linkCredit] = $this->decodeUInt($bytes, $cursor, $listEnd);
+        [$linkCredit, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
+
+        for ($field = 7; $field < $fieldCount; ++$field) {
+            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        }
+
+        if ($cursor !== $listEnd) {
+            throw PerformativeException::malformedFlow();
+        }
 
         return new Flow(
             handle: $handle,

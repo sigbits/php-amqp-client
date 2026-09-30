@@ -125,4 +125,20 @@ final class BeginCodecTest extends TestCase
             . "\x70\x7f\xff\xff\xff",
         );
     }
+
+    public function testRejectsBeginWithUnconsumedListPayload(): void
+    {
+        $codec = new BeginCodec();
+
+        $this->expectException(PerformativeException::class);
+        $this->expectExceptionMessage('Malformed AMQP begin performative.');
+
+        $codec->decode(
+            "\x00\x53\x11\xc0\x12\x04\x40"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x7f\xff\xff\xff"
+            . "\x70\x7f\xff\xff\xff"
+            . "\x40",
+        );
+    }
 }

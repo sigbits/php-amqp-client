@@ -96,7 +96,15 @@ final class TransferCodec
         }
 
         if ($fieldCount >= 6) {
-            [$more] = $this->decodeBoolean($bytes, $cursor, $listEnd);
+            [$more, $cursor] = $this->decodeBoolean($bytes, $cursor, $listEnd);
+        }
+
+        for ($field = 6; $field < $fieldCount; ++$field) {
+            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        }
+
+        if ($cursor !== $listEnd) {
+            throw PerformativeException::malformedTransfer();
         }
 
         return new Transfer(

@@ -507,4 +507,30 @@ final class MessageCodecTest extends TestCase
 
         $codec->decode("\x00\x53\x75\xa0\x05hel");
     }
+
+    public function testRejectsApplicationPropertiesWithUnconsumedMapPayload(): void
+    {
+        $codec = new MessageCodec();
+
+        $this->expectException(MessageException::class);
+        $this->expectExceptionMessage('Malformed AMQP application properties section.');
+
+        $codec->decode(
+            "\x00\x53\x74\xc1\x08\x02\xa3\x01k\xa1\x01v\x40"
+                . "\x00\x53\x75\xa0\x07payload",
+        );
+    }
+
+    public function testRejectsFooterWithUnconsumedMapPayload(): void
+    {
+        $codec = new MessageCodec();
+
+        $this->expectException(MessageException::class);
+        $this->expectExceptionMessage('Malformed AMQP footer section.');
+
+        $codec->decode(
+            "\x00\x53\x75\xa0\x07payload"
+                . "\x00\x53\x78\xc1\x08\x02\xa3\x01k\xa1\x01v\x40",
+        );
+    }
 }

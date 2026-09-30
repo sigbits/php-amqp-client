@@ -68,6 +68,11 @@ final class PerformativeException extends RuntimeException
         return new self('AMQP disposition performative requires role, first, settled, and state.');
     }
 
+    public static function malformedDisposition(): self
+    {
+        return new self('Malformed AMQP disposition performative.');
+    }
+
     public static function truncatedDisposition(): self
     {
         return new self('Truncated AMQP disposition performative.');
@@ -78,6 +83,11 @@ final class PerformativeException extends RuntimeException
         return new self('AMQP transfer performative requires handle, delivery-id, delivery-tag, and message-format.');
     }
 
+    public static function malformedTransfer(): self
+    {
+        return new self('Malformed AMQP transfer performative.');
+    }
+
     public static function truncatedTransfer(): self
     {
         return new self('Truncated AMQP transfer performative.');
@@ -86,6 +96,11 @@ final class PerformativeException extends RuntimeException
     public static function missingFlowLinkCreditFields(): self
     {
         return new self('AMQP flow performative requires handle, delivery-count, and link-credit.');
+    }
+
+    public static function malformedFlow(): self
+    {
+        return new self('Malformed AMQP flow performative.');
     }
 
     public static function truncatedFlow(): self
@@ -111,6 +126,11 @@ final class PerformativeException extends RuntimeException
     public static function missingBeginRequiredFields(): self
     {
         return new self('AMQP begin performative requires next-outgoing-id, incoming-window, and outgoing-window.');
+    }
+
+    public static function malformedBegin(): self
+    {
+        return new self('Malformed AMQP begin performative.');
     }
 
     public static function truncatedBegin(): self
