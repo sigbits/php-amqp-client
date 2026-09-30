@@ -783,6 +783,10 @@ final class MessageCodec
             $annotations[$name] = $value;
         }
 
+        if ($cursor !== $mapEnd) {
+            throw MessageException::malformedDeliveryAnnotations();
+        }
+
         return [$annotations, $cursor];
     }
 
@@ -887,6 +891,10 @@ final class MessageCodec
             [$name, $cursor] = $this->decodeAnnotationSymbol($bytes, $cursor, $mapEnd);
             [$value, $cursor] = $this->decodeAnnotationValue($bytes, $cursor, $mapEnd);
             $annotations[$name] = $value;
+        }
+
+        if ($cursor !== $mapEnd) {
+            throw MessageException::malformedMessageAnnotations();
         }
 
         return [$annotations, $cursor];
@@ -1145,6 +1153,10 @@ final class MessageCodec
             $properties[$name] = $value;
         }
 
+        if ($cursor !== $mapEnd) {
+            throw MessageException::malformedApplicationProperties();
+        }
+
         return [$properties, $cursor];
     }
 
@@ -1193,6 +1205,10 @@ final class MessageCodec
             [$name, $cursor] = $this->decodeFooterSymbol($bytes, $cursor, $mapEnd);
             [$value, $cursor] = $this->decodeFooterValue($bytes, $cursor, $mapEnd);
             $footer[$name] = $value;
+        }
+
+        if ($cursor !== $mapEnd) {
+            throw MessageException::malformedFooter();
         }
 
         return [$footer, $cursor];

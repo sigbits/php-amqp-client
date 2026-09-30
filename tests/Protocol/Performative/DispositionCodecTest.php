@@ -105,4 +105,22 @@ final class DispositionCodecTest extends TestCase
 
         $codec->decode("\x00\x53\x15\x45");
     }
+
+    public function testRejectsDispositionWithUnconsumedListPayload(): void
+    {
+        $codec = new DispositionCodec();
+
+        $this->expectException(PerformativeException::class);
+        $this->expectExceptionMessage('Malformed AMQP disposition performative.');
+
+        $codec->decode(
+            "\x00\x53\x15\xc0\x0e\x05"
+            . "\x41"
+            . "\x70\x00\x00\x00\x01"
+            . "\x40"
+            . "\x41"
+            . "\x00\x53\x24\x45"
+            . "\x40",
+        );
+    }
 }

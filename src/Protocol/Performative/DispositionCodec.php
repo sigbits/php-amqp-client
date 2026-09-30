@@ -89,7 +89,15 @@ final class DispositionCodec
         [$deliveryId, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
         $cursor = $this->skipNull($bytes, $cursor, $listEnd);
         $cursor = $this->decodeSettled($bytes, $cursor, $listEnd);
-        [$outcome] = $this->decodeOutcome($bytes, $cursor, $listEnd);
+        [$outcome, $cursor] = $this->decodeOutcome($bytes, $cursor, $listEnd);
+
+        for ($field = 5; $field < $fieldCount; ++$field) {
+            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        }
+
+        if ($cursor !== $listEnd) {
+            throw PerformativeException::malformedDisposition();
+        }
 
         return new Disposition(
             deliveryId: $deliveryId,
@@ -151,6 +159,19 @@ final class DispositionCodec
         }
 
         return $cursor + 1;
+    }
+
+    private function skipValue(string $bytes, int $cursor, int $listEnd): int
+    {
+        try {
+            return $this->scalarReader->skipValue($bytes, $cursor, $listEnd);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Unsupported AMQP format code')) {
+                throw PerformativeException::missingDispositionRequiredFields();
+            }
+
+            throw PerformativeException::truncatedDisposition();
+        }
     }
 
     private function decodeSettled(string $bytes, int $cursor, int $listEnd): int

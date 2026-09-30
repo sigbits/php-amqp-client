@@ -130,4 +130,21 @@ final class FlowCodecTest extends TestCase
             . "\x70\x00\x00\x00\x05",
         );
     }
+
+    public function testRejectsFlowWithUnconsumedListPayload(): void
+    {
+        $codec = new FlowCodec();
+
+        $this->expectException(PerformativeException::class);
+        $this->expectExceptionMessage('Malformed AMQP flow performative.');
+
+        $codec->decode(
+            "\x00\x53\x13\xc0\x15\x07"
+            . "\x40\x40\x40\x40"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x05"
+            . "\x70\x00\x00\x00\x0a"
+            . "\x40",
+        );
+    }
 }

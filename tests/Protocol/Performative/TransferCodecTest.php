@@ -130,4 +130,21 @@ final class TransferCodecTest extends TestCase
             . "\xa0\x05tag",
         );
     }
+
+    public function testRejectsTransferWithUnconsumedListPayload(): void
+    {
+        $codec = new TransferCodec();
+
+        $this->expectException(PerformativeException::class);
+        $this->expectExceptionMessage('Malformed AMQP transfer performative.');
+
+        $codec->decode(
+            "\x00\x53\x14\xc0\x18\x04"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\xa0\x05tag-0"
+            . "\x70\x00\x00\x00\x00"
+            . "\x40",
+        );
+    }
 }

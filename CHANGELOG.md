@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Malformed container payload regressions for AMQP message-section maps and BEGIN, FLOW, TRANSFER, and DISPOSITION performative lists.
 - Public sender regression and deterministic exception mapping for exhausted AMQP link credit while sending.
 - Deterministic settlement hardening for duplicate delivery settlement, detached receiver settlement, and unknown receiver delivery IDs.
 - Receiver link regressions for invalid message descriptors, split message-section descriptors, and incomplete fragmented transfer payload finalization.
