@@ -250,6 +250,39 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringNotContainsString('Complete the missing user-facing documentation gate.', $audit);
     }
 
+    public function testDeveloperHowtoDocumentsContributorWorkflowAndTestTypes(): void
+    {
+        $readme = self::readme();
+        $howto = self::developerHowto();
+        $roadmap = self::roadmap();
+
+        self::assertStringContainsString('[Developer HOWTO](docs/developer-howto.md)', $readme);
+        self::assertStringContainsString('## Test Types', $howto);
+        self::assertStringContainsString('### Broker Integration Tests', $howto);
+        self::assertStringContainsString('### TLS/SASL Security Tests', $howto);
+        self::assertStringContainsString('### Long-Running Worker Tests', $howto);
+        self::assertStringContainsString('### Broker Restart Tests', $howto);
+        self::assertStringContainsString('### Soak Profiles', $howto);
+        self::assertStringContainsString('### Release Verification Matrix', $howto);
+        self::assertStringContainsString('## Why Tests Are Skipped', $howto);
+        self::assertStringContainsString('RUN_BROKER_TESTS=1', $howto);
+        self::assertStringContainsString('RUN_BROKER_SECURITY_TESTS=1', $howto);
+        self::assertStringContainsString('RUN_LONG_TESTS=1', $howto);
+        self::assertStringContainsString('[Developer HOWTO](developer-howto.md)', $roadmap);
+    }
+
+    public function testRoadmapDocumentsPostV1DeliveryAndTransportDirection(): void
+    {
+        $roadmap = self::roadmap();
+
+        self::assertStringContainsString('### v1.1: Developer Workflow and Receive Semantics', $roadmap);
+        self::assertStringContainsString('### v1.2: Delivery Consumption Ergonomics', $roadmap);
+        self::assertStringContainsString('### v1.5: Internal Transport Abstraction', $roadmap);
+        self::assertStringContainsString('### v1.6: Additional Transports', $roadmap);
+        self::assertStringContainsString('AMQP over WebSockets first if Azure Service Bus cloud coverage requires', $roadmap);
+        self::assertStringContainsString('raw socket backend only if it proves concrete value over streams', $roadmap);
+    }
+
     private static function readme(): string
     {
         $contents = file_get_contents(dirname(__DIR__, 2) . '/README.md');
@@ -333,6 +366,17 @@ final class MakefileBrokerWorkflowTest extends TestCase
 
         if ($contents === false) {
             self::fail('Could not read user guide documentation.');
+        }
+
+        return $contents;
+    }
+
+    private static function developerHowto(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/docs/developer-howto.md');
+
+        if ($contents === false) {
+            self::fail('Could not read developer HOWTO documentation.');
         }
 
         return $contents;

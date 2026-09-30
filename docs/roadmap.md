@@ -158,3 +158,65 @@ readiness steps:
    units, receiver credit semantics, and exception retry boundaries.
 4. Refreshed the v1.0.0 release-readiness audit against the committed public API
    and production-hardening requirements.
+
+## Post-v1 Roadmap
+
+### v1.1: Developer Workflow and Receive Semantics
+
+- Keep `make ci` as the fast local quality gate, but remove expected skip noise
+  by separating unit/static checks from broker-dependent suites more clearly.
+- Document the full test taxonomy and release verification matrix in the
+  [Developer HOWTO](developer-howto.md).
+- Fix receive timeout semantics so `Receiver::receive()` and
+  `Receiver::receiveDelivery()` honor their method-level timeout without being
+  dominated by the connection-level stream timeout.
+- Add regression coverage for no-message receive deadlines and buffered
+  deliveries.
+
+### v1.2: Delivery Consumption Ergonomics
+
+- Add a synchronous generator-style delivery API so applications can consume
+  deliveries without writing crude polling loops.
+- Keep the existing `receive()` and `receiveDelivery()` methods as the stable
+  low-level API.
+- Add managed credit helpers or documented patterns for bounded prefetch and
+  replenishment after settlement.
+- Cover delivery consumption with unit, broker integration, long-running, and
+  transport-interruption tests.
+
+### v1.3: Functional Broker Coverage Expansion
+
+- Add RabbitMQ exchange/routing-key address coverage in addition to queue
+  address coverage.
+- Wire Qpid Broker-J TLS/SASL coverage into the local security matrix.
+- Add real Azure Service Bus cloud smoke tests behind explicit opt-in
+  credentials, keeping emulator coverage as the default local path.
+- Expand settlement-effect coverage for accept, release, and reject across the
+  supported broker matrix.
+
+### v1.4: Message Model Expansion
+
+- Extend practical AMQP type support for message properties, annotations,
+  application properties, and body sections where broker workflows require it.
+- Add string32 and broader scalar/container support without weakening strict
+  malformed-payload behavior.
+- Keep exact binary fixtures as the source of truth for new protocol support.
+
+### v1.5: Internal Transport Abstraction
+
+- Introduce an internal transport boundary below SASL and the public client API.
+- Keep PHP streams as the default transport.
+- Move frame reading, write completion, timeout handling, and readiness checks
+  behind the internal transport boundary.
+- Do not expose raw transport resources as public API until the compatibility
+  impact is intentionally designed.
+
+### v1.6: Additional Transports
+
+- Add AMQP over WebSockets first if Azure Service Bus cloud coverage requires
+  it.
+- Consider a raw socket backend only if it proves concrete value over streams,
+  such as socket options, local binding, diagnostics, or better readiness/event
+  loop integration.
+- Keep any event-loop integration additive; do not replace the synchronous API
+  unless a future major version explicitly chooses an async programming model.

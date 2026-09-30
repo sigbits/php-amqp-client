@@ -9,22 +9,19 @@ later driven by blocking streams or async transports.
 
 ## Status
 
-This project is in early development. The current release line includes the
-protocol engine foundation, sender and receiver link engines, synchronous PHP
-stream transport, TLS stream setup, SASL ANONYMOUS/PLAIN negotiation,
-practical AMQP message section encoding, and protocol/state hardening for the
-current public client surface. The public API can open connections, begin/end
-AMQP sessions, send messages, receive messages, manage receiver credit, and
-settle deliveries.
-
-The public developer API is still pre-1.0, but the `v0.8.0` release hardens
-the synchronous Connection, Session, Sender, and Receiver surface with broker
-interoperability coverage, long-running worker coverage, exact binary fixtures,
-malformed payload regressions, and deterministic public exceptions for the
-supported workflows.
+The `v1.0.0` release is the first production-ready baseline for the documented
+support matrix. It includes the protocol engine foundation, sender and receiver
+link engines, synchronous PHP stream transport, TLS stream setup, SASL
+ANONYMOUS/PLAIN negotiation, practical AMQP message section encoding, and
+protocol/state hardening for the committed public client surface. The public
+API can open connections, begin/end AMQP sessions, send messages, receive
+messages, manage receiver credit, and settle deliveries.
 
 For user-facing connection, messaging, settlement, security, retry, broker, and
 worker-operation guidance, see the [User Guide](docs/user-guide.md).
+
+For contributor workflow, test taxonomy, broker gates, and release mechanics,
+see the [Developer HOWTO](docs/developer-howto.md).
 
 ## Supported Surface
 
@@ -107,6 +104,9 @@ make cs
 make stan
 make ci
 ```
+
+See the [Developer HOWTO](docs/developer-howto.md) for when to use each test
+type and why broker-dependent tests are skipped in the fast PHPUnit suite.
 
 The package supports PHP 8.3 and newer. CI runs the quality pipeline across
 supported PHP versions.
