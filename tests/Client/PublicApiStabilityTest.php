@@ -207,7 +207,7 @@ final class PublicApiStabilityTest extends TestCase
             $prefix,
             $method->getName(),
             implode(', ', $parameters),
-            self::returnTypeSignature($method->getReturnType()),
+            self::returnTypeSignature($method),
         );
     }
 
@@ -232,16 +232,18 @@ final class PublicApiStabilityTest extends TestCase
         return var_export($value, true);
     }
 
-    private static function returnTypeSignature(?ReflectionType $type): string
+    private static function returnTypeSignature(ReflectionMethod $method): string
     {
+        $type = $method->getReturnType();
+
         if ($type === null) {
             return '';
         }
 
-        return ': ' . self::typeSignature($type);
+        return ': ' . self::typeSignature($type, $method->getDeclaringClass()->getName());
     }
 
-    private static function typeSignature(?ReflectionType $type): string
+    private static function typeSignature(?ReflectionType $type, ?string $selfClass = null): string
     {
         if ($type === null) {
             return '';
@@ -249,7 +251,7 @@ final class PublicApiStabilityTest extends TestCase
 
         if ($type instanceof ReflectionUnionType) {
             return implode('|', array_map(
-                static fn (ReflectionNamedType $namedType): string => $namedType->getName(),
+                static fn (ReflectionNamedType $namedType): string => self::namedTypeSignature($namedType, $selfClass),
                 $type->getTypes(),
             ));
         }
@@ -258,7 +260,16 @@ final class PublicApiStabilityTest extends TestCase
             self::fail(sprintf('Unsupported reflection type %s.', $type::class));
         }
 
+        return self::namedTypeSignature($type, $selfClass);
+    }
+
+    private static function namedTypeSignature(ReflectionNamedType $type, ?string $selfClass): string
+    {
         $name = $type->getName();
+
+        if ($selfClass !== null && $name === $selfClass) {
+            $name = 'self';
+        }
 
         if ($type->allowsNull() && $name !== 'mixed' && $name !== 'null') {
             return '?' . $name;
