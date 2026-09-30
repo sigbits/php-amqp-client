@@ -18,6 +18,16 @@ services:
       - "56730:5672"
       - "58161:8161"
 
+  artemis-tls:
+    image: haproxy:3.0-alpine
+    depends_on:
+      - artemis
+    volumes:
+      - ./docker/broker/haproxy-artemis-tls.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./docker/broker/tls:/usr/local/etc/haproxy/certs:ro
+    ports:
+      - "56731:5671"
+
   rabbitmq:
     image: rabbitmq:4-management
     environment:

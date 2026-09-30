@@ -9,8 +9,17 @@ The Docker broker stack currently provides:
   `56730`.
 - RabbitMQ 4 on container port `5672`, exposed on host port `56740`.
 
-`make test-integration`, `make test-long`, and `make test-soak` recreate the
-broker stack before running so stale broker state cannot affect the result.
+`make test-integration`, `make test-security`, `make test-long`, and
+`make test-soak` recreate the broker stack before running so stale broker state
+cannot affect the result.
+
+`make test-security` runs the broker TLS/SASL hardening suite. It currently
+covers ActiveMQ Artemis through the local `artemis-tls` endpoint, which
+terminates TLS with HAProxy and forwards AMQP traffic to the Artemis container.
+The suite verifies trusted certificate validation, rejected untrusted
+certificate validation, and rejected invalid SASL PLAIN credentials. Test
+certificates live under `docker/broker/tls` and are intended only for local
+broker integration tests.
 
 `make test-soak` runs configurable long-running worker profiles inside Docker.
 Use `SOAK_PROFILE` to select `all`, `send-only`, `receive-only`,
@@ -48,9 +57,10 @@ targets.
 ## ActiveMQ Artemis
 
 ActiveMQ Artemis is used for handshake, public connection/session lifecycle,
-public sender/receiver detach, send, receive, accepted settlement, long-running
-worker, send-only, receive-only, request/reply-like, bounded credit, reconnect,
-transport interruption, broker restart, and large DATA message coverage.
+public sender/receiver detach, send, receive, accepted settlement, TLS/SASL
+hardening, long-running worker, send-only, receive-only, request/reply-like,
+bounded credit, reconnect, transport interruption, broker restart, and large
+DATA message coverage.
 
 `make test-broker-restart` currently exercises ActiveMQ Artemis restart during
 active public receiver, sender, and settlement loops. The harness runs PHPUnit
