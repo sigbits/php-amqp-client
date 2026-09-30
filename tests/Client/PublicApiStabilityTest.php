@@ -98,7 +98,7 @@ final class PublicApiStabilityTest extends TestCase
         ]));
     }
 
-    public function testAuditDocumentsExposedImplementationConstructors(): void
+    public function testImplementationConstructorsAreNotPublicApi(): void
     {
         $audit = self::v100ApiStabilityAudit();
 
@@ -107,15 +107,18 @@ final class PublicApiStabilityTest extends TestCase
             Sender::class => '__construct(Sigbits\Amqp\Engine\SenderLinkEngine $engine, callable $writeAll, callable $readFrame)',
             Receiver::class => '__construct(Sigbits\Amqp\Engine\ReceiverLinkEngine $link, callable $read, ?callable $writeAll = null)',
             Delivery::class => '__construct(int $deliveryId, Sigbits\Amqp\Protocol\Message\Message $message, callable $accept, callable $release, callable $reject)',
+        ], self::nonPublicConstructorSignatures([
+            Session::class => '__construct(Sigbits\Amqp\Engine\SessionEngine $engine, int $channel, callable $writeAll, callable $readFrame)',
+            Sender::class => '__construct(Sigbits\Amqp\Engine\SenderLinkEngine $engine, callable $writeAll, callable $readFrame)',
+            Receiver::class => '__construct(Sigbits\Amqp\Engine\ReceiverLinkEngine $link, callable $read, ?callable $writeAll = null)',
+            Delivery::class => '__construct(int $deliveryId, Sigbits\Amqp\Protocol\Message\Message $message, callable $accept, callable $release, callable $reject)',
+        ]));
+        self::assertSame([
             TlsOptions::class => '__construct(bool $verifyPeer = true, bool $verifyPeerName = true, ?string $peerName = null, ?string $cafile = null, ?string $localCert = null)',
         ], self::publicConstructorSignatures([
-            Session::class,
-            Sender::class,
-            Receiver::class,
-            Delivery::class,
             TlsOptions::class,
         ]));
-        self::assertStringContainsString('Session, Sender, Receiver, and Delivery constructors expose engine and callable internals', $audit);
+        self::assertStringContainsString('Session, Sender, Receiver, and Delivery constructors are hidden from the supported public API', $audit);
     }
 
     /**
@@ -156,6 +159,32 @@ final class PublicApiStabilityTest extends TestCase
             $constructor = (new ReflectionClass($class))->getConstructor();
 
             if ($constructor === null || !$constructor->isPublic()) {
+                continue;
+            }
+
+            $signatures[$class] = self::methodSignature($constructor);
+        }
+
+        return $signatures;
+    }
+
+    /**
+     * @param array<class-string, string> $constructors
+     *
+     * @return array<class-string, string>
+     */
+    private static function nonPublicConstructorSignatures(array $constructors): array
+    {
+        $signatures = [];
+
+        foreach ($constructors as $class => $_expectedSignature) {
+            $constructor = (new ReflectionClass($class))->getConstructor();
+
+            if ($constructor === null) {
+                continue;
+            }
+
+            if ($constructor->isPublic()) {
                 continue;
             }
 

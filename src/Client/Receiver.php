@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Client;
 
 use Closure;
+use Sigbits\Amqp\Client\Internal\ClientObjectFactory;
 use Sigbits\Amqp\Engine\ReceivedDelivery;
 use Sigbits\Amqp\Engine\ReceiverLinkEngine;
 use Sigbits\Amqp\Engine\ReceiverLinkState;
@@ -18,7 +19,7 @@ final class Receiver
      * @param callable(int): ?string $read
      * @param null|callable(list<string>): void $writeAll
      */
-    public function __construct(
+    private function __construct(
         private readonly ReceiverLinkEngine $link,
         callable $read,
         ?callable $writeAll = null,
@@ -131,7 +132,7 @@ final class Receiver
     {
         ++$this->receivedDeliveryCount;
 
-        return new Delivery(
+        return ClientObjectFactory::delivery(
             deliveryId: $delivery->deliveryId,
             message: $delivery->message,
             accept: $this->settle($this->link->accept(...)),

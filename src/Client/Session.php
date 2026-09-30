@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Client;
 
 use Closure;
+use Sigbits\Amqp\Client\Internal\ClientObjectFactory;
 use Sigbits\Amqp\Engine\ReceiverLinkEngine;
 use Sigbits\Amqp\Engine\ReceiverLinkState;
 use Sigbits\Amqp\Engine\SenderLinkEngine;
@@ -18,7 +19,7 @@ final class Session
      * @param callable(list<string>): void $writeAll
      * @param callable(): string $readFrame
      */
-    public function __construct(
+    private function __construct(
         private readonly SessionEngine $engine,
         private readonly int $channel,
         callable $writeAll,
@@ -69,7 +70,7 @@ final class Session
             }
         }
 
-        return new Sender($engine, $this->writeAll, $this->readFrame);
+        return ClientObjectFactory::sender($engine, $this->writeAll, $this->readFrame);
     }
 
     public function openReceiver(string $address, string $name = 'receiver', int $handle = 1, int $credit = 1): Receiver
@@ -100,7 +101,7 @@ final class Session
 
         ($this->writeAll)($engine->grantCredit(deliveryCount: 0, linkCredit: $credit));
 
-        return new Receiver(
+        return ClientObjectFactory::receiver(
             $engine,
             fn (int $_timeoutMilliseconds): string => ($this->readFrame)(),
             $this->writeAll,

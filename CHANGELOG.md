@@ -7,6 +7,10 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+### Changed
+
+- Hid `Session`, `Sender`, `Receiver`, and `Delivery` implementation constructors from the supported public API ahead of the v1.0.0 compatibility commitment.
+
 ## v0.9.0 - 2026-09-30
 
 ### Added
