@@ -6,7 +6,7 @@ namespace Sigbits\Amqp\Tests\Client;
 
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Client\ClientException;
-use Sigbits\Amqp\Client\Connection;
+use Sigbits\Amqp\Client\Internal\ClientObjectFactory;
 use Sigbits\Amqp\Engine\ConnectionState;
 use Sigbits\Amqp\Engine\ReceiverLinkState;
 use Sigbits\Amqp\Engine\SenderLinkState;
@@ -28,7 +28,7 @@ final class ConnectionTest extends TestCase
             authenticator: new SaslStreamAuthenticator(),
         );
 
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -52,7 +52,7 @@ final class ConnectionTest extends TestCase
         $this->expectException(TransportException::class);
         $this->expectExceptionMessage('Timed out waiting for AMQP stream bytes.');
 
-        Connection::connect(
+        ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 0.001,
@@ -68,7 +68,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -90,7 +90,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -114,7 +114,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -136,7 +136,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -160,7 +160,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -183,7 +183,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -214,7 +214,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -244,7 +244,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 0.001,
@@ -272,7 +272,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 0.001,
@@ -302,7 +302,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 0.001,
@@ -333,7 +333,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -363,7 +363,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 0.001,
@@ -394,7 +394,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 0.001,
@@ -425,7 +425,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -456,7 +456,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -486,7 +486,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -515,7 +515,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -546,7 +546,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 0.001,
@@ -573,7 +573,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 0.001,
@@ -604,7 +604,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -631,7 +631,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -660,7 +660,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -690,7 +690,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,
@@ -722,7 +722,7 @@ final class ConnectionTest extends TestCase
             streamConnector: new StreamConnector(static fn (): mixed => $client),
             authenticator: new SaslStreamAuthenticator(),
         );
-        $connection = Connection::connect(
+        $connection = ClientObjectFactory::connection(
             'amqp://guest:secret@broker.example.test',
             containerId: 'client',
             timeoutSeconds: 1.0,

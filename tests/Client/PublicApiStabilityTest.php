@@ -27,7 +27,7 @@ final class PublicApiStabilityTest extends TestCase
     {
         self::assertSame([
             Connection::class => [
-                'static connect(string $uri, ?Sigbits\Amqp\Protocol\Sasl\SaslClient $saslClient = null, string $containerId = \'sigbits-php-amqp-client\', float $timeoutSeconds = 30.0, ?Sigbits\Amqp\Transport\TlsOptions $tls = null, ?Sigbits\Amqp\Transport\SaslStreamConnector $connector = null): self',
+                'static connect(string $uri, ?Sigbits\Amqp\Protocol\Sasl\SaslClient $saslClient = null, string $containerId = \'sigbits-php-amqp-client\', float $timeoutSeconds = 30.0, ?Sigbits\Amqp\Transport\TlsOptions $tls = null): self',
                 'state(): Sigbits\Amqp\Engine\ConnectionState',
                 'beginSession(int $channel = 0): Sigbits\Amqp\Client\Session',
                 'close(): void',
