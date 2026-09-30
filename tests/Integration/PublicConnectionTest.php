@@ -321,6 +321,27 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
+    public function testPublicSenderDetachesAgainstRabbitMq(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $queue = 'sigbits.public.sender.detach.' . bin2hex(random_bytes(4));
+        $this->createRabbitMqQueue($queue);
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender('/queues/' . rawurlencode($queue));
+
+        $sender->detach();
+
+        self::assertSame(SenderLinkState::Detached, $sender->state());
+
+        $session->end();
+        $connection->close();
+    }
+
     public function testPublicReceiverDetachesAgainstArtemis(): void
     {
         if (getenv('RUN_BROKER_TESTS') !== '1') {
@@ -351,6 +372,27 @@ final class PublicConnectionTest extends TestCase
         $connection = Connection::connect(getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672', timeoutSeconds: 5.0);
         $session = $connection->beginSession();
         $receiver = $session->openReceiver($address);
+
+        $receiver->detach();
+
+        self::assertSame(ReceiverLinkState::Detached, $receiver->state());
+
+        $session->end();
+        $connection->close();
+    }
+
+    public function testPublicReceiverDetachesAgainstRabbitMq(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $queue = 'sigbits.public.receiver.detach.' . bin2hex(random_bytes(4));
+        $this->createRabbitMqQueue($queue);
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver('/queues/' . rawurlencode($queue));
 
         $receiver->detach();
 
