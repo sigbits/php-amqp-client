@@ -89,6 +89,29 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
+    public function testPublicSenderSendsMessageAgainstRabbitMq(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $queue = 'sigbits.public.sender.' . bin2hex(random_bytes(4));
+        $this->createRabbitMqQueue($queue);
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender('/queues/' . rawurlencode($queue));
+        $creditBeforeSend = $sender->availableCredit();
+
+        $sender->send('hello rabbitmq');
+
+        self::assertGreaterThan(0, $creditBeforeSend);
+        self::assertSame($creditBeforeSend - 1, $sender->availableCredit());
+
+        $session->end();
+        $connection->close();
+    }
+
     public function testPublicReceiverReceivesMessageAgainstArtemis(): void
     {
         if (getenv('RUN_BROKER_TESTS') !== '1') {
@@ -314,6 +337,38 @@ final class PublicConnectionTest extends TestCase
 
         if ($response === false || !str_contains($status, '201 Created')) {
             self::fail('Could not create Qpid test queue: ' . $status);
+        }
+    }
+
+    private function createRabbitMqQueue(string $name): void
+    {
+        $body = json_encode([
+            'durable' => true,
+            'arguments' => new \stdClass(),
+        ]);
+
+        if ($body === false) {
+            self::fail('Could not encode RabbitMQ queue creation payload.');
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'PUT',
+                'header' => 'Authorization: Basic ' . base64_encode('guest:guest') . "\r\n"
+                    . "Content-Type: application/json\r\n",
+                'content' => $body,
+                'ignore_errors' => true,
+            ],
+        ]);
+        $response = file_get_contents(
+            'http://rabbitmq:15672/api/queues/%2F/' . rawurlencode($name),
+            false,
+            $context,
+        );
+        $status = $http_response_header[0] ?? '';
+
+        if ($response === false || (!str_contains($status, '201 Created') && !str_contains($status, '204 No Content'))) {
+            self::fail('Could not create RabbitMQ test queue: ' . $status);
         }
     }
 }

@@ -18,11 +18,15 @@ RabbitMQ 4 supports AMQP 1.0 natively on the standard AMQP listener. The local
 test matrix uses the `rabbitmq:4-management` image with the `guest` user and
 password.
 
-Initial v0.9.0 coverage adds RabbitMQ to the AMQP/SASL handshake and public
-connection/session mapping matrix. Public send, receive, settlement, and detach
-coverage still needs to account for RabbitMQ AMQP 1.0 address v2 semantics,
-where clients target exchanges or queues using addresses such as
-`/exchanges/:exchange/:routing-key` and `/queues/:queue`.
+Initial v0.9.0 coverage adds RabbitMQ to the AMQP/SASL handshake, public
+connection/session mapping, and public sender matrix. Public sender coverage
+creates a durable random test queue through the RabbitMQ management API and
+targets it with the AMQP 1.0 address v2 queue form `/queues/:queue`.
+
+Public receive, settlement, and detach coverage still needs to account for
+RabbitMQ AMQP 1.0 address v2 semantics, where clients target exchanges or
+queues using addresses such as `/exchanges/:exchange/:routing-key` and
+`/queues/:queue`.
 
 ## Qpid Broker-J
 
