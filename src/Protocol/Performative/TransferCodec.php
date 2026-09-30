@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Performative;
 
+use Sigbits\Amqp\Protocol\Codec\DecodeException;
+use Sigbits\Amqp\Protocol\Codec\ScalarReader;
 use Sigbits\Amqp\Protocol\Type\UInt;
 
 final class TransferCodec
@@ -15,10 +17,15 @@ final class TransferCodec
     private const int CONSTRUCTOR_NULL = 0x40;
     private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
     private const int CONSTRUCTOR_BOOL_FALSE = 0x42;
-    private const int CONSTRUCTOR_UINT0 = 0x43;
-    private const int CONSTRUCTOR_SMALLUINT = 0x52;
     private const int CONSTRUCTOR_UINT = 0x70;
     private const int CONSTRUCTOR_VBIN8 = 0xa0;
+
+    private readonly ScalarReader $scalarReader;
+
+    public function __construct(?ScalarReader $scalarReader = null)
+    {
+        $this->scalarReader = $scalarReader ?? new ScalarReader();
+    }
 
     public function encode(Transfer $transfer): string
     {
@@ -116,40 +123,21 @@ final class TransferCodec
      */
     private function decodeUInt(string $bytes, int $cursor, int $listEnd): array
     {
-        if ($cursor >= $listEnd) {
+        try {
+            [$value, $cursor] = $this->scalarReader->readNullableUInt($bytes, $cursor, $listEnd);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Unsupported AMQP format code')) {
+                throw PerformativeException::missingTransferRequiredFields();
+            }
+
             throw PerformativeException::truncatedTransfer();
         }
 
-        $constructor = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($constructor === self::CONSTRUCTOR_UINT0) {
-            return [0, $cursor];
-        }
-
-        if ($constructor === self::CONSTRUCTOR_SMALLUINT) {
-            if ($cursor >= $listEnd) {
-                throw PerformativeException::truncatedTransfer();
-            }
-
-            return [ord($bytes[$cursor]), $cursor + 1];
-        }
-
-        if ($constructor !== self::CONSTRUCTOR_UINT) {
+        if ($value === null) {
             throw PerformativeException::missingTransferRequiredFields();
         }
 
-        if ($cursor + 4 > $listEnd) {
-            throw PerformativeException::truncatedTransfer();
-        }
-
-        return [
-            (ord($bytes[$cursor]) << 24)
-            | (ord($bytes[$cursor + 1]) << 16)
-            | (ord($bytes[$cursor + 2]) << 8)
-            | ord($bytes[$cursor + 3]),
-            $cursor + 4,
-        ];
+        return [$value, $cursor];
     }
 
     /**
@@ -186,19 +174,15 @@ final class TransferCodec
 
     private function skipValue(string $bytes, int $cursor, int $listEnd): int
     {
-        if ($cursor >= $listEnd) {
+        try {
+            return $this->scalarReader->skipValue($bytes, $cursor, $listEnd);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Unsupported AMQP format code')) {
+                throw PerformativeException::missingTransferRequiredFields();
+            }
+
             throw PerformativeException::truncatedTransfer();
         }
-
-        return match (ord($bytes[$cursor])) {
-            self::CONSTRUCTOR_NULL,
-            self::CONSTRUCTOR_BOOL_TRUE,
-            self::CONSTRUCTOR_BOOL_FALSE,
-            self::CONSTRUCTOR_UINT0 => $cursor + 1,
-            self::CONSTRUCTOR_SMALLUINT => $cursor + 2 <= $listEnd ? $cursor + 2 : throw PerformativeException::truncatedTransfer(),
-            self::CONSTRUCTOR_UINT => $cursor + 5 <= $listEnd ? $cursor + 5 : throw PerformativeException::truncatedTransfer(),
-            default => throw PerformativeException::missingTransferRequiredFields(),
-        };
     }
 
     /**

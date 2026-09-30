@@ -40,4 +40,9 @@ final class DecodeException extends RuntimeException
     {
         return new self('Truncated AMQP int value.');
     }
+
+    public static function truncatedValue(): self
+    {
+        return new self('Truncated AMQP value.');
+    }
 }
