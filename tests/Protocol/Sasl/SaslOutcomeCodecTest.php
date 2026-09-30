@@ -32,6 +32,16 @@ final class SaslOutcomeCodecTest extends TestCase
         );
     }
 
+    public function testDecodesOkOutcomePerformativeWithNullAdditionalData(): void
+    {
+        $codec = new SaslOutcomeCodec();
+
+        self::assertEquals(
+            SaslOutcome::ok(),
+            $codec->decode("\x00\x53\x44\xc0\x04\x02\x50\x00\x40"),
+        );
+    }
+
     public function testEncodesAuthFailureOutcomePerformativeWithAdditionalData(): void
     {
         $codec = new SaslOutcomeCodec();

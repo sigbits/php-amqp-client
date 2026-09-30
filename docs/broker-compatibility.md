@@ -1,0 +1,39 @@
+# Broker Compatibility Notes
+
+## Supported Local Matrix
+
+The Docker broker stack currently provides:
+
+- Apache Qpid Broker-J on container port `5672`, exposed on host port `56720`.
+- Apache ActiveMQ Artemis on container port `5672`, exposed on host port
+  `56730`.
+- RabbitMQ 4 on container port `5672`, exposed on host port `56740`.
+
+`make test-integration` and `make test-long` recreate the broker stack before
+running so stale broker state cannot affect the result.
+
+## RabbitMQ 4 AMQP 1.0
+
+RabbitMQ 4 supports AMQP 1.0 natively on the standard AMQP listener. The local
+test matrix uses the `rabbitmq:4-management` image with the `guest` user and
+password.
+
+Initial v0.9.0 coverage adds RabbitMQ to the AMQP/SASL handshake and public
+connection/session mapping matrix. Public send, receive, settlement, and detach
+coverage still needs to account for RabbitMQ AMQP 1.0 address v2 semantics,
+where clients target exchanges or queues using addresses such as
+`/exchanges/:exchange/:routing-key` and `/queues/:queue`.
+
+## Qpid Broker-J
+
+Qpid Broker-J is used for handshake, public connection/session lifecycle,
+public sender/receiver detach, send, receive, and accepted settlement coverage.
+Tests create explicit queues through the broker management API because this
+test broker does not auto-create random targets.
+
+## ActiveMQ Artemis
+
+ActiveMQ Artemis is used for handshake, public connection/session lifecycle,
+public sender/receiver detach, send, receive, accepted settlement, long-running
+worker, bounded credit, reconnect, transport interruption, and large DATA
+message coverage.

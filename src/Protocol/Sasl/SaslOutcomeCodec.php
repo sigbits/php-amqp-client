@@ -10,6 +10,7 @@ final class SaslOutcomeCodec
     private const int DESCRIPTOR_LENGTH = 3;
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
+    private const int CONSTRUCTOR_NULL = 0x40;
     private const int CONSTRUCTOR_UBYTE = 0x50;
     private const int CONSTRUCTOR_VBIN8 = 0xa0;
 
@@ -77,7 +78,7 @@ final class SaslOutcomeCodec
         $additionalData = null;
 
         if ($fieldCount >= 2) {
-            [$additionalData] = $this->decodeBinary($bytes, $cursor, $listEnd);
+            [$additionalData] = $this->decodeNullableBinary($bytes, $cursor, $listEnd);
         }
 
         return new SaslOutcome(
@@ -123,12 +124,16 @@ final class SaslOutcomeCodec
     }
 
     /**
-     * @return array{0: string, 1: int}
+     * @return array{0: ?string, 1: int}
      */
-    private function decodeBinary(string $bytes, int $cursor, int $listEnd): array
+    private function decodeNullableBinary(string $bytes, int $cursor, int $listEnd): array
     {
         if ($cursor >= $listEnd) {
             throw SaslException::truncatedOutcome();
+        }
+
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor + 1];
         }
 
         if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_VBIN8) {

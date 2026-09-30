@@ -18,6 +18,15 @@ services:
       - "56730:5672"
       - "58161:8161"
 
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "56740:5672"
+      - "58172:15672"
+
   toxiproxy:
     image: ghcr.io/shopify/toxiproxy:2.12.0
     ports:

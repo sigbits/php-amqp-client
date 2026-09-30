@@ -281,6 +281,7 @@ final class PublicConnectionTest extends TestCase
         return [
             'qpid' => [getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672'],
             'artemis' => [getenv('AMQP_ARTEMIS_URI') ?: 'amqp://guest:guest@artemis:5672'],
+            'rabbitmq' => [getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672'],
         ];
     }
 
