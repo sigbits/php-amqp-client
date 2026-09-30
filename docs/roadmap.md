@@ -122,9 +122,8 @@ installable through Composer.
 Continue v0.8.0 protocol completeness with the smallest codec and state-machine
 hardening steps:
 
-1. Expand exact binary fixtures for message sections using the broader scalar
-   primitive set.
-2. Add additional parser regressions for invalid descriptors and fragmented
+1. Add additional parser regressions for invalid descriptors and fragmented
    transfer payload boundaries.
-3. Harden settlement race behavior for remote dispositions and repeated
+2. Harden settlement race behavior for remote dispositions and repeated
    settlement attempts.
+3. Add exhausted link-credit public regression coverage.

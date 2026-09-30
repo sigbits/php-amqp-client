@@ -11,6 +11,10 @@ use Sigbits\Amqp\Protocol\Message\MessageBodySection;
 use Sigbits\Amqp\Protocol\Message\MessageCodec;
 use Sigbits\Amqp\Protocol\Message\MessageException;
 use Sigbits\Amqp\Protocol\Message\Properties;
+use Sigbits\Amqp\Protocol\Type\Byte;
+use Sigbits\Amqp\Protocol\Type\Int_;
+use Sigbits\Amqp\Protocol\Type\Long_;
+use Sigbits\Amqp\Protocol\Type\Short;
 
 final class MessageCodecTest extends TestCase
 {
@@ -182,6 +186,40 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesDeliveryAnnotationsWithSignedScalarValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x71\xc1\x14\x02\xa3\x0fpriority-offset\x51\x80"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                deliveryAnnotations: [
+                    'priority-offset' => new Byte(-128),
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesDeliveryAnnotationsWithSignedScalarValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                deliveryAnnotations: [
+                    'priority-offset' => new Byte(-128),
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x71\xc1\x14\x02\xa3\x0fpriority-offset\x51\x80"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
     public function testEncodesMessageAnnotationsBeforeDataBody(): void
     {
         $codec = new MessageCodec();
@@ -211,6 +249,40 @@ final class MessageCodecTest extends TestCase
             ),
             $codec->decode(
                 "\x00\x53\x72\xc1\x15\x02\xa3\x08trace-id\xa1\x08trace-42"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
+    public function testEncodesMessageAnnotationsWithSignedScalarValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x72\xc1\x11\x02\xa3\x0bshard-index\x61\xff\xfe"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                messageAnnotations: [
+                    'shard-index' => new Short(-2),
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesMessageAnnotationsWithSignedScalarValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                messageAnnotations: [
+                    'shard-index' => new Short(-2),
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x72\xc1\x11\x02\xa3\x0bshard-index\x61\xff\xfe"
                     . "\x00\x53\x75\xa0\x07payload",
             ),
         );
@@ -290,6 +362,54 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesApplicationPropertiesWithSignedScalarValues(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x74\xc1\x2c\x08"
+                . "\xa3\x04byte\x51\x7f"
+                . "\xa3\x05short\x61\x80\x00"
+                . "\xa3\x03int\x71\xff\xff\xff\xfd"
+                . "\xa3\x04long\x81\xff\xff\xff\xff\xff\xff\xff\xfc"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                applicationProperties: [
+                    'byte' => new Byte(127),
+                    'short' => new Short(-32768),
+                    'int' => new Int_(-3),
+                    'long' => new Long_(-4),
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesApplicationPropertiesWithSignedScalarValues(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                applicationProperties: [
+                    'byte' => new Byte(127),
+                    'short' => new Short(-32768),
+                    'int' => new Int_(-3),
+                    'long' => new Long_(-4),
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x74\xc1\x2c\x08"
+                    . "\xa3\x04byte\x51\x7f"
+                    . "\xa3\x05short\x61\x80\x00"
+                    . "\xa3\x03int\x71\xff\xff\xff\xfd"
+                    . "\xa3\x04long\x81\xff\xff\xff\xff\xff\xff\xff\xfc"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
     public function testEncodesFooterAfterDataBody(): void
     {
         $codec = new MessageCodec();
@@ -320,6 +440,40 @@ final class MessageCodecTest extends TestCase
             $codec->decode(
                 "\x00\x53\x75\xa0\x07payload"
                     . "\x00\x53\x78\xc1\x13\x02\xa3\x08checksum\xa1\x06abc123",
+            ),
+        );
+    }
+
+    public function testEncodesFooterWithSignedScalarValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x75\xa0\x07payload"
+                . "\x00\x53\x78\xc1\x0e\x02\xa3\x06offset\x71\x80\x00\x00\x00",
+            $codec->encode(new Message(
+                body: 'payload',
+                footer: [
+                    'offset' => new Int_(-2147483648),
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesFooterWithSignedScalarValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                footer: [
+                    'offset' => new Int_(-2147483648),
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x75\xa0\x07payload"
+                    . "\x00\x53\x78\xc1\x0e\x02\xa3\x06offset\x71\x80\x00\x00\x00",
             ),
         );
     }
