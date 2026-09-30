@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- RabbitMQ 4 TLS/SASL broker security coverage for trusted certificates, rejected untrusted certificates, and rejected invalid SASL PLAIN credentials through the local `rabbitmq-tls` endpoint.
 - Docker-first `make test-security` broker coverage for ActiveMQ Artemis over TLS with trusted certificates, rejected untrusted certificates, and rejected invalid SASL PLAIN credentials.
 - Local ActiveMQ Artemis TLS endpoint backed by HAProxy and repo-local test certificates for broker security integration tests.
 - Configurable Docker-first `make test-soak` profiles for send-only, receive-only, request/reply-like, bounded-credit, reconnect, and large-message long-running worker workloads.

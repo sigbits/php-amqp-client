@@ -105,8 +105,9 @@ ready for tagging with the supported-surface scope documented there.
   Local ActiveMQ Artemis and Qpid Broker-J coverage is in place through
   `make test-soak`.
 - Validate TLS/SASL combinations across supported brokers, including failed
-  authentication and certificate validation paths. Local ActiveMQ Artemis
-  coverage is in place through `make test-security`.
+  authentication and certificate validation paths. Local ActiveMQ Artemis and
+  RabbitMQ 4 coverage is in place through `make test-security`; Qpid Broker-J
+  TLS/SASL security coverage remains a documented local-matrix gap.
 - Document broker-specific setup, known limitations, and compatibility notes.
 
 ### v1.0.0: Production-Oriented Release
@@ -137,6 +138,6 @@ compatibility steps:
    queue address v2 semantics.
 3. Add the first non-local external broker target only after a real broker
    behavior gap is reproduced.
-4. Continue v0.9.0 hardening by expanding TLS/SASL validation beyond the local
-   ActiveMQ Artemis TLS endpoint and documenting any broker-specific setup
-   gaps.
+4. Continue v0.9.0 hardening by either wiring Qpid Broker-J TLS/SASL security
+   coverage or preparing the v0.9.0 release-readiness audit with Qpid TLS
+   listed as a documented local-matrix gap.

@@ -34,7 +34,7 @@ test-integration: broker-reset
 	$(BROKER_COMPOSE) run --rm -e RUN_BROKER_TESTS=1 php composer test:integration
 
 test-security: broker-reset
-	$(BROKER_COMPOSE) run --rm -e RUN_BROKER_SECURITY_TESTS=1 -e AMQP_ARTEMIS_TLS_URI=amqps://guest:guest@artemis-tls:5671 -e AMQP_ARTEMIS_TLS_INVALID_URI=amqps://guest:wrong@artemis-tls:5671 -e AMQP_ARTEMIS_TLS_CA_FILE=/app/docker/broker/tls/ca.crt -e AMQP_ARTEMIS_TLS_PEER_NAME=artemis-tls.sigbits.test php composer test:integration -- --filter TlsSaslBrokerTest
+	$(BROKER_COMPOSE) run --rm -e RUN_BROKER_SECURITY_TESTS=1 -e AMQP_ARTEMIS_TLS_URI=amqps://guest:guest@artemis-tls:5671 -e AMQP_ARTEMIS_TLS_INVALID_URI=amqps://guest:wrong@artemis-tls:5671 -e AMQP_ARTEMIS_TLS_CA_FILE=/app/docker/broker/tls/ca.crt -e AMQP_ARTEMIS_TLS_PEER_NAME=artemis-tls.sigbits.test -e AMQP_RABBITMQ_TLS_URI=amqps://guest:guest@rabbitmq-tls:5671 -e AMQP_RABBITMQ_TLS_INVALID_URI=amqps://guest:wrong@rabbitmq-tls:5671 -e AMQP_RABBITMQ_TLS_CA_FILE=/app/docker/broker/tls/ca.crt -e AMQP_RABBITMQ_TLS_PEER_NAME=rabbitmq-tls.sigbits.test php composer test:integration -- --filter TlsSaslBrokerTest
 
 test-long: broker-reset
 	$(BROKER_COMPOSE) run --rm -e RUN_LONG_TESTS=1 -e AMQP_TOXIPROXY_API=http://toxiproxy:8474 -e AMQP_LONG_CYCLES=$(LONG_TEST_CYCLES) -e AMQP_LONG_CREDIT_CYCLES=$(LONG_TEST_CREDIT_CYCLES) -e AMQP_LONG_CREDIT_WINDOW=$(LONG_TEST_CREDIT_WINDOW) -e AMQP_LONG_FAILURE_CYCLES=$(LONG_TEST_FAILURE_CYCLES) -e AMQP_LONG_LARGE_MESSAGE_BYTES=$(LONG_TEST_LARGE_MESSAGE_BYTES) -e AMQP_LONG_LARGE_MESSAGE_CYCLES=$(LONG_TEST_LARGE_MESSAGE_CYCLES) -e AMQP_LONG_MAX_MEMORY_GROWTH_BYTES=$(LONG_TEST_MAX_MEMORY_GROWTH_BYTES) -e AMQP_LONG_RECONNECT_CYCLES=$(LONG_TEST_RECONNECT_CYCLES) php composer test:long
@@ -48,7 +48,7 @@ test-broker-restart: broker-reset
 	./tools/broker-restart.sh testPublicSettlementObservesBrokerRestartAgainstArtemis
 
 broker-up:
-	$(BROKER_COMPOSE) up -d qpid artemis artemis-tls rabbitmq toxiproxy
+	$(BROKER_COMPOSE) up -d qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy
 	@$(MAKE) broker-wait
 
 broker-wait:
@@ -56,10 +56,11 @@ broker-wait:
 	@i=0; until $(BROKER_COMPOSE) logs --no-color artemis | grep -q 'Server is now active'; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for ActiveMQ Artemis readiness.' >&2; exit 1; fi; sleep 1; done; echo 'ActiveMQ Artemis ready.'
 	@i=0; until $(BROKER_COMPOSE) logs --no-color artemis-tls | grep -q 'Server artemis_amqp/artemis is UP'; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for ActiveMQ Artemis TLS endpoint readiness.' >&2; exit 1; fi; sleep 1; done; echo 'ActiveMQ Artemis TLS endpoint ready.'
 	@i=0; until $(BROKER_COMPOSE) exec -T rabbitmq rabbitmq-diagnostics -q ping >/dev/null 2>&1; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for RabbitMQ readiness.' >&2; exit 1; fi; sleep 1; done; echo 'RabbitMQ ready.'
+	@i=0; until $(BROKER_COMPOSE) logs --no-color rabbitmq-tls | grep -q 'Server rabbitmq_amqp/rabbitmq is UP'; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for RabbitMQ TLS endpoint readiness.' >&2; exit 1; fi; sleep 1; done; echo 'RabbitMQ TLS endpoint ready.'
 
 broker-down:
-	$(BROKER_COMPOSE) stop qpid artemis artemis-tls rabbitmq toxiproxy
-	$(BROKER_COMPOSE) rm --force --volumes qpid artemis artemis-tls rabbitmq toxiproxy
+	$(BROKER_COMPOSE) stop qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy
+	$(BROKER_COMPOSE) rm --force --volumes qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy
 
 broker-reset:
 	@$(MAKE) broker-down

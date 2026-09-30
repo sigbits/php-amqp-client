@@ -33,11 +33,11 @@ final class MakefileBrokerWorkflowTest extends TestCase
     {
         $makefile = self::makefile();
 
-        self::assertStringContainsString('$(BROKER_COMPOSE) up -d qpid artemis artemis-tls rabbitmq toxiproxy', $makefile);
+        self::assertStringContainsString('$(BROKER_COMPOSE) up -d qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy', $makefile);
         self::assertStringContainsString('$(BROKER_COMPOSE) exec -T rabbitmq rabbitmq-diagnostics -q ping', $makefile);
-        self::assertStringContainsString('$(BROKER_COMPOSE) stop qpid artemis artemis-tls rabbitmq toxiproxy', $makefile);
+        self::assertStringContainsString('$(BROKER_COMPOSE) stop qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy', $makefile);
         self::assertStringContainsString(
-            '$(BROKER_COMPOSE) rm --force --volumes qpid artemis artemis-tls rabbitmq toxiproxy',
+            '$(BROKER_COMPOSE) rm --force --volumes qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy',
             $makefile,
         );
     }
@@ -89,6 +89,9 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('AMQP_ARTEMIS_TLS_URI=amqps://guest:guest@artemis-tls:5671', $makefile);
         self::assertStringContainsString('AMQP_ARTEMIS_TLS_CA_FILE=/app/docker/broker/tls/ca.crt', $makefile);
         self::assertStringContainsString('AMQP_ARTEMIS_TLS_PEER_NAME=artemis-tls.sigbits.test', $makefile);
+        self::assertStringContainsString('AMQP_RABBITMQ_TLS_URI=amqps://guest:guest@rabbitmq-tls:5671', $makefile);
+        self::assertStringContainsString('AMQP_RABBITMQ_TLS_CA_FILE=/app/docker/broker/tls/ca.crt', $makefile);
+        self::assertStringContainsString('AMQP_RABBITMQ_TLS_PEER_NAME=rabbitmq-tls.sigbits.test', $makefile);
         self::assertStringContainsString('composer test:integration -- --filter TlsSaslBrokerTest', $makefile);
     }
 
@@ -100,6 +103,17 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('image: haproxy:', $compose);
         self::assertStringContainsString('"56731:5671"', $compose);
         self::assertStringContainsString('./docker/broker/haproxy-artemis-tls.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro', $compose);
+        self::assertStringContainsString('./docker/broker/tls:/usr/local/etc/haproxy/certs:ro', $compose);
+    }
+
+    public function testBrokerComposeDefinesRabbitMqTlsEndpoint(): void
+    {
+        $compose = self::brokerCompose();
+
+        self::assertStringContainsString('rabbitmq-tls:', $compose);
+        self::assertStringContainsString('image: haproxy:', $compose);
+        self::assertStringContainsString('"56741:5671"', $compose);
+        self::assertStringContainsString('./docker/broker/haproxy-rabbitmq-tls.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro', $compose);
         self::assertStringContainsString('./docker/broker/tls:/usr/local/etc/haproxy/certs:ro', $compose);
     }
 
@@ -115,12 +129,31 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('"58172:15672"', $compose);
     }
 
+    public function testBrokerCompatibilityDocumentsSecurityMatrix(): void
+    {
+        $documentation = self::brokerCompatibilityDocumentation();
+
+        self::assertStringContainsString('ActiveMQ Artemis and RabbitMQ 4 through local TLS endpoints', $documentation);
+        self::assertStringContainsString('Qpid Broker-J TLS/SASL security coverage is not yet wired', $documentation);
+    }
+
     private static function makefile(): string
     {
         $contents = file_get_contents(dirname(__DIR__, 2) . '/Makefile');
 
         if ($contents === false) {
             self::fail('Could not read project Makefile.');
+        }
+
+        return $contents;
+    }
+
+    private static function brokerCompatibilityDocumentation(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/docs/broker-compatibility.md');
+
+        if ($contents === false) {
+            self::fail('Could not read broker compatibility documentation.');
         }
 
         return $contents;

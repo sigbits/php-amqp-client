@@ -6,20 +6,24 @@ The Docker broker stack currently provides:
 
 - Apache Qpid Broker-J on container port `5672`, exposed on host port `56720`.
 - Apache ActiveMQ Artemis on container port `5672`, exposed on host port
-  `56730`.
-- RabbitMQ 4 on container port `5672`, exposed on host port `56740`.
+  `56730`, plus TLS endpoint `artemis-tls` on container port `5671`, exposed
+  on host port `56731`.
+- RabbitMQ 4 on container port `5672`, exposed on host port `56740`, plus TLS
+  endpoint `rabbitmq-tls` on container port `5671`, exposed on host port
+  `56741`.
 
 `make test-integration`, `make test-security`, `make test-long`, and
 `make test-soak` recreate the broker stack before running so stale broker state
 cannot affect the result.
 
 `make test-security` runs the broker TLS/SASL hardening suite. It currently
-covers ActiveMQ Artemis through the local `artemis-tls` endpoint, which
-terminates TLS with HAProxy and forwards AMQP traffic to the Artemis container.
+covers ActiveMQ Artemis and RabbitMQ 4 through local TLS endpoints, which
+terminate TLS with HAProxy and forward AMQP traffic to each broker container.
 The suite verifies trusted certificate validation, rejected untrusted
-certificate validation, and rejected invalid SASL PLAIN credentials. Test
-certificates live under `docker/broker/tls` and are intended only for local
-broker integration tests.
+certificate validation, and rejected invalid SASL PLAIN credentials for both
+brokers. Test certificates live under `docker/broker/tls` and are intended only
+for local broker integration tests. Qpid Broker-J TLS/SASL security coverage is
+not yet wired into the local Docker matrix.
 
 `make test-soak` runs configurable long-running worker profiles inside Docker.
 Use `SOAK_PROFILE` to select `all`, `send-only`, `receive-only`,
@@ -52,15 +56,16 @@ Qpid Broker-J is used for handshake, public connection/session lifecycle,
 public sender/receiver detach, send, receive, accepted settlement, and
 long-running worker soak-profile coverage. Tests create explicit queues through
 the broker management API because this test broker does not auto-create random
-targets.
+targets. Qpid Broker-J TLS/SASL security coverage is not yet wired into the
+local Docker matrix.
 
 ## ActiveMQ Artemis
 
 ActiveMQ Artemis is used for handshake, public connection/session lifecycle,
 public sender/receiver detach, send, receive, accepted settlement, TLS/SASL
-hardening, long-running worker, send-only, receive-only, request/reply-like,
-bounded credit, reconnect, transport interruption, broker restart, and large
-DATA message coverage.
+hardening through `artemis-tls`, long-running worker, send-only, receive-only,
+request/reply-like, bounded credit, reconnect, transport interruption, broker
+restart, and large DATA message coverage.
 
 `make test-broker-restart` currently exercises ActiveMQ Artemis restart during
 active public receiver, sender, and settlement loops. The harness runs PHPUnit
