@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Public client regressions and deterministic exceptions for remote session END and link DETACH during active public wait loops.
 - AMQP frame parser finalization checks for truncated buffered frame headers and payloads.
 - AMQP primitive encode/decode support for signed `byte`, `short`, and `long` values.
 - Public client regression coverage and deterministic exception mapping for remote AMQP connection close during public wait loops.

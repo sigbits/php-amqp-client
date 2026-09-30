@@ -40,6 +40,11 @@ final class ClientException extends RuntimeException
         return new self('AMQP connection was closed by the remote peer.');
     }
 
+    public static function remoteSessionEnded(): self
+    {
+        return new self('AMQP session was ended by the remote peer.');
+    }
+
     private static function withErrorDetails(string $message, ?PerformativeError $error): string
     {
         if ($error === null) {

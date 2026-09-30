@@ -52,6 +52,10 @@ final class Sender
 
         while ($this->engine->availableCredit() <= 0) {
             $this->engine->push(($this->readFrame)());
+
+            if ($this->engine->state() === SenderLinkState::Detached) {
+                throw ClientException::senderLinkDetached();
+            }
         }
 
         ($this->writeAll)($this->engine->transfer(
