@@ -8,6 +8,7 @@ use Closure;
 use Sigbits\Amqp\Engine\SenderLinkEngine;
 use Sigbits\Amqp\Engine\SenderLinkState;
 use Sigbits\Amqp\Protocol\Message\Message;
+use Sigbits\Amqp\Transport\TransportException;
 
 final class Sender
 {
@@ -51,7 +52,11 @@ final class Sender
         }
 
         while ($this->engine->availableCredit() <= 0) {
-            $this->engine->push(($this->readFrame)());
+            try {
+                $this->engine->push(($this->readFrame)());
+            } catch (TransportException $exception) {
+                throw ClientException::senderLinkCreditExhausted($exception);
+            }
 
             if ($this->engine->state() === SenderLinkState::Detached) {
                 throw ClientException::senderLinkDetached();

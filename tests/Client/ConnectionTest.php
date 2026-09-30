@@ -349,6 +349,36 @@ final class ConnectionTest extends TestCase
         self::assertSame($this->transferFrame(channel: 1, body: 'hello'), $this->readAvailable($server));
     }
 
+    public function testSenderSendFailsClearlyWhenCreditIsExhausted(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteSenderAttachFrame(channel: 1)
+            . $this->senderCreditFrame(channel: 1, linkCredit: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 0.001,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $sender = $session->openSender('orders.test', name: 'sender', handle: 0);
+        $sender->send('first');
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('Cannot send because AMQP sender link credit is exhausted.');
+
+        $sender->send('second');
+    }
+
     public function testSenderSendFailsClearlyWhenRemoteDetachesWhileWaitingForCredit(): void
     {
         [$client, $server] = $this->streamPair();
