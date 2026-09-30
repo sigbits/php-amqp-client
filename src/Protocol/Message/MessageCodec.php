@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Message;
 
+use Sigbits\Amqp\Protocol\Type\Byte;
+use Sigbits\Amqp\Protocol\Type\Int_;
+use Sigbits\Amqp\Protocol\Type\Long_;
+use Sigbits\Amqp\Protocol\Type\Short;
+
 final class MessageCodec
 {
     private const string HEADER_DESCRIPTOR = "\x00\x53\x70";
@@ -33,6 +38,10 @@ final class MessageCodec
     private const int CONSTRUCTOR_NULL = 0x40;
     private const int CONSTRUCTOR_STRING8 = 0xa1;
     private const int CONSTRUCTOR_SYMBOL8 = 0xa3;
+    private const int CONSTRUCTOR_BYTE = 0x51;
+    private const int CONSTRUCTOR_SHORT = 0x61;
+    private const int CONSTRUCTOR_INT = 0x71;
+    private const int CONSTRUCTOR_LONG = 0x81;
     private const int CONSTRUCTOR_UBYTE = 0x50;
     private const int CONSTRUCTOR_UINT = 0x70;
     private const int CONSTRUCTOR_VBIN8 = 0xa0;
@@ -338,14 +347,14 @@ final class MessageCodec
     }
 
     /**
-     * @param array<string, string> $properties
+     * @param array<string, string|Byte|Short|Int_|Long_> $properties
      */
     private function encodeApplicationProperties(array $properties): string
     {
         $entries = '';
 
         foreach ($properties as $name => $value) {
-            $entries .= $this->encodeSymbol($name) . $this->encodeString($value);
+            $entries .= $this->encodeSymbol($name) . $this->encodeMapValue($value);
         }
 
         $mapSize = 1 + strlen($entries);
@@ -369,6 +378,31 @@ final class MessageCodec
     private function encodeSymbol(string $value): string
     {
         return chr(self::CONSTRUCTOR_SYMBOL8) . chr(strlen($value)) . $value;
+    }
+
+    private function encodeMapValue(string|Byte|Short|Int_|Long_ $value): string
+    {
+        if (is_string($value)) {
+            return $this->encodeString($value);
+        }
+
+        if ($value instanceof Byte) {
+            return chr(self::CONSTRUCTOR_BYTE) . chr($value->value & 0xff);
+        }
+
+        if ($value instanceof Short) {
+            return chr(self::CONSTRUCTOR_SHORT) . pack('n', $value->value & 0xffff);
+        }
+
+        if ($value instanceof Int_) {
+            return chr(self::CONSTRUCTOR_INT) . pack('N', $value->value & 0xffffffff);
+        }
+
+        return chr(self::CONSTRUCTOR_LONG) . pack(
+            'NN',
+            ($value->value >> 32) & 0xffffffff,
+            $value->value & 0xffffffff,
+        );
     }
 
     /**
@@ -396,14 +430,14 @@ final class MessageCodec
     }
 
     /**
-     * @param array<string, string> $footer
+     * @param array<string, string|Byte|Short|Int_|Long_> $footer
      */
     private function encodeFooter(array $footer): string
     {
         $entries = '';
 
         foreach ($footer as $name => $value) {
-            $entries .= $this->encodeSymbol($name) . $this->encodeString($value);
+            $entries .= $this->encodeSymbol($name) . $this->encodeMapValue($value);
         }
 
         $mapSize = 1 + strlen($entries);
@@ -420,14 +454,14 @@ final class MessageCodec
     }
 
     /**
-     * @param array<string, string> $annotations
+     * @param array<string, string|Byte|Short|Int_|Long_> $annotations
      */
     private function encodeDeliveryAnnotations(array $annotations): string
     {
         $entries = '';
 
         foreach ($annotations as $name => $value) {
-            $entries .= $this->encodeSymbol($name) . $this->encodeString($value);
+            $entries .= $this->encodeSymbol($name) . $this->encodeMapValue($value);
         }
 
         $mapSize = 1 + strlen($entries);
@@ -444,14 +478,14 @@ final class MessageCodec
     }
 
     /**
-     * @param array<string, string> $annotations
+     * @param array<string, string|Byte|Short|Int_|Long_> $annotations
      */
     private function encodeMessageAnnotations(array $annotations): string
     {
         $entries = '';
 
         foreach ($annotations as $name => $value) {
-            $entries .= $this->encodeSymbol($name) . $this->encodeString($value);
+            $entries .= $this->encodeSymbol($name) . $this->encodeMapValue($value);
         }
 
         $mapSize = 1 + strlen($entries);
@@ -703,7 +737,7 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: array<string, string>, 1: int}
+     * @return array{0: array<string, string|Byte|Short|Int_|Long_>, 1: int}
      */
     private function decodeDeliveryAnnotations(string $bytes, int $cursor): array
     {
@@ -745,7 +779,7 @@ final class MessageCodec
 
         for ($i = 0; $i < $mapCount; $i += 2) {
             [$name, $cursor] = $this->decodeDeliveryAnnotationSymbol($bytes, $cursor, $mapEnd);
-            [$value, $cursor] = $this->decodeDeliveryAnnotationString($bytes, $cursor, $mapEnd);
+            [$value, $cursor] = $this->decodeDeliveryAnnotationValue($bytes, $cursor, $mapEnd);
             $annotations[$name] = $value;
         }
 
@@ -769,19 +803,21 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: string, 1: int}
+     * @return array{0: string|Byte|Short|Int_|Long_, 1: int}
      */
-    private function decodeDeliveryAnnotationString(string $bytes, int $cursor, int $mapEnd): array
+    private function decodeDeliveryAnnotationValue(string $bytes, int $cursor, int $mapEnd): array
     {
         if ($cursor >= $mapEnd) {
             throw MessageException::truncatedDeliveryAnnotations();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
-            throw MessageException::malformedDeliveryAnnotations();
-        }
-
-        return $this->decodeDeliveryAnnotationString8($bytes, $cursor + 1, $mapEnd);
+        return $this->decodeMapValue(
+            $bytes,
+            $cursor,
+            $mapEnd,
+            MessageException::malformedDeliveryAnnotations(...),
+            MessageException::truncatedDeliveryAnnotations(...),
+        );
     }
 
     /**
@@ -807,7 +843,7 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: array<string, string>, 1: int}
+     * @return array{0: array<string, string|Byte|Short|Int_|Long_>, 1: int}
      */
     private function decodeMessageAnnotations(string $bytes, int $cursor): array
     {
@@ -849,7 +885,7 @@ final class MessageCodec
 
         for ($i = 0; $i < $mapCount; $i += 2) {
             [$name, $cursor] = $this->decodeAnnotationSymbol($bytes, $cursor, $mapEnd);
-            [$value, $cursor] = $this->decodeAnnotationString($bytes, $cursor, $mapEnd);
+            [$value, $cursor] = $this->decodeAnnotationValue($bytes, $cursor, $mapEnd);
             $annotations[$name] = $value;
         }
 
@@ -873,19 +909,21 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: string, 1: int}
+     * @return array{0: string|Byte|Short|Int_|Long_, 1: int}
      */
-    private function decodeAnnotationString(string $bytes, int $cursor, int $mapEnd): array
+    private function decodeAnnotationValue(string $bytes, int $cursor, int $mapEnd): array
     {
         if ($cursor >= $mapEnd) {
             throw MessageException::truncatedMessageAnnotations();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
-            throw MessageException::malformedMessageAnnotations();
-        }
-
-        return $this->decodeAnnotationString8($bytes, $cursor + 1, $mapEnd);
+        return $this->decodeMapValue(
+            $bytes,
+            $cursor,
+            $mapEnd,
+            MessageException::malformedMessageAnnotations(...),
+            MessageException::truncatedMessageAnnotations(...),
+        );
     }
 
     /**
@@ -1061,7 +1099,7 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: array<string, string>, 1: int}
+     * @return array{0: array<string, string|Byte|Short|Int_|Long_>, 1: int}
      */
     private function decodeApplicationProperties(string $bytes, int $cursor): array
     {
@@ -1103,7 +1141,7 @@ final class MessageCodec
 
         for ($i = 0; $i < $mapCount; $i += 2) {
             [$name, $cursor] = $this->decodeSymbol($bytes, $cursor, $mapEnd);
-            [$value, $cursor] = $this->decodeString($bytes, $cursor, $mapEnd);
+            [$value, $cursor] = $this->decodeApplicationPropertyValue($bytes, $cursor, $mapEnd);
             $properties[$name] = $value;
         }
 
@@ -1111,7 +1149,7 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: array<string, string>, 1: int}
+     * @return array{0: array<string, string|Byte|Short|Int_|Long_>, 1: int}
      */
     private function decodeFooter(string $bytes, int $cursor): array
     {
@@ -1153,7 +1191,7 @@ final class MessageCodec
 
         for ($i = 0; $i < $mapCount; $i += 2) {
             [$name, $cursor] = $this->decodeFooterSymbol($bytes, $cursor, $mapEnd);
-            [$value, $cursor] = $this->decodeFooterString($bytes, $cursor, $mapEnd);
+            [$value, $cursor] = $this->decodeFooterValue($bytes, $cursor, $mapEnd);
             $footer[$name] = $value;
         }
 
@@ -1177,19 +1215,21 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: string, 1: int}
+     * @return array{0: string|Byte|Short|Int_|Long_, 1: int}
      */
-    private function decodeFooterString(string $bytes, int $cursor, int $mapEnd): array
+    private function decodeFooterValue(string $bytes, int $cursor, int $mapEnd): array
     {
         if ($cursor >= $mapEnd) {
             throw MessageException::truncatedFooter();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
-            throw MessageException::malformedFooter();
-        }
-
-        return $this->decodeFooterString8($bytes, $cursor + 1, $mapEnd);
+        return $this->decodeMapValue(
+            $bytes,
+            $cursor,
+            $mapEnd,
+            MessageException::malformedFooter(...),
+            MessageException::truncatedFooter(...),
+        );
     }
 
     /**
@@ -1231,19 +1271,21 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: string, 1: int}
+     * @return array{0: string|Byte|Short|Int_|Long_, 1: int}
      */
-    private function decodeString(string $bytes, int $cursor, int $mapEnd): array
+    private function decodeApplicationPropertyValue(string $bytes, int $cursor, int $mapEnd): array
     {
         if ($cursor >= $mapEnd) {
             throw MessageException::truncatedApplicationProperties();
         }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
-            throw MessageException::malformedApplicationProperties();
-        }
-
-        return $this->decodeMapString8($bytes, $cursor + 1, $mapEnd);
+        return $this->decodeMapValue(
+            $bytes,
+            $cursor,
+            $mapEnd,
+            MessageException::malformedApplicationProperties(...),
+            MessageException::truncatedApplicationProperties(...),
+        );
     }
 
     /**
@@ -1260,6 +1302,107 @@ final class MessageCodec
 
         if ($cursor + $length > $mapEnd) {
             throw MessageException::truncatedApplicationProperties();
+        }
+
+        return [
+            substr($bytes, $cursor, $length),
+            $cursor + $length,
+        ];
+    }
+
+    /**
+     * @param callable(): MessageException $malformed
+     * @param callable(): MessageException $truncated
+     *
+     * @return array{0: string|Byte|Short|Int_|Long_, 1: int}
+     */
+    private function decodeMapValue(
+        string $bytes,
+        int $cursor,
+        int $mapEnd,
+        callable $malformed,
+        callable $truncated,
+    ): array {
+        $constructor = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($constructor === self::CONSTRUCTOR_STRING8) {
+            return $this->decodeMapValueString8($bytes, $cursor, $mapEnd, $truncated);
+        }
+
+        if ($constructor === self::CONSTRUCTOR_BYTE) {
+            if ($cursor >= $mapEnd) {
+                throw $truncated();
+            }
+
+            $unsigned = ord($bytes[$cursor]);
+
+            return [new Byte($unsigned >= 128 ? $unsigned - 256 : $unsigned), $cursor + 1];
+        }
+
+        if ($constructor === self::CONSTRUCTOR_SHORT) {
+            if ($cursor + 2 > $mapEnd) {
+                throw $truncated();
+            }
+
+            $unsigned = (ord($bytes[$cursor]) << 8) | ord($bytes[$cursor + 1]);
+
+            return [new Short($unsigned >= 32768 ? $unsigned - 65536 : $unsigned), $cursor + 2];
+        }
+
+        if ($constructor === self::CONSTRUCTOR_INT) {
+            if ($cursor + 4 > $mapEnd) {
+                throw $truncated();
+            }
+
+            $unsigned = (ord($bytes[$cursor]) << 24)
+                | (ord($bytes[$cursor + 1]) << 16)
+                | (ord($bytes[$cursor + 2]) << 8)
+                | ord($bytes[$cursor + 3]);
+
+            return [new Int_($unsigned >= 2147483648 ? $unsigned - 4294967296 : $unsigned), $cursor + 4];
+        }
+
+        if ($constructor === self::CONSTRUCTOR_LONG) {
+            if ($cursor + 8 > $mapEnd) {
+                throw $truncated();
+            }
+
+            $high = (ord($bytes[$cursor]) << 24)
+                | (ord($bytes[$cursor + 1]) << 16)
+                | (ord($bytes[$cursor + 2]) << 8)
+                | ord($bytes[$cursor + 3]);
+            $low = (ord($bytes[$cursor + 4]) << 24)
+                | (ord($bytes[$cursor + 5]) << 16)
+                | (ord($bytes[$cursor + 6]) << 8)
+                | ord($bytes[$cursor + 7]);
+
+            if ($high >= 2147483648) {
+                $high -= 4294967296;
+            }
+
+            return [new Long_(($high << 32) | $low), $cursor + 8];
+        }
+
+        throw $malformed();
+    }
+
+    /**
+     * @param callable(): MessageException $truncated
+     *
+     * @return array{0: string, 1: int}
+     */
+    private function decodeMapValueString8(string $bytes, int $cursor, int $mapEnd, callable $truncated): array
+    {
+        if ($cursor >= $mapEnd) {
+            throw $truncated();
+        }
+
+        $length = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($cursor + $length > $mapEnd) {
+            throw $truncated();
         }
 
         return [
