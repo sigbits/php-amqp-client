@@ -13,6 +13,11 @@ final class FrameException extends RuntimeException
         return new self('Truncated AMQP frame header.');
     }
 
+    public static function truncatedPayload(): self
+    {
+        return new self('Truncated AMQP frame payload.');
+    }
+
     public static function frameSizeTooSmall(): self
     {
         return new self('AMQP frame size must be at least 8 bytes.');

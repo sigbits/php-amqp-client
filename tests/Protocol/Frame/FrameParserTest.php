@@ -45,6 +45,47 @@ final class FrameParserTest extends TestCase
         );
     }
 
+    public function testFinishAcceptsEmptyBuffer(): void
+    {
+        $parser = new FrameParser();
+
+        $parser->finish();
+
+        self::addToAssertionCount(1);
+    }
+
+    public function testFinishAcceptsCompleteFrame(): void
+    {
+        $parser = new FrameParser();
+
+        $parser->push("\x00\x00\x00\x0b\x02\x00\x00\x01abc");
+        $parser->finish();
+
+        self::addToAssertionCount(1);
+    }
+
+    public function testFinishRejectsTruncatedFrameHeader(): void
+    {
+        $parser = new FrameParser();
+        $parser->push("\x00\x00\x00");
+
+        $this->expectException(FrameException::class);
+        $this->expectExceptionMessage('Truncated AMQP frame header.');
+
+        $parser->finish();
+    }
+
+    public function testFinishRejectsTruncatedFramePayload(): void
+    {
+        $parser = new FrameParser();
+        $parser->push("\x00\x00\x00\x0b\x02\x00\x00\x01ab");
+
+        $this->expectException(FrameException::class);
+        $this->expectExceptionMessage('Truncated AMQP frame payload.');
+
+        $parser->finish();
+    }
+
     public function testParsesMultipleFramesFromOneChunk(): void
     {
         $parser = new FrameParser();

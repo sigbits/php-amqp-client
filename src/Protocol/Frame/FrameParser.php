@@ -45,4 +45,23 @@ final class FrameParser
 
         return $frames;
     }
+
+    public function finish(): void
+    {
+        if ($this->buffer === '') {
+            return;
+        }
+
+        if (strlen($this->buffer) < FrameHeader::LENGTH) {
+            throw FrameException::truncatedHeader();
+        }
+
+        $header = $this->headerCodec->decode($this->buffer);
+
+        if ($header->size > $this->maxFrameSize) {
+            throw FrameException::frameSizeExceedsMaximum();
+        }
+
+        throw FrameException::truncatedPayload();
+    }
 }
