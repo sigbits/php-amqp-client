@@ -13,6 +13,7 @@ final class MakefileBrokerWorkflowTest extends TestCase
         $makefile = self::makefile();
 
         self::assertMatchesRegularExpression('/^test-integration:\s+broker-reset$/m', $makefile);
+        self::assertMatchesRegularExpression('/^test-security:\s+broker-reset$/m', $makefile);
         self::assertMatchesRegularExpression('/^test-long:\s+broker-reset$/m', $makefile);
         self::assertMatchesRegularExpression('/^test-broker-restart:\s+broker-reset$/m', $makefile);
     }
@@ -32,11 +33,11 @@ final class MakefileBrokerWorkflowTest extends TestCase
     {
         $makefile = self::makefile();
 
-        self::assertStringContainsString('$(BROKER_COMPOSE) up -d qpid artemis rabbitmq toxiproxy', $makefile);
+        self::assertStringContainsString('$(BROKER_COMPOSE) up -d qpid artemis artemis-tls rabbitmq toxiproxy', $makefile);
         self::assertStringContainsString('$(BROKER_COMPOSE) exec -T rabbitmq rabbitmq-diagnostics -q ping', $makefile);
-        self::assertStringContainsString('$(BROKER_COMPOSE) stop qpid artemis rabbitmq toxiproxy', $makefile);
+        self::assertStringContainsString('$(BROKER_COMPOSE) stop qpid artemis artemis-tls rabbitmq toxiproxy', $makefile);
         self::assertStringContainsString(
-            '$(BROKER_COMPOSE) rm --force --volumes qpid artemis rabbitmq toxiproxy',
+            '$(BROKER_COMPOSE) rm --force --volumes qpid artemis artemis-tls rabbitmq toxiproxy',
             $makefile,
         );
     }
@@ -78,6 +79,28 @@ final class MakefileBrokerWorkflowTest extends TestCase
 
         self::assertStringContainsString('AMQP_LONG_PROFILE', $script);
         self::assertStringContainsString('composer test:long', $script);
+    }
+
+    public function testSecuritySuiteUsesTlsBrokerEndpoint(): void
+    {
+        $makefile = self::makefile();
+
+        self::assertStringContainsString('RUN_BROKER_SECURITY_TESTS=1', $makefile);
+        self::assertStringContainsString('AMQP_ARTEMIS_TLS_URI=amqps://guest:guest@artemis-tls:5671', $makefile);
+        self::assertStringContainsString('AMQP_ARTEMIS_TLS_CA_FILE=/app/docker/broker/tls/ca.crt', $makefile);
+        self::assertStringContainsString('AMQP_ARTEMIS_TLS_PEER_NAME=artemis-tls.sigbits.test', $makefile);
+        self::assertStringContainsString('composer test:integration -- --filter TlsSaslBrokerTest', $makefile);
+    }
+
+    public function testBrokerComposeDefinesArtemisTlsEndpoint(): void
+    {
+        $compose = self::brokerCompose();
+
+        self::assertStringContainsString('artemis-tls:', $compose);
+        self::assertStringContainsString('image: haproxy:', $compose);
+        self::assertStringContainsString('"56731:5671"', $compose);
+        self::assertStringContainsString('./docker/broker/haproxy-artemis-tls.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro', $compose);
+        self::assertStringContainsString('./docker/broker/tls:/usr/local/etc/haproxy/certs:ro', $compose);
     }
 
     public function testBrokerComposeDefinesRabbitMqAmqp10Service(): void
