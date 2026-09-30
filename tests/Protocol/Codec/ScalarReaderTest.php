@@ -31,6 +31,23 @@ final class ScalarReaderTest extends TestCase
         self::assertSame([1000, 6], $reader->readNullableUInt("\xff\x70\x00\x00\x03\xe8", 1, 6));
     }
 
+    public function testReadsRequiredUIntAtOffset(): void
+    {
+        $reader = new ScalarReader();
+
+        self::assertSame([1000, 6], $reader->readUInt("\xff\x70\x00\x00\x03\xe8", 1, 6));
+    }
+
+    public function testRejectsNullRequiredUInt(): void
+    {
+        $reader = new ScalarReader();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Unsupported AMQP format code 0x40.');
+
+        $reader->readUInt("\x40", 0, 1);
+    }
+
     public function testReadsNullUIntAtOffset(): void
     {
         $reader = new ScalarReader();
