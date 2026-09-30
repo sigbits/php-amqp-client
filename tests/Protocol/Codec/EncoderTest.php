@@ -7,7 +7,10 @@ namespace Sigbits\Amqp\Tests\Protocol\Codec;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\EncodeException;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
+use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Int_;
+use Sigbits\Amqp\Protocol\Type\Long_;
+use Sigbits\Amqp\Protocol\Type\Short;
 use Sigbits\Amqp\Protocol\Type\UByte;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\UShort;
@@ -49,6 +52,27 @@ final class EncoderTest extends TestCase
         self::assertSame("\x50\xff", $encoder->encode(new UByte(255)));
     }
 
+    public function testEncodesByteMinimum(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x51\x80", $encoder->encode(new Byte(-128)));
+    }
+
+    public function testEncodesByteZero(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x51\x00", $encoder->encode(new Byte(0)));
+    }
+
+    public function testEncodesByteMaximum(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x51\x7f", $encoder->encode(new Byte(127)));
+    }
+
     public function testEncodesUShortZero(): void
     {
         $encoder = new Encoder();
@@ -61,6 +85,27 @@ final class EncoderTest extends TestCase
         $encoder = new Encoder();
 
         self::assertSame("\x60\xff\xff", $encoder->encode(new UShort(65535)));
+    }
+
+    public function testEncodesShortMinimum(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x61\x80\x00", $encoder->encode(new Short(-32768)));
+    }
+
+    public function testEncodesShortZero(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x61\x00\x00", $encoder->encode(new Short(0)));
+    }
+
+    public function testEncodesShortMaximum(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x61\x7f\xff", $encoder->encode(new Short(32767)));
     }
 
     public function testEncodesUIntZero(): void
@@ -96,6 +141,27 @@ final class EncoderTest extends TestCase
         $encoder = new Encoder();
 
         self::assertSame("\x71\x7f\xff\xff\xff", $encoder->encode(new Int_(2147483647)));
+    }
+
+    public function testEncodesLongMinimum(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x81\x80\x00\x00\x00\x00\x00\x00\x00", $encoder->encode(new Long_(PHP_INT_MIN)));
+    }
+
+    public function testEncodesLongZero(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x81\x00\x00\x00\x00\x00\x00\x00\x00", $encoder->encode(new Long_(0)));
+    }
+
+    public function testEncodesLongMaximum(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x81\x7f\xff\xff\xff\xff\xff\xff\xff", $encoder->encode(new Long_(PHP_INT_MAX)));
     }
 
     public function testRejectsUnsupportedValue(): void
