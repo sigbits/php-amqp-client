@@ -63,6 +63,13 @@ final class BrokerHandshakeTest extends TestCase
                     getenv('AMQP_ARTEMIS_PASSWORD') ?: 'guest',
                 ),
             ],
+            'rabbitmq' => [
+                getenv('AMQP_RABBITMQ_URI') ?: 'amqp://rabbitmq:5672',
+                SaslClient::plain(
+                    getenv('AMQP_RABBITMQ_USER') ?: 'guest',
+                    getenv('AMQP_RABBITMQ_PASSWORD') ?: 'guest',
+                ),
+            ],
         ];
     }
 

@@ -10,6 +10,7 @@ final class EndCodec
     private const int DESCRIPTOR_LENGTH = 3;
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
+    private const int CONSTRUCTOR_NULL = 0x40;
 
     public function encode(End $end): string
     {
@@ -41,6 +42,15 @@ final class EndCodec
             $fieldCount = ord($bytes[self::DESCRIPTOR_LENGTH + 2]);
 
             if ($listSize === 1 && $fieldCount === 0) {
+                return new End();
+            }
+
+            if (
+                $listSize === 2
+                && $fieldCount === 1
+                && strlen($bytes) >= self::DESCRIPTOR_LENGTH + 4
+                && ord($bytes[self::DESCRIPTOR_LENGTH + 3]) === self::CONSTRUCTOR_NULL
+            ) {
                 return new End();
             }
 

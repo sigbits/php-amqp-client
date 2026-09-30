@@ -33,16 +33,17 @@ test-long: broker-reset
 	$(BROKER_COMPOSE) run --rm -e RUN_LONG_TESTS=1 -e AMQP_TOXIPROXY_API=http://toxiproxy:8474 -e AMQP_LONG_CYCLES=$(LONG_TEST_CYCLES) -e AMQP_LONG_CREDIT_CYCLES=$(LONG_TEST_CREDIT_CYCLES) -e AMQP_LONG_CREDIT_WINDOW=$(LONG_TEST_CREDIT_WINDOW) -e AMQP_LONG_FAILURE_CYCLES=$(LONG_TEST_FAILURE_CYCLES) -e AMQP_LONG_LARGE_MESSAGE_BYTES=$(LONG_TEST_LARGE_MESSAGE_BYTES) -e AMQP_LONG_LARGE_MESSAGE_CYCLES=$(LONG_TEST_LARGE_MESSAGE_CYCLES) -e AMQP_LONG_MAX_MEMORY_GROWTH_BYTES=$(LONG_TEST_MAX_MEMORY_GROWTH_BYTES) -e AMQP_LONG_RECONNECT_CYCLES=$(LONG_TEST_RECONNECT_CYCLES) php composer test:long
 
 broker-up:
-	$(BROKER_COMPOSE) up -d qpid artemis toxiproxy
+	$(BROKER_COMPOSE) up -d qpid artemis rabbitmq toxiproxy
 	@$(MAKE) broker-wait
 
 broker-wait:
 	@i=0; until $(BROKER_COMPOSE) logs --no-color qpid | grep -q 'Qpid Broker Ready'; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for Qpid Broker-J readiness.' >&2; exit 1; fi; sleep 1; done; echo 'Qpid Broker-J ready.'
 	@i=0; until $(BROKER_COMPOSE) logs --no-color artemis | grep -q 'Server is now active'; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for ActiveMQ Artemis readiness.' >&2; exit 1; fi; sleep 1; done; echo 'ActiveMQ Artemis ready.'
+	@i=0; until $(BROKER_COMPOSE) exec -T rabbitmq rabbitmq-diagnostics -q ping >/dev/null 2>&1; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for RabbitMQ readiness.' >&2; exit 1; fi; sleep 1; done; echo 'RabbitMQ ready.'
 
 broker-down:
-	$(BROKER_COMPOSE) stop qpid artemis toxiproxy
-	$(BROKER_COMPOSE) rm --force --volumes qpid artemis toxiproxy
+	$(BROKER_COMPOSE) stop qpid artemis rabbitmq toxiproxy
+	$(BROKER_COMPOSE) rm --force --volumes qpid artemis rabbitmq toxiproxy
 
 broker-reset:
 	@$(MAKE) broker-down

@@ -127,8 +127,9 @@ Begin v0.9.0 production interoperability hardening with the smallest external
 compatibility steps:
 
 1. Add broker-specific compatibility notes for the currently supported Qpid
-   Broker-J and ActiveMQ Artemis matrix.
-2. Choose the next external broker target for v0.9.0 and document the local
-   Docker or remote test setup needed to run it.
-3. Add the first v0.9.0 interoperability regression only after a real broker
+   Broker-J, ActiveMQ Artemis, and RabbitMQ matrix.
+2. Expand RabbitMQ 4 AMQP 1.0 coverage from handshake/session mapping to public
+   send, receive, settlement, and detach workflows using RabbitMQ address v2
+   semantics.
+3. Add the first non-local external broker target only after a real broker
    behavior gap is reproduced.

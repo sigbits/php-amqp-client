@@ -108,9 +108,10 @@ make ci
 The package supports PHP 8.3 and newer. CI runs the quality pipeline across
 supported PHP versions.
 
-Broker integration tests run against Apache Qpid Broker-J and Apache ActiveMQ
-Artemis containers. `make test-integration` resets broker containers and
-volumes before running so stale broker state cannot affect the suite:
+Broker integration tests run against Apache Qpid Broker-J, Apache ActiveMQ
+Artemis, and RabbitMQ 4 containers. `make test-integration` resets broker
+containers and volumes before running so stale broker state cannot affect the
+suite:
 
 ```sh
 make test-integration
@@ -138,8 +139,8 @@ Tune large-message coverage with `LONG_TEST_LARGE_MESSAGE_CYCLES` and
 `LONG_TEST_RECONNECT_CYCLES`. Tune transport interruption recovery coverage
 with `LONG_TEST_FAILURE_CYCLES`.
 
-The broker AMQP ports are also exposed on the host as `56720` for Qpid and
-`56730` for Artemis.
+The broker AMQP ports are also exposed on the host as `56720` for Qpid,
+`56730` for Artemis, and `56740` for RabbitMQ.
 
 Use `make broker-reset` to manually recreate the broker test stack with clean
 containers and volumes.

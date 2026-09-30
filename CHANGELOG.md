@@ -7,7 +7,9 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- RabbitMQ 4 AMQP 1.0 broker container wiring and handshake/public connection matrix entries for v0.9.0 interoperability hardening.
 
 ## v0.8.0 - 2026-09-30
 
