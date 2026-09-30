@@ -19,14 +19,14 @@ test matrix uses the `rabbitmq:4-management` image with the `guest` user and
 password.
 
 Initial v0.9.0 coverage adds RabbitMQ to the AMQP/SASL handshake, public
-connection/session mapping, public sender matrix, and public receiver matrix.
-Public sender/receiver coverage creates a durable random test queue through the
-RabbitMQ management API and targets it with the AMQP 1.0 address v2 queue form
-`/queues/:queue`.
+connection/session mapping, public sender matrix, public receiver matrix, and
+public accepted-delivery settlement matrix. Public sender/receiver/settlement
+coverage creates a durable random test queue through the RabbitMQ management API
+and targets it with the AMQP 1.0 address v2 queue form `/queues/:queue`.
 
-Public settlement and detach coverage still needs to account for RabbitMQ AMQP
-1.0 address v2 semantics, where clients target exchanges or queues using
-addresses such as `/exchanges/:exchange/:routing-key` and `/queues/:queue`.
+Public detach coverage still needs to account for RabbitMQ AMQP 1.0 address v2
+semantics, where clients target exchanges or queues using addresses such as
+`/exchanges/:exchange/:routing-key` and `/queues/:queue`.
 
 ## Qpid Broker-J
 

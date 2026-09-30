@@ -248,6 +248,40 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
+    public function testPublicReceiverAcceptsDeliveryAgainstRabbitMq(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $queue = 'sigbits.public.accept.' . bin2hex(random_bytes(4));
+        $this->createRabbitMqQueue($queue);
+        $address = '/queues/' . rawurlencode($queue);
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address);
+
+        $sender->send('hello rabbitmq accepted delivery');
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame('hello rabbitmq accepted delivery', $delivery->message()->body);
+
+        $delivery->accept();
+
+        $session->end();
+        $connection->close();
+
+        self::assertSame(0, $this->rabbitMqReadyMessageCount($queue));
+    }
+
     public function testPublicSenderDetachesAgainstArtemis(): void
     {
         if (getenv('RUN_BROKER_TESTS') !== '1') {
@@ -400,5 +434,47 @@ final class PublicConnectionTest extends TestCase
         if ($response === false || (!str_contains($status, '201 Created') && !str_contains($status, '204 No Content'))) {
             self::fail('Could not create RabbitMQ test queue: ' . $status);
         }
+    }
+
+    private function rabbitMqReadyMessageCount(string $name): int
+    {
+        $body = json_encode([
+            'count' => 1,
+            'ackmode' => 'ack_requeue_true',
+            'encoding' => 'auto',
+            'truncate' => 50_000,
+        ]);
+
+        if ($body === false) {
+            self::fail('Could not encode RabbitMQ queue get payload.');
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => 'Authorization: Basic ' . base64_encode('guest:guest') . "\r\n"
+                    . "Content-Type: application/json\r\n",
+                'content' => $body,
+                'ignore_errors' => true,
+            ],
+        ]);
+        $response = file_get_contents(
+            'http://rabbitmq:15672/api/queues/%2F/' . rawurlencode($name) . '/get',
+            false,
+            $context,
+        );
+        $status = $http_response_header[0] ?? '';
+
+        if ($response === false || !str_contains($status, '200 OK')) {
+            self::fail('Could not inspect RabbitMQ test queue messages: ' . $status);
+        }
+
+        $messages = json_decode($response, associative: true);
+
+        if (!is_array($messages)) {
+            self::fail('RabbitMQ queue get response did not contain a message list.');
+        }
+
+        return count($messages);
     }
 }
