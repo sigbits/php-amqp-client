@@ -137,6 +137,16 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('Qpid Broker-J TLS/SASL security coverage is not yet wired', $documentation);
     }
 
+    public function testRoadmapLinksV090ReleaseReadinessAudit(): void
+    {
+        $roadmap = self::roadmap();
+        $audit = self::v090ReleaseReadinessAudit();
+
+        self::assertStringContainsString('[v0.9.0 Release Readiness Audit](release-readiness-v0.9.0.md)', $roadmap);
+        self::assertStringContainsString('Qpid Broker-J TLS/SASL security coverage remains a documented local-matrix', $audit);
+        self::assertStringContainsString('v0.9.0 is ready to tag', $audit);
+    }
+
     private static function makefile(): string
     {
         $contents = file_get_contents(dirname(__DIR__, 2) . '/Makefile');
@@ -154,6 +164,28 @@ final class MakefileBrokerWorkflowTest extends TestCase
 
         if ($contents === false) {
             self::fail('Could not read broker compatibility documentation.');
+        }
+
+        return $contents;
+    }
+
+    private static function roadmap(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/docs/roadmap.md');
+
+        if ($contents === false) {
+            self::fail('Could not read roadmap documentation.');
+        }
+
+        return $contents;
+    }
+
+    private static function v090ReleaseReadinessAudit(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/docs/release-readiness-v0.9.0.md');
+
+        if ($contents === false) {
+            self::fail('Could not read v0.9.0 release readiness audit.');
         }
 
         return $contents;

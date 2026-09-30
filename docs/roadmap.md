@@ -110,6 +110,11 @@ ready for tagging with the supported-surface scope documented there.
   TLS/SASL security coverage remains a documented local-matrix gap.
 - Document broker-specific setup, known limitations, and compatibility notes.
 
+Release readiness was audited in
+[v0.9.0 Release Readiness Audit](release-readiness-v0.9.0.md). The milestone is
+ready for tagging with Qpid Broker-J TLS/SASL security coverage carried forward
+as a documented local-matrix gap.
+
 ### v1.0.0: Production-Oriented Release
 
 - Backward-compatible public API commitment for `Connection`, `Session`,
@@ -138,6 +143,5 @@ compatibility steps:
    queue address v2 semantics.
 3. Add the first non-local external broker target only after a real broker
    behavior gap is reproduced.
-4. Continue v0.9.0 hardening by either wiring Qpid Broker-J TLS/SASL security
-   coverage or preparing the v0.9.0 release-readiness audit with Qpid TLS
-   listed as a documented local-matrix gap.
+4. Prepare the v0.9.0 release tag after fresh verification on the merge commit
+   and finalized release notes.
