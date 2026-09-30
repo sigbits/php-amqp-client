@@ -122,7 +122,7 @@ final class Connection
         $written = 0;
 
         while ($written < strlen($bytes)) {
-            $chunkLength = fwrite($this->stream, substr($bytes, $written));
+            $chunkLength = @fwrite($this->stream, substr($bytes, $written));
 
             if ($chunkLength === false || $chunkLength === 0) {
                 throw TransportException::writeFailed();

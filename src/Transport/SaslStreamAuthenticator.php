@@ -95,7 +95,7 @@ final readonly class SaslStreamAuthenticator
     {
         $written = $this->writer !== null
             ? ($this->writer)($stream, $bytes)
-            : fwrite($stream, $bytes);
+            : @fwrite($stream, $bytes);
 
         if ($written !== strlen($bytes)) {
             throw TransportException::writeFailed();

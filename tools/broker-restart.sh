@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ $# -ne 1 ]]; then
+    echo "Usage: $0 <phpunit-filter>" >&2
+    exit 2
+fi
+
 cd "$(dirname "$0")/.."
 
+filter="$1"
+signal_name="$(printf '%s' "$filter" | tr -c '[:alnum:]_.-' '-')"
 PHP_VERSION="${PHP_VERSION:-8.3}"
 DOCKER_COMPOSE="${DOCKER_COMPOSE:-docker compose}"
 # shellcheck disable=SC2206
 DOCKER_COMPOSE_CMD=($DOCKER_COMPOSE)
 BROKER_COMPOSE=(env "PHP_VERSION=$PHP_VERSION" "${DOCKER_COMPOSE_CMD[@]}" -f docker-compose.yml -f docker-compose.broker.yml)
 SIGNAL_DIR=".phpunit.cache/broker-restart"
-READY_FILE="$SIGNAL_DIR/artemis-ready"
-CONTINUE_FILE="$SIGNAL_DIR/artemis-continue"
-LOG_FILE="$SIGNAL_DIR/phpunit.log"
+READY_FILE="$SIGNAL_DIR/$signal_name-ready"
+CONTINUE_FILE="$SIGNAL_DIR/$signal_name-continue"
+LOG_FILE="$SIGNAL_DIR/$signal_name-phpunit.log"
 
 mkdir -p "$SIGNAL_DIR"
 rm -f "$READY_FILE" "$CONTINUE_FILE" "$LOG_FILE"
@@ -33,7 +40,7 @@ trap cleanup EXIT
     -e AMQP_BROKER_RESTART_CONTINUE_FILE="/app/$CONTINUE_FILE" \
     php vendor/bin/phpunit --configuration phpunit.xml.dist \
     tests/LongRunning/PublicWorkerLifecycleTest.php \
-    --filter testPublicReceiverObservesBrokerRestartAgainstArtemis \
+    --filter "$filter" \
     >"$LOG_FILE" 2>&1 &
 test_pid="$!"
 

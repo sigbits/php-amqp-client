@@ -33,7 +33,8 @@ test-long: broker-reset
 	$(BROKER_COMPOSE) run --rm -e RUN_LONG_TESTS=1 -e AMQP_TOXIPROXY_API=http://toxiproxy:8474 -e AMQP_LONG_CYCLES=$(LONG_TEST_CYCLES) -e AMQP_LONG_CREDIT_CYCLES=$(LONG_TEST_CREDIT_CYCLES) -e AMQP_LONG_CREDIT_WINDOW=$(LONG_TEST_CREDIT_WINDOW) -e AMQP_LONG_FAILURE_CYCLES=$(LONG_TEST_FAILURE_CYCLES) -e AMQP_LONG_LARGE_MESSAGE_BYTES=$(LONG_TEST_LARGE_MESSAGE_BYTES) -e AMQP_LONG_LARGE_MESSAGE_CYCLES=$(LONG_TEST_LARGE_MESSAGE_CYCLES) -e AMQP_LONG_MAX_MEMORY_GROWTH_BYTES=$(LONG_TEST_MAX_MEMORY_GROWTH_BYTES) -e AMQP_LONG_RECONNECT_CYCLES=$(LONG_TEST_RECONNECT_CYCLES) php composer test:long
 
 test-broker-restart: broker-reset
-	./tools/broker-restart-receive.sh
+	./tools/broker-restart.sh testPublicReceiverObservesBrokerRestartAgainstArtemis
+	./tools/broker-restart.sh testPublicSenderObservesBrokerRestartAgainstArtemis
 
 broker-up:
 	$(BROKER_COMPOSE) up -d qpid artemis rabbitmq toxiproxy
