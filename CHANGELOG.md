@@ -7,6 +7,8 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+## v0.7.0 - 2026-09-30
+
 ### Added
 
 - Opt-in long-running worker hardening test harness for repeated public connection, session, sender, and receiver lifecycle cycles against ActiveMQ Artemis and Qpid Broker-J.
