@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- AMQP primitive encode/decode support for signed 32-bit `int` values.
 - AMQP primitive decoder support for compact `uint0` and `smalluint` encodings.
 
 ## v0.7.0 - 2026-09-30
