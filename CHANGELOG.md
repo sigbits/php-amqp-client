@@ -9,6 +9,8 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Configurable Docker-first `make test-soak` profiles for send-only, receive-only, request/reply-like, bounded-credit, reconnect, and large-message long-running worker workloads.
+- Long-running worker hardening coverage for public send-only, receive-only, and request/reply-like workloads against ActiveMQ Artemis and Qpid Broker-J.
 - ActiveMQ Artemis broker restart coverage for an active public receiver wait loop, with post-restart recovery verification.
 - ActiveMQ Artemis broker restart coverage for an active public sender loop, with post-restart recovery verification.
 - ActiveMQ Artemis broker restart coverage for an active public settlement loop, with post-restart recovery verification.
