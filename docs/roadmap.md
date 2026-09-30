@@ -132,19 +132,19 @@ as a documented local-matrix gap.
   version matrix and the supported broker matrix before tagging.
 
 Public API stability was audited in
-[v1.0.0 Public API Stability Audit](api-stability-v1.0.0.md). The milestone is
-not ready for tagging until release readiness is verified against the committed
-public API and production-hardening requirements.
+[v1.0.0 Public API Stability Audit](api-stability-v1.0.0.md). The stable API
+commitment is ready for tagging with the release-readiness audit as the final
+verification record.
 
 Release readiness was audited in
 [v1.0.0 Release Readiness Audit](release-readiness-v1.0.0.md). The milestone is
-not ready for tagging until the production hardening, supported broker matrix,
-user documentation, and release blocker gates are closed.
+ready for tagging with the documented broker and external-provider gaps carried
+forward.
 
-## Immediate Development Slice
+## Completed Development Slice
 
-Begin v1.0.0 production-oriented release work with the smallest API stability
-steps:
+v1.0.0 production-oriented release work completed these API stability and
+readiness steps:
 
 1. Resolve the public visibility of `Session`, `Sender`, `Receiver`, and
    `Delivery` implementation constructors before committing to 1.0
@@ -156,5 +156,5 @@ steps:
    seam and deterministic tests use the internal client object factory.
 3. Documented and locked the committed user-facing message model, timeout
    units, receiver credit semantics, and exception retry boundaries.
-4. Refresh the v1.0.0 release-readiness audit against the committed public API
+4. Refreshed the v1.0.0 release-readiness audit against the committed public API
    and production-hardening requirements.

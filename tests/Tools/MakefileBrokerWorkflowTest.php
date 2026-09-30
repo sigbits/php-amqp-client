@@ -197,7 +197,7 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('[v1.0.0 Public API Stability Audit](api-stability-v1.0.0.md)', $roadmap);
         self::assertStringContainsString('Session, Sender, Receiver, and Delivery constructors are hidden from the supported public API', $audit);
         self::assertStringContainsString('Connection::connect() no longer exposes SaslStreamConnector', $audit);
-        self::assertStringContainsString('Begin v1.0.0 production-oriented release work', $roadmap);
+        self::assertStringContainsString('v1.0.0 production-oriented release work completed these API stability', $roadmap);
     }
 
     public function testV100ApiStabilityAuditDocumentsPublicSemantics(): void
@@ -219,7 +219,7 @@ final class MakefileBrokerWorkflowTest extends TestCase
         $audit = self::v100ReleaseReadinessAudit();
 
         self::assertStringContainsString('[v1.0.0 Release Readiness Audit](release-readiness-v1.0.0.md)', $roadmap);
-        self::assertStringContainsString('v1.0.0 is not ready to tag', $audit);
+        self::assertStringContainsString('v1.0.0 is ready to tag from the verified release candidate', $audit);
         self::assertStringContainsString('Committed Public API', $audit);
         self::assertStringContainsString('Production Hardening Gate', $audit);
         self::assertStringContainsString('Supported Broker Matrix', $audit);

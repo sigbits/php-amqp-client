@@ -4,13 +4,14 @@ Date: 2026-09-30
 
 ## Decision
 
-v1.0.0 is not ready to tag.
+v1.0.0 is ready to tag from the verified release candidate.
 
 The public API stability audit has resolved the immediate API commitment
 questions, and the user-facing guide now covers the committed public workflows.
-The release is still blocked on production-hardening verification. This audit
-records the release gate that must be satisfied before the first stable tag is
-created.
+Production-hardening verification passed for the release candidate that includes
+`4cf4686` (`Fix AMQP hostname for proxied broker connections`). If additional
+code changes are made after this audit, rerun the full release candidate
+verification matrix before tagging.
 
 ## Checklist
 
@@ -38,18 +39,17 @@ Carry-forward scope:
 
 ### Production Hardening Gate
 
-Blocked until freshly verified.
+Ready.
 
 - The release gate requires `make ci`, broker integration tests, TLS/SASL
   security tests, broker restart tests, long-running worker tests, and soak
   profiles to pass from the release candidate commit.
 - Parser, binary fixture, malformed payload, protocol-state, and public
-  exception regressions exist, but must be run as part of the release candidate
-  verification instead of relying on historical milestone evidence.
+  exception regressions passed through the `make ci` PHPUnit run.
 - Broker restart coverage is currently ActiveMQ Artemis-focused. Transport-loss
   coverage remains in the long-running worker suite.
 
-Required verification:
+Verification performed on 2026-09-30:
 
 ```sh
 make ci
@@ -60,6 +60,29 @@ make test-long
 make test-soak SOAK_PROFILE=all LONG_TEST_CYCLES=1 LONG_TEST_SEND_CYCLES=1 LONG_TEST_RECEIVE_CYCLES=1 LONG_TEST_REQUEST_REPLY_CYCLES=1 LONG_TEST_CREDIT_CYCLES=1 LONG_TEST_CREDIT_WINDOW=1 LONG_TEST_RECONNECT_CYCLES=1 LONG_TEST_LARGE_MESSAGE_CYCLES=1 LONG_TEST_LARGE_MESSAGE_BYTES=512
 make broker-down
 ```
+
+Observed results:
+
+- `vendor/bin/phpunit --configuration phpunit.xml.dist`: OK, 432 tests, 684
+  assertions, 56 skipped.
+- `vendor/bin/phpstan analyse --configuration=phpstan.neon.dist`: OK, no
+  errors.
+- `vendor/bin/php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.dist.php`:
+  OK, 0 fixable files.
+- Focused Qpid transport-interruption regression through Toxiproxy: OK, 1 test,
+  14 assertions.
+- `make test-integration BROKER_READY_TIMEOUT=180`: OK, 35 tests, 45
+  assertions, 6 skipped.
+- `make test-security BROKER_READY_TIMEOUT=180`: OK, 6 tests, 6 assertions.
+- `make test-broker-restart BROKER_READY_TIMEOUT=180`: OK for all three
+  ActiveMQ Artemis restart scenarios, 3 tests, 14 assertions total.
+- `make test-long BROKER_READY_TIMEOUT=180`: OK, 21 tests, 2460 assertions, 3
+  skipped restart-only cases.
+- `make test-soak SOAK_PROFILE=all LONG_TEST_CYCLES=1 LONG_TEST_SEND_CYCLES=1 LONG_TEST_RECEIVE_CYCLES=1 LONG_TEST_REQUEST_REPLY_CYCLES=1 LONG_TEST_CREDIT_CYCLES=1 LONG_TEST_CREDIT_WINDOW=1 LONG_TEST_RECONNECT_CYCLES=1 LONG_TEST_LARGE_MESSAGE_CYCLES=1 LONG_TEST_LARGE_MESSAGE_BYTES=512 BROKER_READY_TIMEOUT=180`:
+  OK, 12 tests, 48 assertions.
+- `make ci`: passed on PHP 8.3, including Composer validation, install, CS,
+  PHPStan, and PHPUnit.
+- `make broker-down`: broker containers stopped and removed after verification.
 
 ### Supported Broker Matrix
 
@@ -99,14 +122,9 @@ Ready.
 
 ### Release Blockers
 
-- Run and record the full release candidate verification matrix from the commit
-  that will be tagged.
-- Decide whether any remaining exposed public symbols must be documented,
-  hidden, or explicitly excluded from the v1.0.0 compatibility promise.
+None for the verified release candidate.
 
 ## Current Status
 
-Not ready to tag v1.0.0.
-
-The next implementation slice should run the full release candidate
-verification matrix from the intended tag commit.
+Ready to tag v1.0.0 from the verified release candidate, with the documented
+broker and external-provider gaps carried forward.

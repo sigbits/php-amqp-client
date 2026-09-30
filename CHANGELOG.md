@@ -7,11 +7,28 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+No unreleased changes.
+
+## v1.0.0 - 2026-09-30
+
+### Added
+
+- Azure Service Bus emulator support in the local Docker broker matrix, including handshake, public sender/receiver, settlement, SASL, and smoke coverage.
+- AMQP `open.hostname` emission during connection open for brokers that require a hostname or virtual-host match.
+- User guide and broker compatibility documentation for the v1.0.0 public API, broker matrix, TLS/SASL setup, retry boundaries, and long-running worker workflows.
+- Release-readiness audit documenting the v1.0.0 public API commitment, verification gate, supported broker matrix, and known compatibility gaps.
+
 ### Changed
 
 - Hid `Session`, `Sender`, `Receiver`, and `Delivery` implementation constructors from the supported public API ahead of the v1.0.0 compatibility commitment.
 - Removed the connector injection parameter from the supported `Connection::connect()` API; deterministic tests now use the internal client object factory seam.
 - Documented the committed v1.0.0 user-facing message model, timeout units, receiver credit semantics, and exception retry boundaries.
+- Proxied broker test URIs can now override the AMQP `open.hostname` independently from the TCP endpoint with a `hostname` query parameter.
+
+### Fixed
+
+- AMQP message decoding now tolerates broker-added unsupported annotation and property fields observed from the Azure Service Bus emulator.
+- Qpid Broker-J transport-interruption coverage now sends the broker hostname through Toxiproxy instead of the proxy hostname, avoiding virtual-host rejection during recovery checks.
 
 ## v0.9.0 - 2026-09-30
 
