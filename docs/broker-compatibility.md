@@ -20,13 +20,14 @@ password.
 
 Initial v0.9.0 coverage adds RabbitMQ to the AMQP/SASL handshake, public
 connection/session mapping, public sender matrix, public receiver matrix, and
-public accepted-delivery settlement matrix. Public sender/receiver/settlement
-coverage creates a durable random test queue through the RabbitMQ management API
-and targets it with the AMQP 1.0 address v2 queue form `/queues/:queue`.
+public accepted-delivery settlement matrix, and public sender/receiver detach
+matrix. Public sender/receiver/settlement/detach coverage creates a durable
+random test queue through the RabbitMQ management API and targets it with the
+AMQP 1.0 address v2 queue form `/queues/:queue`.
 
-Public detach coverage still needs to account for RabbitMQ AMQP 1.0 address v2
-semantics, where clients target exchanges or queues using addresses such as
-`/exchanges/:exchange/:routing-key` and `/queues/:queue`.
+The local RabbitMQ coverage uses queue addresses. Exchange/routing-key addresses
+such as `/exchanges/:exchange/:routing-key` are not yet part of the local
+RabbitMQ matrix.
 
 ## Qpid Broker-J
 
