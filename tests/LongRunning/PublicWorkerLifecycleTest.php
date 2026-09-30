@@ -72,6 +72,212 @@ final class PublicWorkerLifecycleTest extends TestCase
     }
 
     #[DataProvider('brokerProvider')]
+    public function testRepeatedPublicSendOnlyCyclesDoNotLeakMemory(string $broker, string $uri): void
+    {
+        if (getenv('RUN_LONG_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_LONG_TESTS=1 to run long-running worker hardening tests.');
+        }
+
+        $cycles = self::positiveIntegerFromEnvironment('AMQP_LONG_SEND_CYCLES', 100);
+        $maxGrowthBytes = self::positiveIntegerFromEnvironment('AMQP_LONG_MAX_MEMORY_GROWTH_BYTES', 8 * 1024 * 1024);
+        $runId = bin2hex(random_bytes(4));
+        $address = sprintf('sigbits.long.send.%s.%s', $broker, $runId);
+
+        if ($broker === 'qpid') {
+            $this->createQpidQueue($address);
+        }
+
+        gc_collect_cycles();
+        $startMemory = memory_get_usage(true);
+
+        $connection = Connection::connect(
+            $uri,
+            containerId: sprintf('sigbits-long-send-%s-%s', $broker, $runId),
+            timeoutSeconds: 5.0,
+        );
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address, name: sprintf('sender-%s', $runId));
+
+        for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+            $sender->send(sprintf('send-only worker message %s %d', $broker, $cycle));
+
+            if ($cycle % 10 === 0) {
+                gc_collect_cycles();
+            }
+        }
+
+        $session->end();
+        $connection->close();
+
+        gc_collect_cycles();
+        $memoryGrowth = memory_get_usage(true) - $startMemory;
+
+        self::assertLessThanOrEqual(
+            $maxGrowthBytes,
+            $memoryGrowth,
+            sprintf('Memory grew by %d bytes across %d %s send-only cycles.', $memoryGrowth, $cycles, $broker),
+        );
+    }
+
+    #[DataProvider('brokerProvider')]
+    public function testRepeatedPublicReceiveOnlyCyclesDoNotLeakMemory(string $broker, string $uri): void
+    {
+        if (getenv('RUN_LONG_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_LONG_TESTS=1 to run long-running worker hardening tests.');
+        }
+
+        $cycles = self::positiveIntegerFromEnvironment('AMQP_LONG_RECEIVE_CYCLES', 100);
+        $maxGrowthBytes = self::positiveIntegerFromEnvironment('AMQP_LONG_MAX_MEMORY_GROWTH_BYTES', 8 * 1024 * 1024);
+        $runId = bin2hex(random_bytes(4));
+        $address = sprintf('sigbits.long.receive.%s.%s', $broker, $runId);
+
+        if ($broker === 'qpid') {
+            $this->createQpidQueue($address);
+        }
+
+        $consumerConnection = Connection::connect(
+            $uri,
+            containerId: sprintf('sigbits-long-receive-consumer-%s-%s', $broker, $runId),
+            timeoutSeconds: 5.0,
+        );
+        $consumerSession = $consumerConnection->beginSession();
+        $receiver = $consumerSession->openReceiver($address, name: sprintf('receiver-%s', $runId), credit: $cycles);
+
+        $producerConnection = Connection::connect(
+            $uri,
+            containerId: sprintf('sigbits-long-receive-producer-%s-%s', $broker, $runId),
+            timeoutSeconds: 5.0,
+        );
+        $producerSession = $producerConnection->beginSession();
+        $sender = $producerSession->openSender($address, name: sprintf('sender-%s', $runId));
+
+        for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+            $sender->send(sprintf('receive-only worker message %s %d', $broker, $cycle));
+        }
+
+        $producerSession->end();
+        $producerConnection->close();
+
+        gc_collect_cycles();
+        $startMemory = memory_get_usage(true);
+
+        for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+            $body = sprintf('receive-only worker message %s %d', $broker, $cycle);
+            $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+            self::assertNotNull($delivery);
+            self::assertSame($body, $delivery->message()->body);
+
+            $delivery->accept();
+
+            if ($cycle % 10 === 0) {
+                gc_collect_cycles();
+            }
+        }
+
+        $consumerSession->end();
+        $consumerConnection->close();
+
+        gc_collect_cycles();
+        $memoryGrowth = memory_get_usage(true) - $startMemory;
+
+        self::assertLessThanOrEqual(
+            $maxGrowthBytes,
+            $memoryGrowth,
+            sprintf('Memory grew by %d bytes across %d %s receive-only cycles.', $memoryGrowth, $cycles, $broker),
+        );
+    }
+
+    #[DataProvider('brokerProvider')]
+    public function testRepeatedPublicRequestReplyLikeCyclesDoNotLeakMemory(string $broker, string $uri): void
+    {
+        if (getenv('RUN_LONG_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_LONG_TESTS=1 to run long-running worker hardening tests.');
+        }
+
+        $cycles = self::positiveIntegerFromEnvironment('AMQP_LONG_REQUEST_REPLY_CYCLES', 100);
+        $maxGrowthBytes = self::positiveIntegerFromEnvironment('AMQP_LONG_MAX_MEMORY_GROWTH_BYTES', 8 * 1024 * 1024);
+        $runId = bin2hex(random_bytes(4));
+        $requestAddress = sprintf('sigbits.long.request.%s.%s', $broker, $runId);
+        $replyAddress = sprintf('sigbits.long.reply.%s.%s', $broker, $runId);
+
+        if ($broker === 'qpid') {
+            $this->createQpidQueue($requestAddress);
+            $this->createQpidQueue($replyAddress);
+        }
+
+        gc_collect_cycles();
+        $startMemory = memory_get_usage(true);
+
+        $clientConnection = Connection::connect(
+            $uri,
+            containerId: sprintf('sigbits-long-request-reply-client-%s-%s', $broker, $runId),
+            timeoutSeconds: 5.0,
+        );
+        $clientSession = $clientConnection->beginSession();
+        $clientReceiver = $clientSession->openReceiver(
+            $replyAddress,
+            name: sprintf('reply-receiver-%s', $runId),
+            handle: 1,
+            credit: $cycles,
+        );
+        $clientSender = $clientSession->openSender($requestAddress, name: sprintf('request-sender-%s', $runId), handle: 0);
+
+        $workerConnection = Connection::connect(
+            $uri,
+            containerId: sprintf('sigbits-long-request-reply-worker-%s-%s', $broker, $runId),
+            timeoutSeconds: 5.0,
+        );
+        $workerSession = $workerConnection->beginSession();
+        $workerReceiver = $workerSession->openReceiver(
+            $requestAddress,
+            name: sprintf('request-receiver-%s', $runId),
+            handle: 1,
+            credit: $cycles,
+        );
+        $workerSender = $workerSession->openSender($replyAddress, name: sprintf('reply-sender-%s', $runId), handle: 0);
+
+        for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+            $requestBody = sprintf('request worker message %s %d', $broker, $cycle);
+            $replyBody = sprintf('reply worker message %s %d', $broker, $cycle);
+
+            $clientSender->send($requestBody);
+            $requestDelivery = $workerReceiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+            self::assertNotNull($requestDelivery);
+            self::assertSame($requestBody, $requestDelivery->message()->body);
+
+            $requestDelivery->accept();
+            $workerSender->send($replyBody);
+
+            $replyDelivery = $clientReceiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+            self::assertNotNull($replyDelivery);
+            self::assertSame($replyBody, $replyDelivery->message()->body);
+
+            $replyDelivery->accept();
+
+            if ($cycle % 10 === 0) {
+                gc_collect_cycles();
+            }
+        }
+
+        $workerSession->end();
+        $workerConnection->close();
+        $clientSession->end();
+        $clientConnection->close();
+
+        gc_collect_cycles();
+        $memoryGrowth = memory_get_usage(true) - $startMemory;
+
+        self::assertLessThanOrEqual(
+            $maxGrowthBytes,
+            $memoryGrowth,
+            sprintf('Memory grew by %d bytes across %d %s request/reply-like cycles.', $memoryGrowth, $cycles, $broker),
+        );
+    }
+
+    #[DataProvider('brokerProvider')]
     public function testRepeatedPublicSendReceiveCyclesDoNotLeakMemory(string $broker, string $uri): void
     {
         if (getenv('RUN_LONG_TESTS') !== '1') {

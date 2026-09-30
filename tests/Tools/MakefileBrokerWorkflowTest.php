@@ -59,6 +59,27 @@ final class MakefileBrokerWorkflowTest extends TestCase
         );
     }
 
+    public function testLongRunningSoakProfilesUseDedicatedRunner(): void
+    {
+        $makefile = self::makefile();
+
+        self::assertMatchesRegularExpression('/^SOAK_PROFILE \?= all$/m', $makefile);
+        self::assertMatchesRegularExpression('/^test-soak:\s+broker-reset$/m', $makefile);
+        self::assertStringContainsString('./tools/long-profile.sh $(SOAK_PROFILE)', $makefile);
+    }
+
+    public function testLongRunningSoakProfileRunnerDefinesSupportedProfiles(): void
+    {
+        $script = self::longProfileScript();
+
+        foreach (['send-only', 'receive-only', 'request-reply', 'bounded-credit', 'reconnect', 'large-message'] as $profile) {
+            self::assertStringContainsString($profile, $script);
+        }
+
+        self::assertStringContainsString('AMQP_LONG_PROFILE', $script);
+        self::assertStringContainsString('composer test:long', $script);
+    }
+
     public function testBrokerComposeDefinesRabbitMqAmqp10Service(): void
     {
         $compose = self::brokerCompose();
@@ -77,6 +98,17 @@ final class MakefileBrokerWorkflowTest extends TestCase
 
         if ($contents === false) {
             self::fail('Could not read project Makefile.');
+        }
+
+        return $contents;
+    }
+
+    private static function longProfileScript(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/tools/long-profile.sh');
+
+        if ($contents === false) {
+            self::fail('Could not read long-running profile script.');
         }
 
         return $contents;

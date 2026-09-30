@@ -102,6 +102,8 @@ ready for tagging with the supported-surface scope documented there.
   send-loop, receive-loop, and settlement-loop restart coverage is in place.
 - Add configurable long-running soak profiles for send-only, receive-only,
   request/reply-like, bounded-credit, reconnect, and large-message workloads.
+  Local ActiveMQ Artemis and Qpid Broker-J coverage is in place through
+  `make test-soak`.
 - Validate TLS/SASL combinations across supported brokers, including failed
   authentication and certificate validation paths.
 - Document broker-specific setup, known limitations, and compatibility notes.
@@ -134,6 +136,6 @@ compatibility steps:
    queue address v2 semantics.
 3. Add the first non-local external broker target only after a real broker
    behavior gap is reproduced.
-4. Continue v0.9.0 hardening with configurable long-running soak profiles for
-   send-only, receive-only, request/reply-like, bounded-credit, reconnect, and
-   large-message workloads.
+4. Continue v0.9.0 hardening by validating TLS/SASL combinations across
+   supported brokers, including failed authentication and certificate
+   validation paths.
