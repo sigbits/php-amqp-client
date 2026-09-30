@@ -11,13 +11,17 @@ later driven by blocking streams or async transports.
 
 This project is in early development. The current release line includes the
 protocol engine foundation, sender and receiver link engines, synchronous PHP
-stream transport, TLS stream setup, SASL ANONYMOUS/PLAIN negotiation, and
-practical AMQP message section encoding. The public API can open
-connections, begin/end AMQP sessions, send messages, and receive messages.
+stream transport, TLS stream setup, SASL ANONYMOUS/PLAIN negotiation,
+practical AMQP message section encoding, and protocol/state hardening for the
+current public client surface. The public API can open connections, begin/end
+AMQP sessions, send messages, receive messages, manage receiver credit, and
+settle deliveries.
 
-The public developer API is still pre-1.0, but the `v0.6.0` release hardens
+The public developer API is still pre-1.0, but the `v0.8.0` release hardens
 the synchronous Connection, Session, Sender, and Receiver surface with broker
-interoperability coverage for sending, receiving, settlement, and link detach.
+interoperability coverage, long-running worker coverage, exact binary fixtures,
+malformed payload regressions, and deterministic public exceptions for the
+supported workflows.
 
 ## Supported Surface
 
@@ -36,11 +40,18 @@ The current development line supports:
 - Public receiver delivery settlement through accepted, released, and rejected
   outcomes.
 - Public receiver credit replenishment for bounded-credit worker loops.
+- Deterministic public exceptions for remote close/end/detach, timeout,
+  transport loss, settlement races, detached links, and exhausted sender link
+  credit.
 
 Current limitations:
 
 - Message map support is intentionally constrained to symbol/string keys and
-  string values.
+  string or signed scalar values.
+- The v0.8.0 protocol completeness milestone is scoped to the current
+  broker-tested public client workflows. Full AMQP 1.0 type-system coverage,
+  broad compound values, and CLOSE/END error payload decoding remain future
+  protocol expansion work.
 - Broker interoperability coverage currently proves handshakes and public
   connection/session lifecycle against Qpid Broker-J and ActiveMQ Artemis,
   public sender/receiver detach lifecycle through both brokers, DATA message
