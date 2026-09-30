@@ -122,8 +122,7 @@ installable through Composer.
 Continue v0.8.0 protocol completeness with the smallest codec and state-machine
 hardening steps:
 
-1. Continue migrating BEGIN and DISPOSITION codecs to the shared AMQP scalar
-   reader.
-2. Add the first public protocol-state regression for remote connection close.
-3. Continue scalar primitive coverage with signed byte, signed short, and long
+1. Add the first public protocol-state regression for remote connection close.
+2. Continue scalar primitive coverage with signed byte, signed short, and long
    encodings.
+3. Expand parser malformed and truncated payload regression coverage.

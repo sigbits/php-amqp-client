@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Performative;
 
+use Sigbits\Amqp\Protocol\Codec\DecodeException;
+use Sigbits\Amqp\Protocol\Codec\ScalarReader;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\UShort;
 
@@ -14,10 +16,15 @@ final class BeginCodec
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
     private const int CONSTRUCTOR_NULL = 0x40;
-    private const int CONSTRUCTOR_UINT0 = 0x43;
-    private const int CONSTRUCTOR_SMALLUINT = 0x52;
     private const int CONSTRUCTOR_USHORT = 0x60;
     private const int CONSTRUCTOR_UINT = 0x70;
+
+    private readonly ScalarReader $scalarReader;
+
+    public function __construct(?ScalarReader $scalarReader = null)
+    {
+        $this->scalarReader = $scalarReader ?? new ScalarReader();
+    }
 
     public function encode(Begin $begin): string
     {
@@ -133,39 +140,14 @@ final class BeginCodec
      */
     private function decodeUInt(string $bytes, int $cursor, int $listEnd): array
     {
-        if ($cursor >= $listEnd) {
-            throw PerformativeException::truncatedBegin();
-        }
-
-        $constructor = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($constructor === self::CONSTRUCTOR_UINT0) {
-            return [0, $cursor];
-        }
-
-        if ($constructor === self::CONSTRUCTOR_SMALLUINT) {
-            if ($cursor >= $listEnd) {
-                throw PerformativeException::truncatedBegin();
+        try {
+            return $this->scalarReader->readUInt($bytes, $cursor, $listEnd);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Unsupported AMQP format code')) {
+                throw PerformativeException::missingBeginRequiredFields();
             }
 
-            return [ord($bytes[$cursor]), $cursor + 1];
-        }
-
-        if ($constructor !== self::CONSTRUCTOR_UINT) {
-            throw PerformativeException::missingBeginRequiredFields();
-        }
-
-        if ($cursor + 4 > $listEnd) {
             throw PerformativeException::truncatedBegin();
         }
-
-        return [
-            (ord($bytes[$cursor]) << 24)
-            | (ord($bytes[$cursor + 1]) << 16)
-            | (ord($bytes[$cursor + 2]) << 8)
-            | ord($bytes[$cursor + 3]),
-            $cursor + 4,
-        ];
     }
 }
