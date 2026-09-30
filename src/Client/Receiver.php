@@ -148,6 +148,10 @@ final class Receiver
     private function settle(callable $settle): callable
     {
         return function (int $deliveryId) use ($settle): void {
+            if ($this->link->state() === ReceiverLinkState::Detached) {
+                throw ClientException::receiverLinkDetachedDuringSettlement();
+            }
+
             if ($this->writeAll === null) {
                 return;
             }

@@ -27,6 +27,11 @@ final class ClientException extends RuntimeException
         return new self('Cannot receive from detached AMQP receiver link.');
     }
 
+    public static function receiverLinkDetachedDuringSettlement(): self
+    {
+        return new self('Cannot settle AMQP delivery because the receiver link is detached.');
+    }
+
     public static function receiverLinkDetachedDuringOpen(?PerformativeError $error = null): self
     {
         return new self(self::withErrorDetails(
@@ -43,6 +48,11 @@ final class ClientException extends RuntimeException
     public static function remoteSessionEnded(): self
     {
         return new self('AMQP session was ended by the remote peer.');
+    }
+
+    public static function deliveryAlreadySettled(): self
+    {
+        return new self('Cannot settle AMQP delivery because it is already settled.');
     }
 
     private static function withErrorDetails(string $message, ?PerformativeError $error): string

@@ -27,4 +27,9 @@ final class ReceiverLinkException extends RuntimeException
     {
         return new self('Truncated AMQP receiver transfer payload.');
     }
+
+    public static function unknownDelivery(): self
+    {
+        return new self('Cannot settle unknown AMQP delivery.');
+    }
 }

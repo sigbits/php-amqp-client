@@ -37,6 +37,11 @@ final class ReceiverLinkEngine
      */
     private array $receivedDeliveries = [];
 
+    /**
+     * @var array<int, true>
+     */
+    private array $unsettledDeliveries = [];
+
     public function __construct(
         private readonly int $sessionChannel,
         private readonly string $name,
@@ -222,6 +227,7 @@ final class ReceiverLinkEngine
                 deliveryId: $this->incomingTransferDeliveryId,
                 message: $this->messageCodec->decode($this->incomingTransferPayload),
             );
+            $this->unsettledDeliveries[$this->incomingTransferDeliveryId] = true;
             $this->incomingTransferDeliveryId = null;
             $this->incomingTransferPayload = '';
 
@@ -241,6 +247,12 @@ final class ReceiverLinkEngine
      */
     private function settle(int $deliveryId, SettlementOutcome $outcome): array
     {
+        if (!isset($this->unsettledDeliveries[$deliveryId])) {
+            throw ReceiverLinkException::unknownDelivery();
+        }
+
+        unset($this->unsettledDeliveries[$deliveryId]);
+
         return [
             $this->frame($this->dispositionCodec->encode(new Disposition(
                 deliveryId: $deliveryId,

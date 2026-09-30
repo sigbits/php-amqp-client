@@ -9,6 +9,8 @@ use Sigbits\Amqp\Protocol\Message\Message;
 
 final class Delivery
 {
+    private bool $settled = false;
+
     /**
      * @param callable(int): void $accept
      * @param callable(int): void $release
@@ -48,16 +50,31 @@ final class Delivery
 
     public function accept(): void
     {
+        $this->settle();
+
         ($this->accept)($this->deliveryId);
     }
 
     public function release(): void
     {
+        $this->settle();
+
         ($this->release)($this->deliveryId);
     }
 
     public function reject(): void
     {
+        $this->settle();
+
         ($this->reject)($this->deliveryId);
+    }
+
+    private function settle(): void
+    {
+        if ($this->settled) {
+            throw ClientException::deliveryAlreadySettled();
+        }
+
+        $this->settled = true;
     }
 }

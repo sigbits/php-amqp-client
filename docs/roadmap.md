@@ -122,8 +122,8 @@ installable through Composer.
 Continue v0.8.0 protocol completeness with the smallest codec and state-machine
 hardening steps:
 
-1. Harden settlement race behavior for remote dispositions and repeated
-   settlement attempts.
-2. Add exhausted link-credit public regression coverage.
-3. Expand parser/property regressions for malformed descriptor payloads across
+1. Add exhausted link-credit public regression coverage.
+2. Expand parser/property regressions for malformed descriptor payloads across
    performative and message-section codecs.
+3. Reassess v0.8.0 release readiness against the protocol completeness and
+   state hardening checklist.

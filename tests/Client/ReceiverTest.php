@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Tests\Client;
 
 use PHPUnit\Framework\TestCase;
+use Sigbits\Amqp\Client\ClientException;
 use Sigbits\Amqp\Client\Receiver;
 use Sigbits\Amqp\Engine\ReceiverLinkEngine;
 use Sigbits\Amqp\Protocol\Message\Message;
@@ -120,6 +121,69 @@ final class ReceiverTest extends TestCase
             . "\x41"
             . "\x00\x53\x24\x45",
         ], $written);
+    }
+
+    public function testReceiveDeliveryRejectsRepeatedSettlement(): void
+    {
+        $written = [];
+        $receiver = new Receiver(
+            $this->attachedReceiverLink(),
+            $this->reader([
+                "\x00\x00\x00\x35\x02\x00\x00\x01"
+                . "\x00\x53\x14\xc0\x1e\x06"
+                . "\x70\x00\x00\x00\x03"
+                . "\x70\x00\x00\x00\x03"
+                . "\xa0\x0adelivery-3"
+                . "\x70\x00\x00\x00\x00"
+                . "\x40"
+                . "\x42"
+                . "\x00\x53\x75\xa0\x05hello",
+            ]),
+            static function (array $frames) use (&$written): void {
+                array_push($written, ...$frames);
+            },
+        );
+
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 100);
+        self::assertNotNull($delivery);
+        $delivery->accept();
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('Cannot settle AMQP delivery because it is already settled.');
+
+        $delivery->release();
+    }
+
+    public function testReceiveDeliveryRejectsSettlementAfterReceiverDetach(): void
+    {
+        $written = [];
+        $receiver = new Receiver(
+            $this->attachedReceiverLink(),
+            $this->reader([
+                "\x00\x00\x00\x35\x02\x00\x00\x01"
+                . "\x00\x53\x14\xc0\x1e\x06"
+                . "\x70\x00\x00\x00\x03"
+                . "\x70\x00\x00\x00\x03"
+                . "\xa0\x0adelivery-3"
+                . "\x70\x00\x00\x00\x00"
+                . "\x40"
+                . "\x42"
+                . "\x00\x53\x75\xa0\x05hello",
+                "\x00\x00\x00\x13\x02\x00\x00\x01\x00\x53\x16\xc0\x06\x01\x70\x00\x00\x00\x00",
+            ]),
+            static function (array $frames) use (&$written): void {
+                array_push($written, ...$frames);
+            },
+        );
+
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 100);
+        self::assertNotNull($delivery);
+        $receiver->detach();
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('Cannot settle AMQP delivery because the receiver link is detached.');
+
+        $delivery->accept();
     }
 
     public function testReceiveDeliveryCanReleaseReceivedMessage(): void
