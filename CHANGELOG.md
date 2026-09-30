@@ -11,6 +11,7 @@ must have release notes in this file before the tag is created.
 
 - ActiveMQ Artemis broker restart coverage for an active public receiver wait loop, with post-restart recovery verification.
 - ActiveMQ Artemis broker restart coverage for an active public sender loop, with post-restart recovery verification.
+- ActiveMQ Artemis broker restart coverage for an active public settlement loop, with post-restart recovery verification.
 - Docker-first `make test-broker-restart` harness for host-orchestrated broker restart tests.
 - RabbitMQ 4 AMQP 1.0 public sender and receiver detach integration coverage using queue addresses.
 - RabbitMQ 4 AMQP 1.0 public accepted-delivery settlement integration coverage using a queue source address.
