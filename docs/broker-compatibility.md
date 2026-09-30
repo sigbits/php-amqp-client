@@ -11,6 +11,9 @@ The Docker broker stack currently provides:
 - RabbitMQ 4 on container port `5672`, exposed on host port `56740`, plus TLS
   endpoint `rabbitmq-tls` on container port `5671`, exposed on host port
   `56741`.
+- Azure Service Bus emulator on container port `5672`, exposed on host port
+  `56750`, plus health and management endpoint on container port `5300`, exposed
+  on host port `58300`.
 
 `make test-integration`, `make test-security`, `make test-long`, and
 `make test-soak` recreate the broker stack before running so stale broker state
@@ -71,3 +74,18 @@ restart, and large DATA message coverage.
 active public receiver, sender, and settlement loops. The harness runs PHPUnit
 inside Docker and performs the actual broker container restart from the
 host-side Docker Compose process.
+
+## Azure Service Bus Emulator
+
+Azure Service Bus emulator is used for local AMQP TCP on `servicebus-emulator:5672`.
+The emulator depends on the local `servicebus-sql` SQL Server container and loads static queue definitions from
+`docker/broker/servicebus-emulator-config.json`.
+
+The local emulator matrix covers AMQP/SASL handshake, public
+connection/session lifecycle, public send, public receive, and accepted-delivery
+settlement against configured queues such as `sigbits.public.accept`.
+
+This coverage proves compatibility with the local development emulator only. It
+does not claim production Azure Service Bus cloud coverage, AMQP over
+WebSockets, Entra ID authentication, VNet/private endpoint behavior, cloud
+quotas, broker persistence across emulator restart, or cloud SLA behavior.

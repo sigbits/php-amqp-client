@@ -23,6 +23,9 @@ interoperability coverage, long-running worker coverage, exact binary fixtures,
 malformed payload regressions, and deterministic public exceptions for the
 supported workflows.
 
+For user-facing connection, messaging, settlement, security, retry, broker, and
+worker-operation guidance, see the [User Guide](docs/user-guide.md).
+
 ## Supported Surface
 
 The current development line supports:

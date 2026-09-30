@@ -57,7 +57,10 @@ final class Connection
             $timeoutSeconds,
         );
         self::setReadTimeout($stream, $timeoutSeconds);
-        $engine = new ConnectionEngine(localContainerId: $containerId);
+        $engine = new ConnectionEngine(
+            localContainerId: $containerId,
+            hostname: $connectionUri->host,
+        );
         $connection = new self($stream, $engine);
 
         $connection->writeAll($engine->start());

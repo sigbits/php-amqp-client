@@ -282,6 +282,34 @@ final class PublicConnectionTest extends TestCase
         self::assertSame(0, $this->rabbitMqReadyMessageCount($queue));
     }
 
+    public function testPublicReceiverAcceptsDeliveryAgainstAzureServiceBusEmulator(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $body = 'hello azure service bus emulator ' . bin2hex(random_bytes(4));
+        $connection = Connection::connect(self::azureServiceBusEmulatorUri(), timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender('sigbits.public.accept');
+
+        $sender->send($body);
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect(self::azureServiceBusEmulatorUri(), timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver('sigbits.public.accept', credit: 10);
+        $delivery = $this->receiveDeliveryWithBody($receiver, $body);
+
+        self::assertSame($body, $delivery->message()->body);
+
+        $delivery->accept();
+
+        $session->end();
+        $connection->close();
+    }
+
     public function testPublicSenderDetachesAgainstArtemis(): void
     {
         if (getenv('RUN_BROKER_TESTS') !== '1') {
@@ -411,7 +439,14 @@ final class PublicConnectionTest extends TestCase
             'qpid' => [getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672'],
             'artemis' => [getenv('AMQP_ARTEMIS_URI') ?: 'amqp://guest:guest@artemis:5672'],
             'rabbitmq' => [getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672'],
+            'azure-service-bus-emulator' => [self::azureServiceBusEmulatorUri()],
         ];
+    }
+
+    private static function azureServiceBusEmulatorUri(): string
+    {
+        return getenv('AMQP_AZURE_SERVICE_BUS_EMULATOR_URI')
+            ?: 'amqp://RootManageSharedAccessKey:SAS_KEY_VALUE@servicebus-emulator:5672';
     }
 
     private function createQpidQueue(string $name): void
@@ -518,5 +553,27 @@ final class PublicConnectionTest extends TestCase
         }
 
         return count($messages);
+    }
+
+    private function receiveDeliveryWithBody(\Sigbits\Amqp\Client\Receiver $receiver, string $body): \Sigbits\Amqp\Client\Delivery
+    {
+        $deadline = microtime(true) + 10.0;
+
+        do {
+            $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 1000);
+
+            if ($delivery === null) {
+                continue;
+            }
+
+            if ($delivery->message()->body === $body) {
+                return $delivery;
+            }
+
+            $delivery->accept();
+            $receiver->grantCredit(1);
+        } while (microtime(true) < $deadline);
+
+        self::fail('Timed out waiting for Azure Service Bus emulator delivery body.');
     }
 }

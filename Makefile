@@ -48,7 +48,7 @@ test-broker-restart: broker-reset
 	./tools/broker-restart.sh testPublicSettlementObservesBrokerRestartAgainstArtemis
 
 broker-up:
-	$(BROKER_COMPOSE) up -d qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy
+	$(BROKER_COMPOSE) up -d qpid artemis artemis-tls rabbitmq rabbitmq-tls servicebus-sql servicebus-emulator toxiproxy
 	@$(MAKE) broker-wait
 
 broker-wait:
@@ -57,10 +57,11 @@ broker-wait:
 	@i=0; until $(BROKER_COMPOSE) logs --no-color artemis-tls | grep -q 'Server artemis_amqp/artemis is UP'; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for ActiveMQ Artemis TLS endpoint readiness.' >&2; exit 1; fi; sleep 1; done; echo 'ActiveMQ Artemis TLS endpoint ready.'
 	@i=0; until $(BROKER_COMPOSE) exec -T rabbitmq rabbitmq-diagnostics -q ping >/dev/null 2>&1; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for RabbitMQ readiness.' >&2; exit 1; fi; sleep 1; done; echo 'RabbitMQ ready.'
 	@i=0; until $(BROKER_COMPOSE) logs --no-color rabbitmq-tls | grep -q 'Server rabbitmq_amqp/rabbitmq is UP'; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for RabbitMQ TLS endpoint readiness.' >&2; exit 1; fi; sleep 1; done; echo 'RabbitMQ TLS endpoint ready.'
+	@i=0; until $(BROKER_COMPOSE) logs --no-color servicebus-emulator | grep -q 'Emulator Service is Successfully Up'; do i=$$((i + 1)); if [ $$i -ge $(BROKER_READY_TIMEOUT) ]; then echo 'Timed out waiting for Azure Service Bus emulator readiness.' >&2; exit 1; fi; sleep 1; done; echo 'Azure Service Bus emulator ready.'
 
 broker-down:
-	$(BROKER_COMPOSE) stop qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy
-	$(BROKER_COMPOSE) rm --force --volumes qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy
+	$(BROKER_COMPOSE) stop qpid artemis artemis-tls rabbitmq rabbitmq-tls servicebus-emulator servicebus-sql toxiproxy
+	$(BROKER_COMPOSE) rm --force --volumes qpid artemis artemis-tls rabbitmq rabbitmq-tls servicebus-emulator servicebus-sql toxiproxy
 
 broker-reset:
 	@$(MAKE) broker-down

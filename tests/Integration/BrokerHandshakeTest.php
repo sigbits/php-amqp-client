@@ -26,7 +26,10 @@ final class BrokerHandshakeTest extends TestCase
         $stream = $this->connectWhenBrokerIsReady($uri, $saslClient);
         stream_set_timeout($stream, 5);
 
-        $engine = new ConnectionEngine(localContainerId: 'sigbits-php-amqp-client-test');
+        $engine = new ConnectionEngine(
+            localContainerId: 'sigbits-php-amqp-client-test',
+            hostname: ConnectionUri::parse($uri)->host,
+        );
 
         foreach ($engine->start() as $outgoing) {
             $this->writeFully($stream, $outgoing);
@@ -68,6 +71,13 @@ final class BrokerHandshakeTest extends TestCase
                 SaslClient::plain(
                     getenv('AMQP_RABBITMQ_USER') ?: 'guest',
                     getenv('AMQP_RABBITMQ_PASSWORD') ?: 'guest',
+                ),
+            ],
+            'azure-service-bus-emulator' => [
+                getenv('AMQP_AZURE_SERVICE_BUS_EMULATOR_URI') ?: 'amqp://servicebus-emulator:5672',
+                SaslClient::plain(
+                    getenv('AMQP_AZURE_SERVICE_BUS_EMULATOR_USER') ?: 'RootManageSharedAccessKey',
+                    getenv('AMQP_AZURE_SERVICE_BUS_EMULATOR_PASSWORD') ?: 'SAS_KEY_VALUE',
                 ),
             ],
         ];

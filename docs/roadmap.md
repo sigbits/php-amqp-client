@@ -136,6 +136,11 @@ Public API stability was audited in
 not ready for tagging until release readiness is verified against the committed
 public API and production-hardening requirements.
 
+Release readiness was audited in
+[v1.0.0 Release Readiness Audit](release-readiness-v1.0.0.md). The milestone is
+not ready for tagging until the production hardening, supported broker matrix,
+user documentation, and release blocker gates are closed.
+
 ## Immediate Development Slice
 
 Begin v1.0.0 production-oriented release work with the smallest API stability
