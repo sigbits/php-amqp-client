@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Receiver link regressions for invalid message descriptors, split message-section descriptors, and incomplete fragmented transfer payload finalization.
 - Exact binary message-section fixtures for signed scalar values in delivery annotations, message annotations, application properties, and footer maps.
 - Public client regressions and deterministic exceptions for remote session END and link DETACH during active public wait loops.
 - AMQP frame parser finalization checks for truncated buffered frame headers and payloads.

@@ -10,6 +10,7 @@ use Sigbits\Amqp\Engine\ReceiverLinkEvent;
 use Sigbits\Amqp\Engine\ReceiverLinkException;
 use Sigbits\Amqp\Engine\ReceiverLinkState;
 use Sigbits\Amqp\Protocol\Message\Message;
+use Sigbits\Amqp\Protocol\Message\MessageException;
 
 final class ReceiverLinkEngineTest extends TestCase
 {
@@ -254,6 +255,121 @@ final class ReceiverLinkEngineTest extends TestCase
             ),
         );
         self::assertEquals(new Message(body: 'abcdefghijkl'), $engine->receive());
+    }
+
+    public function testRemoteFragmentedTransferCanSplitMessageSectionDescriptor(): void
+    {
+        $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+        $engine->attach();
+        $engine->push(
+            "\x00\x00\x00\x1e\x02\x00\x00\x01"
+            . "\x00\x53\x12\xc0\x11\x03\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42",
+        );
+
+        self::assertSame(
+            [],
+            $engine->push(
+                "\x00\x00\x00\x2c\x02\x00\x00\x01"
+                . "\x00\x53\x14\xc0\x1e\x06"
+                . "\x70\x00\x00\x00\x00"
+                . "\x70\x00\x00\x00\x00"
+                . "\xa0\x0adelivery-0"
+                . "\x70\x00\x00\x00\x00"
+                . "\x40"
+                . "\x41"
+                . "\x00",
+            ),
+        );
+        self::assertNull($engine->receive());
+
+        self::assertSame(
+            [],
+            $engine->push(
+                "\x00\x00\x00\x2d\x02\x00\x00\x01"
+                . "\x00\x53\x14\xc0\x1e\x06"
+                . "\x70\x00\x00\x00\x00"
+                . "\x70\x00\x00\x00\x00"
+                . "\xa0\x0adelivery-0"
+                . "\x70\x00\x00\x00\x00"
+                . "\x40"
+                . "\x41"
+                . "\x53\x75",
+            ),
+        );
+        self::assertNull($engine->receive());
+
+        self::assertSame(
+            [ReceiverLinkEvent::MessageReceived],
+            $engine->push(
+                "\x00\x00\x00\x32\x02\x00\x00\x01"
+                . "\x00\x53\x14\xc0\x1e\x06"
+                . "\x70\x00\x00\x00\x00"
+                . "\x70\x00\x00\x00\x00"
+                . "\xa0\x0adelivery-0"
+                . "\x70\x00\x00\x00\x00"
+                . "\x40"
+                . "\x42"
+                . "\xa0\x05hello",
+            ),
+        );
+        self::assertEquals(new Message(body: 'hello'), $engine->receive());
+    }
+
+    public function testRejectsInvalidMessageSectionDescriptorInTransferPayload(): void
+    {
+        $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+        $engine->attach();
+        $engine->push(
+            "\x00\x00\x00\x1e\x02\x00\x00\x01"
+            . "\x00\x53\x12\xc0\x11\x03\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42",
+        );
+
+        $this->expectException(MessageException::class);
+        $this->expectExceptionMessage('Expected AMQP data body section descriptor.');
+
+        $engine->push(
+            "\x00\x00\x00\x31\x02\x00\x00\x01"
+            . "\x00\x53\x14\xc0\x1e\x06"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\xa0\x0adelivery-0"
+            . "\x70\x00\x00\x00\x00"
+            . "\x40"
+            . "\x42"
+            . "\x00\x53\x7f\xa0\x05bad",
+        );
+    }
+
+    public function testFinishRejectsIncompleteFragmentedTransferPayload(): void
+    {
+        $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+        $engine->attach();
+        $engine->push(
+            "\x00\x00\x00\x1e\x02\x00\x00\x01"
+            . "\x00\x53\x12\xc0\x11\x03\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42",
+        );
+        $engine->push(
+            "\x00\x00\x00\x2c\x02\x00\x00\x01"
+            . "\x00\x53\x14\xc0\x1e\x06"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\xa0\x0adelivery-0"
+            . "\x70\x00\x00\x00\x00"
+            . "\x40"
+            . "\x41"
+            . "\x00",
+        );
+
+        $this->expectException(ReceiverLinkException::class);
+        $this->expectExceptionMessage('Truncated AMQP receiver transfer payload.');
+
+        $engine->finish();
     }
 
     public function testDetachEmitsDetachFrameAndTransitionsToDetachSent(): void

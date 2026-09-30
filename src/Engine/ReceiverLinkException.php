@@ -22,4 +22,9 @@ final class ReceiverLinkException extends RuntimeException
     {
         return new self('Unsupported AMQP receiver link performative.');
     }
+
+    public static function truncatedTransferPayload(): self
+    {
+        return new self('Truncated AMQP receiver transfer payload.');
+    }
 }

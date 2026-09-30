@@ -153,6 +153,15 @@ final class ReceiverLinkEngine
         return $events;
     }
 
+    public function finish(): void
+    {
+        $this->frameParser->finish();
+
+        if ($this->incomingTransferDeliveryId !== null || $this->incomingTransferPayload !== '') {
+            throw ReceiverLinkException::truncatedTransferPayload();
+        }
+    }
+
     /**
      * @return list<string>
      */
