@@ -147,6 +147,16 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('v0.9.0 is ready to tag', $audit);
     }
 
+    public function testRoadmapLinksV100ApiStabilityAudit(): void
+    {
+        $roadmap = self::roadmap();
+        $audit = self::v100ApiStabilityAudit();
+
+        self::assertStringContainsString('[v1.0.0 Public API Stability Audit](api-stability-v1.0.0.md)', $roadmap);
+        self::assertStringContainsString('v1.0.0 is not ready to tag until the exposed implementation constructors are resolved', $audit);
+        self::assertStringContainsString('Begin v1.0.0 production-oriented release work', $roadmap);
+    }
+
     private static function makefile(): string
     {
         $contents = file_get_contents(dirname(__DIR__, 2) . '/Makefile');
@@ -186,6 +196,17 @@ final class MakefileBrokerWorkflowTest extends TestCase
 
         if ($contents === false) {
             self::fail('Could not read v0.9.0 release readiness audit.');
+        }
+
+        return $contents;
+    }
+
+    private static function v100ApiStabilityAudit(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/docs/api-stability-v1.0.0.md');
+
+        if ($contents === false) {
+            self::fail('Could not read v1.0.0 public API stability audit.');
         }
 
         return $contents;

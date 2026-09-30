@@ -112,7 +112,7 @@ ready for tagging with the supported-surface scope documented there.
 
 Release readiness was audited in
 [v0.9.0 Release Readiness Audit](release-readiness-v0.9.0.md). The milestone is
-ready for tagging with Qpid Broker-J TLS/SASL security coverage carried forward
+tagged as v0.9.0 with Qpid Broker-J TLS/SASL security coverage carried forward
 as a documented local-matrix gap.
 
 ### v1.0.0: Production-Oriented Release
@@ -131,17 +131,22 @@ as a documented local-matrix gap.
 - Release checklist requires fresh verification against the supported PHP
   version matrix and the supported broker matrix before tagging.
 
+Public API stability was audited in
+[v1.0.0 Public API Stability Audit](api-stability-v1.0.0.md). The milestone is
+not ready for tagging until the exposed implementation constructors and
+remaining user-facing API decisions are resolved.
+
 ## Immediate Development Slice
 
-Begin v0.9.0 production interoperability hardening with the smallest external
-compatibility steps:
+Begin v1.0.0 production-oriented release work with the smallest API stability
+steps:
 
-1. Add broker-specific compatibility notes for the currently supported Qpid
-   Broker-J, ActiveMQ Artemis, and RabbitMQ matrix.
-2. RabbitMQ 4 AMQP 1.0 now has local coverage for
-   handshake/session/send/receive/settlement/detach workflows using RabbitMQ
-   queue address v2 semantics.
-3. Add the first non-local external broker target only after a real broker
-   behavior gap is reproduced.
-4. Prepare the v0.9.0 release tag after fresh verification on the merge commit
-   and finalized release notes.
+1. Resolve the public visibility of `Session`, `Sender`, `Receiver`, and
+   `Delivery` implementation constructors before committing to 1.0
+   compatibility.
+2. Decide whether `Connection::connect()` keeps `SaslStreamConnector` as a
+   supported extension point or moves it behind a documented factory/test seam.
+3. Document the committed user-facing message model, timeout units, receiver
+   credit semantics, and exception retry boundaries.
+4. Refresh the public API stability audit after those decisions are implemented
+   and before preparing a v1.0.0 release-readiness audit.
