@@ -89,6 +89,10 @@ installable through Composer.
 - Harden public exception mapping so protocol, transport, timeout, and lifecycle
   failures are deterministic and documented.
 
+Release readiness was audited in
+[v0.8.0 Release Readiness Audit](release-readiness-v0.8.0.md). The milestone is
+ready for tagging with the supported-surface scope documented there.
+
 ### v0.9.0: Production Interoperability Hardening
 
 - Run broker interoperability suites against Azure Service Bus, RabbitMQ AMQP
@@ -119,10 +123,12 @@ installable through Composer.
 
 ## Immediate Development Slice
 
-Continue v0.8.0 protocol completeness with the smallest codec and state-machine
-hardening steps:
+Begin v0.9.0 production interoperability hardening with the smallest external
+compatibility steps:
 
-1. Reassess v0.8.0 release readiness against the protocol completeness and
-   state hardening checklist.
-2. Prepare v0.8.0 release notes and tag only after the readiness checklist is
-   satisfied.
+1. Add broker-specific compatibility notes for the currently supported Qpid
+   Broker-J and ActiveMQ Artemis matrix.
+2. Choose the next external broker target for v0.9.0 and document the local
+   Docker or remote test setup needed to run it.
+3. Add the first v0.9.0 interoperability regression only after a real broker
+   behavior gap is reproduced.

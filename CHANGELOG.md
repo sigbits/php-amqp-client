@@ -7,6 +7,10 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+No unreleased changes.
+
+## v0.8.0 - 2026-09-30
+
 ### Added
 
 - Malformed container payload regressions for AMQP message-section maps and BEGIN, FLOW, TRANSFER, and DISPOSITION performative lists.
