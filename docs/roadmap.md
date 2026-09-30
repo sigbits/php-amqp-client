@@ -119,8 +119,9 @@ installable through Composer.
 
 ## Immediate Development Slice
 
-Start with the smallest codec behavior:
+Continue v0.8.0 protocol completeness with the smallest codec and state-machine
+hardening steps:
 
-1. Decode AMQP null (`0x40`).
-2. Encode AMQP null (`0x40`).
-3. Grow primitive coverage one AMQP type at a time.
+1. Add signed integer primitive encode/decode coverage.
+2. Centralize shared AMQP scalar decoding used by performative codecs.
+3. Add the first public protocol-state regression for remote connection close.

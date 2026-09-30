@@ -7,6 +7,10 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+### Added
+
+- AMQP primitive decoder support for compact `uint0` and `smalluint` encodings.
+
 ## v0.7.0 - 2026-09-30
 
 ### Added
