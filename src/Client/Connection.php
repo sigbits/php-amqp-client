@@ -59,7 +59,7 @@ final class Connection
         self::setReadTimeout($stream, $timeoutSeconds);
         $engine = new ConnectionEngine(
             localContainerId: $containerId,
-            hostname: $connectionUri->host,
+            hostname: $connectionUri->amqpHostname,
         );
         $connection = new self($stream, $engine);
 

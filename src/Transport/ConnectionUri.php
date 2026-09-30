@@ -12,6 +12,7 @@ final readonly class ConnectionUri
     private function __construct(
         public string $scheme,
         public string $host,
+        public string $amqpHostname,
         public int $port,
         public ?string $username,
         public ?string $password,
@@ -41,10 +42,22 @@ final readonly class ConnectionUri
         }
 
         $usesTls = $scheme === 'amqps';
+        $query = [];
+
+        if (isset($parts['query'])) {
+            parse_str($parts['query'], $query);
+        }
+
+        $amqpHostname = $query['hostname'] ?? $host;
+
+        if (!is_string($amqpHostname) || $amqpHostname === '') {
+            $amqpHostname = $host;
+        }
 
         return new self(
             scheme: $scheme,
             host: $host,
+            amqpHostname: $amqpHostname,
             port: $parts['port'] ?? ($usesTls ? self::DEFAULT_AMQPS_PORT : self::DEFAULT_AMQP_PORT),
             username: isset($parts['user']) ? rawurldecode((string) $parts['user']) : null,
             password: isset($parts['pass']) ? rawurldecode((string) $parts['pass']) : null,

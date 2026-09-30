@@ -16,10 +16,21 @@ final class ConnectionUriTest extends TestCase
         $uri = ConnectionUri::parse('amqp://guest:secret@example.test/orders');
 
         self::assertSame('example.test', $uri->host);
+        self::assertSame('example.test', $uri->amqpHostname);
         self::assertSame(5672, $uri->port);
         self::assertFalse($uri->usesTls());
         self::assertSame('guest', $uri->username);
         self::assertSame('secret', $uri->password);
+        self::assertSame('/orders', $uri->path);
+    }
+
+    public function testParsesAmqpHostnameOverrideFromQuery(): void
+    {
+        $uri = ConnectionUri::parse('amqp://guest:secret@toxiproxy:15672/orders?hostname=qpid');
+
+        self::assertSame('toxiproxy', $uri->host);
+        self::assertSame('qpid', $uri->amqpHostname);
+        self::assertSame(15672, $uri->port);
         self::assertSame('/orders', $uri->path);
     }
 

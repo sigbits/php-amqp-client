@@ -28,7 +28,7 @@ final class BrokerHandshakeTest extends TestCase
 
         $engine = new ConnectionEngine(
             localContainerId: 'sigbits-php-amqp-client-test',
-            hostname: ConnectionUri::parse($uri)->host,
+            hostname: ConnectionUri::parse($uri)->amqpHostname,
         );
 
         foreach ($engine->start() as $outgoing) {
