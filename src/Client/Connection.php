@@ -31,10 +31,27 @@ final class Connection
         string $containerId = 'sigbits-php-amqp-client',
         float $timeoutSeconds = 30.0,
         ?TlsOptions $tls = null,
-        ?SaslStreamConnector $connector = null,
+    ): self {
+        return self::connectUsingConnector(
+            uri: $uri,
+            connector: new SaslStreamConnector(),
+            saslClient: $saslClient,
+            containerId: $containerId,
+            timeoutSeconds: $timeoutSeconds,
+            tls: $tls,
+        );
+    }
+
+    private static function connectUsingConnector(
+        string $uri,
+        SaslStreamConnector $connector,
+        ?SaslClient $saslClient = null,
+        string $containerId = 'sigbits-php-amqp-client',
+        float $timeoutSeconds = 30.0,
+        ?TlsOptions $tls = null,
     ): self {
         $connectionUri = ConnectionUri::parse($uri, $tls);
-        $stream = ($connector ?? new SaslStreamConnector())->connect(
+        $stream = $connector->connect(
             $connectionUri,
             $saslClient ?? self::saslClientFromUri($connectionUri),
             $timeoutSeconds,

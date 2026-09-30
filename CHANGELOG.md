@@ -10,6 +10,7 @@ must have release notes in this file before the tag is created.
 ### Changed
 
 - Hid `Session`, `Sender`, `Receiver`, and `Delivery` implementation constructors from the supported public API ahead of the v1.0.0 compatibility commitment.
+- Removed the connector injection parameter from the supported `Connection::connect()` API; deterministic tests now use the internal client object factory seam.
 
 ## v0.9.0 - 2026-09-30
 

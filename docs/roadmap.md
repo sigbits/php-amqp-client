@@ -147,6 +147,8 @@ steps:
    lifecycle methods and internal composition uses an internal factory.
 2. Decide whether `Connection::connect()` keeps `SaslStreamConnector` as a
    supported extension point or moves it behind a documented factory/test seam.
+   This is complete; `Connection::connect()` no longer exposes the connector
+   seam and deterministic tests use the internal client object factory.
 3. Document the committed user-facing message model, timeout units, receiver
    credit semantics, and exception retry boundaries.
 4. Refresh the public API stability audit after those decisions are implemented

@@ -59,13 +59,15 @@ which is explicitly outside the supported user-facing API.
 
 ### Connection Test Seam
 
-`Connection::connect()` currently accepts an optional `SaslStreamConnector`.
-That parameter is valuable for deterministic tests and advanced embedding, but
-it exposes a lower-level transport composition detail.
+Resolved.
 
-Before v1.0.0, decide whether this remains a supported extension point or moves
-behind a documented factory/test seam. If it stays, its lifecycle and exception
-behavior need user documentation.
+Connection::connect() no longer exposes SaslStreamConnector.
+
+The supported public connection API now keeps normal user concerns on
+`Connection::connect()`: URI parsing, optional SASL client selection, container
+ID, timeout, and TLS options. Deterministic tests and lower-level composition
+use `Sigbits\Amqp\Client\Internal\ClientObjectFactory::connection()`, which is
+explicitly outside the supported user-facing API.
 
 ### Message Model Commitment
 
@@ -102,6 +104,6 @@ Ready to continue v1.0.0 stabilization.
 
 Not ready to tag v1.0.0.
 
-The next implementation slice should decide whether the `Connection::connect()`
-connector parameter remains a supported extension point, then update this audit
-with that compatibility decision.
+The next implementation slice should document the committed user-facing message
+model, timeout units, receiver credit semantics, and exception retry
+boundaries.

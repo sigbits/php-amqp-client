@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Client\Internal;
 
 use Closure;
+use Sigbits\Amqp\Client\Connection;
 use Sigbits\Amqp\Client\Delivery;
 use Sigbits\Amqp\Client\Receiver;
 use Sigbits\Amqp\Client\Sender;
@@ -13,12 +14,47 @@ use Sigbits\Amqp\Engine\ReceiverLinkEngine;
 use Sigbits\Amqp\Engine\SenderLinkEngine;
 use Sigbits\Amqp\Engine\SessionEngine;
 use Sigbits\Amqp\Protocol\Message\Message;
+use Sigbits\Amqp\Protocol\Sasl\SaslClient;
+use Sigbits\Amqp\Transport\SaslStreamConnector;
+use Sigbits\Amqp\Transport\TlsOptions;
 
 /**
  * @internal
  */
 final class ClientObjectFactory
 {
+    public static function connection(
+        string $uri,
+        ?SaslClient $saslClient = null,
+        string $containerId = 'sigbits-php-amqp-client',
+        float $timeoutSeconds = 30.0,
+        ?TlsOptions $tls = null,
+        ?SaslStreamConnector $connector = null,
+    ): Connection {
+        $factory = Closure::bind(
+            static fn (
+                string $uri,
+                ?SaslClient $saslClient = null,
+                string $containerId = 'sigbits-php-amqp-client',
+                float $timeoutSeconds = 30.0,
+                ?TlsOptions $tls = null,
+                ?SaslStreamConnector $connector = null,
+            ): Connection => Connection::connectUsingConnector(
+                uri: $uri,
+                connector: $connector ?? new SaslStreamConnector(),
+                saslClient: $saslClient,
+                containerId: $containerId,
+                timeoutSeconds: $timeoutSeconds,
+                tls: $tls,
+            ),
+            null,
+            Connection::class,
+        );
+
+        /** @var Closure(string, ?SaslClient, string, float, ?TlsOptions, ?SaslStreamConnector): Connection $factory */
+        return $factory($uri, $saslClient, $containerId, $timeoutSeconds, $tls, $connector);
+    }
+
     /**
      * @param callable(list<string>): void $writeAll
      * @param callable(): string $readFrame
