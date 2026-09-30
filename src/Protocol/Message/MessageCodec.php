@@ -32,10 +32,12 @@ final class MessageCodec
     private const int CONSTRUCTOR_BOOL = 0x56;
     private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
     private const int CONSTRUCTOR_BOOL_FALSE = 0x42;
+    private const int CONSTRUCTOR_UINT0 = 0x43;
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
     private const int CONSTRUCTOR_MAP8 = 0xc1;
     private const int CONSTRUCTOR_NULL = 0x40;
+    private const int CONSTRUCTOR_SMALLUINT = 0x52;
     private const int CONSTRUCTOR_STRING8 = 0xa1;
     private const int CONSTRUCTOR_SYMBOL8 = 0xa3;
     private const int CONSTRUCTOR_BYTE = 0x51;
@@ -243,6 +245,8 @@ final class MessageCodec
             $this->encodeNullableBoolean($header->durable),
             $this->encodeNullableUByte($header->priority),
             $this->encodeNullableUInt($header->ttl),
+            $this->encodeNullableBoolean($header->firstAcquirer),
+            $this->encodeNullableUInt($header->deliveryCount),
         ];
 
         $lastSetField = -1;
@@ -543,6 +547,8 @@ final class MessageCodec
         $durable = null;
         $priority = null;
         $ttl = null;
+        $firstAcquirer = null;
+        $deliveryCount = null;
 
         for ($field = 0; $field < $fieldCount; ++$field) {
             if ($cursor >= $listEnd) {
@@ -564,6 +570,16 @@ final class MessageCodec
                 continue;
             }
 
+            if ($field === 3) {
+                [$firstAcquirer, $cursor] = $this->decodeNullableBoolean($bytes, $cursor, $listEnd);
+                continue;
+            }
+
+            if ($field === 4) {
+                [$deliveryCount, $cursor] = $this->decodeNullableUInt($bytes, $cursor, $listEnd);
+                continue;
+            }
+
             $cursor = $this->skipHeaderNull($bytes, $cursor, $listEnd);
         }
 
@@ -572,6 +588,8 @@ final class MessageCodec
                 durable: $durable,
                 priority: $priority,
                 ttl: $ttl,
+                firstAcquirer: $firstAcquirer,
+                deliveryCount: $deliveryCount,
             ),
             $cursor,
         ];
@@ -702,6 +720,20 @@ final class MessageCodec
     {
         if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
             return [null, $cursor + 1];
+        }
+
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_UINT0) {
+            return [0, $cursor + 1];
+        }
+
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_SMALLUINT) {
+            ++$cursor;
+
+            if ($cursor >= $listEnd) {
+                throw MessageException::truncatedHeader();
+            }
+
+            return [ord($bytes[$cursor]), $cursor + 1];
         }
 
         if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_UINT) {

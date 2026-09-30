@@ -132,6 +132,25 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesHeaderWithFirstAcquirerAndDeliveryCountBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x70\xc0\x0b\x05\x41\x50\x04\x40\x42\x70\x00\x00\x00\x05"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                header: new Header(
+                    durable: true,
+                    priority: 4,
+                    firstAcquirer: false,
+                    deliveryCount: 5,
+                ),
+            )),
+        );
+    }
+
     public function testDecodesHeaderBeforeDataBody(): void
     {
         $codec = new MessageCodec();
@@ -150,6 +169,24 @@ final class MessageCodecTest extends TestCase
                     . "\x00\x53\x75\xa0\x07payload",
             ),
         );
+    }
+
+    public function testDecodesHeaderWithFirstAcquirerAndDeliveryCountBeforeDataBody(): void
+    {
+        $codec = new MessageCodec();
+
+        $message = $codec->decode(
+            "\x00\x53\x70\xc0\x08\x05\x41\x50\x04\x40\x42\x52\x05"
+                . "\x00\x53\x75\xa0\x07payload",
+        );
+
+        self::assertSame('payload', $message->body);
+        self::assertNotNull($message->header);
+        self::assertTrue($message->header->durable);
+        self::assertSame(4, $message->header->priority);
+        self::assertNull($message->header->ttl);
+        self::assertFalse($message->header->firstAcquirer);
+        self::assertSame(5, $message->header->deliveryCount);
     }
 
     public function testEncodesDeliveryAnnotationsBeforeDataBody(): void

@@ -163,6 +163,36 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
+    public function testPublicReceiverReceivesMessageAgainstRabbitMq(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $queue = 'sigbits.public.receiver.' . bin2hex(random_bytes(4));
+        $this->createRabbitMqQueue($queue);
+        $address = '/queues/' . rawurlencode($queue);
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address);
+
+        $sender->send('hello rabbitmq receiver');
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $message = $receiver->receive(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($message);
+        self::assertSame('hello rabbitmq receiver', $message->body);
+
+        $session->end();
+        $connection->close();
+    }
+
     public function testPublicReceiverAcceptsDeliveryAgainstArtemis(): void
     {
         if (getenv('RUN_BROKER_TESTS') !== '1') {
