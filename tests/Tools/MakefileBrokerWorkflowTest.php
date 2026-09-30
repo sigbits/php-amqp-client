@@ -45,7 +45,14 @@ final class MakefileBrokerWorkflowTest extends TestCase
     {
         $makefile = self::makefile();
 
-        self::assertStringContainsString('./tools/broker-restart-receive.sh', $makefile);
+        self::assertStringContainsString(
+            './tools/broker-restart.sh testPublicReceiverObservesBrokerRestartAgainstArtemis',
+            $makefile,
+        );
+        self::assertStringContainsString(
+            './tools/broker-restart.sh testPublicSenderObservesBrokerRestartAgainstArtemis',
+            $makefile,
+        );
     }
 
     public function testBrokerComposeDefinesRabbitMqAmqp10Service(): void

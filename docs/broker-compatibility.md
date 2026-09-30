@@ -44,6 +44,6 @@ worker, bounded credit, reconnect, transport interruption, broker restart, and
 large DATA message coverage.
 
 `make test-broker-restart` currently exercises ActiveMQ Artemis restart during
-an active public receiver wait loop. The harness runs PHPUnit inside Docker and
-performs the actual broker container restart from the host-side Docker Compose
-process.
+active public receiver and sender loops. The harness runs PHPUnit inside Docker
+and performs the actual broker container restart from the host-side Docker
+Compose process.

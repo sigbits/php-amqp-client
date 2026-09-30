@@ -472,6 +472,36 @@ final class ConnectionTest extends TestCase
         $sender->send('hello');
     }
 
+    public function testSenderSendReportsTransportWriteFailureWithoutPhpNotice(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteSenderAttachFrame(channel: 1)
+            . $this->senderCreditFrame(channel: 1, linkCredit: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $sender = $session->openSender('orders.test', name: 'sender', handle: 0);
+        fclose($server);
+
+        $this->expectException(TransportException::class);
+        $this->expectExceptionMessage('Could not write complete AMQP stream payload.');
+
+        $sender->send('hello after peer close');
+    }
+
     public function testOpenReceiverAttachesPublicReceiverAndGrantsCredit(): void
     {
         [$client, $server] = $this->streamPair();
