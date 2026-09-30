@@ -108,7 +108,8 @@ make broker-down
 Long-running worker hardening tests are opt-in and also use the broker
 containers. They cover repeated public lifecycle cycles, repeated public send,
 receive, and accepted-delivery settlement cycles, bounded receiver credit
-windows, repeated reconnect message cycles, and fragmented large DATA messages:
+windows, repeated reconnect message cycles, transport interruption recovery,
+and fragmented large DATA messages:
 
 ```sh
 make test-long
@@ -121,7 +122,8 @@ Tune credit-window coverage with `LONG_TEST_CREDIT_CYCLES` and
 `LONG_TEST_CREDIT_WINDOW`.
 Tune large-message coverage with `LONG_TEST_LARGE_MESSAGE_CYCLES` and
 `LONG_TEST_LARGE_MESSAGE_BYTES`. Tune reconnect coverage with
-`LONG_TEST_RECONNECT_CYCLES`.
+`LONG_TEST_RECONNECT_CYCLES`. Tune transport interruption recovery coverage
+with `LONG_TEST_FAILURE_CYCLES`.
 
 The broker AMQP ports are also exposed on the host as `56720` for Qpid and
 `56730` for Artemis.

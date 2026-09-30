@@ -17,3 +17,8 @@ services:
     ports:
       - "56730:5672"
       - "58161:8161"
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    ports:
+      - "58474:8474"

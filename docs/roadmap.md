@@ -67,6 +67,9 @@ installable through Composer.
   ActiveMQ Artemis and Qpid Broker-J.
 - Repeated reconnect send, receive, and accepted-delivery settlement cycles
   against ActiveMQ Artemis and Qpid Broker-J.
+- Broker failure recovery tests covering broker restart or transport
+  interruption during active public send, receive, and settlement loops against
+  ActiveMQ Artemis and Qpid Broker-J.
 - Fragmented large DATA message round trips against ActiveMQ Artemis and Qpid
   Broker-J.
 - Basic memory-growth guard for long-running worker tests.
