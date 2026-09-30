@@ -146,6 +146,25 @@ final class ReceiverLinkEngineTest extends TestCase
     public function testAcceptEmitsAcceptedDispositionFrame(): void
     {
         $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+        $engine->attach();
+        $engine->push(
+            "\x00\x00\x00\x1e\x02\x00\x00\x01"
+            . "\x00\x53\x12\xc0\x11\x03\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42",
+        );
+        $engine->push(
+            "\x00\x00\x00\x35\x02\x00\x00\x01"
+            . "\x00\x53\x14\xc0\x1e\x06"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\xa0\x0adelivery-0"
+            . "\x70\x00\x00\x00\x00"
+            . "\x40"
+            . "\x42"
+            . "\x00\x53\x75\xa0\x05hello",
+        );
+        self::assertNotNull($engine->receiveDelivery());
 
         self::assertSame(
             [
@@ -164,6 +183,25 @@ final class ReceiverLinkEngineTest extends TestCase
     public function testReleaseEmitsReleasedDispositionFrame(): void
     {
         $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+        $engine->attach();
+        $engine->push(
+            "\x00\x00\x00\x1e\x02\x00\x00\x01"
+            . "\x00\x53\x12\xc0\x11\x03\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42",
+        );
+        $engine->push(
+            "\x00\x00\x00\x35\x02\x00\x00\x01"
+            . "\x00\x53\x14\xc0\x1e\x06"
+            . "\x70\x00\x00\x00\x01"
+            . "\x70\x00\x00\x00\x01"
+            . "\xa0\x0adelivery-1"
+            . "\x70\x00\x00\x00\x00"
+            . "\x40"
+            . "\x42"
+            . "\x00\x53\x75\xa0\x05hello",
+        );
+        self::assertNotNull($engine->receiveDelivery());
 
         self::assertSame(
             [
@@ -182,6 +220,25 @@ final class ReceiverLinkEngineTest extends TestCase
     public function testRejectEmitsRejectedDispositionFrame(): void
     {
         $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+        $engine->attach();
+        $engine->push(
+            "\x00\x00\x00\x1e\x02\x00\x00\x01"
+            . "\x00\x53\x12\xc0\x11\x03\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42",
+        );
+        $engine->push(
+            "\x00\x00\x00\x35\x02\x00\x00\x01"
+            . "\x00\x53\x14\xc0\x1e\x06"
+            . "\x70\x00\x00\x00\x02"
+            . "\x70\x00\x00\x00\x02"
+            . "\xa0\x0adelivery-2"
+            . "\x70\x00\x00\x00\x00"
+            . "\x40"
+            . "\x42"
+            . "\x00\x53\x75\xa0\x05hello",
+        );
+        self::assertNotNull($engine->receiveDelivery());
 
         self::assertSame(
             [
@@ -195,6 +252,16 @@ final class ReceiverLinkEngineTest extends TestCase
             ],
             $engine->reject(deliveryId: 2),
         );
+    }
+
+    public function testRejectsSettlementForUnknownDelivery(): void
+    {
+        $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+
+        $this->expectException(ReceiverLinkException::class);
+        $this->expectExceptionMessage('Cannot settle unknown AMQP delivery.');
+
+        $engine->accept(deliveryId: 99);
     }
 
     public function testRemoteFragmentedTransferCompletesMessageAfterFinalFrame(): void
