@@ -12,7 +12,7 @@ LONG_TEST_LARGE_MESSAGE_CYCLES ?= 5
 LONG_TEST_MAX_MEMORY_GROWTH_BYTES ?= 8388608
 LONG_TEST_RECONNECT_CYCLES ?= 25
 
-.PHONY: build install validate test test-integration test-long broker-up broker-wait broker-down cs cs-fix stan proof-connection ci shell
+.PHONY: build install validate test test-integration test-long broker-up broker-wait broker-down broker-reset cs cs-fix stan proof-connection ci shell
 
 build:
 	PHP_VERSION=$(PHP_VERSION) $(DOCKER_COMPOSE) build php
@@ -26,10 +26,10 @@ validate:
 test:
 	$(DOCKER_RUN) composer test
 
-test-integration: broker-up
+test-integration: broker-reset
 	$(BROKER_COMPOSE) run --rm -e RUN_BROKER_TESTS=1 php composer test:integration
 
-test-long: broker-up
+test-long: broker-reset
 	$(BROKER_COMPOSE) run --rm -e RUN_LONG_TESTS=1 -e AMQP_TOXIPROXY_API=http://toxiproxy:8474 -e AMQP_LONG_CYCLES=$(LONG_TEST_CYCLES) -e AMQP_LONG_CREDIT_CYCLES=$(LONG_TEST_CREDIT_CYCLES) -e AMQP_LONG_CREDIT_WINDOW=$(LONG_TEST_CREDIT_WINDOW) -e AMQP_LONG_FAILURE_CYCLES=$(LONG_TEST_FAILURE_CYCLES) -e AMQP_LONG_LARGE_MESSAGE_BYTES=$(LONG_TEST_LARGE_MESSAGE_BYTES) -e AMQP_LONG_LARGE_MESSAGE_CYCLES=$(LONG_TEST_LARGE_MESSAGE_CYCLES) -e AMQP_LONG_MAX_MEMORY_GROWTH_BYTES=$(LONG_TEST_MAX_MEMORY_GROWTH_BYTES) -e AMQP_LONG_RECONNECT_CYCLES=$(LONG_TEST_RECONNECT_CYCLES) php composer test:long
 
 broker-up:
@@ -43,6 +43,10 @@ broker-wait:
 broker-down:
 	$(BROKER_COMPOSE) stop qpid artemis toxiproxy
 	$(BROKER_COMPOSE) rm --force --volumes qpid artemis toxiproxy
+
+broker-reset:
+	@$(MAKE) broker-down
+	@$(MAKE) broker-up
 
 cs:
 	$(DOCKER_RUN) composer cs
