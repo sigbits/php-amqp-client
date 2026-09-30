@@ -35,6 +35,7 @@ test-long: broker-reset
 test-broker-restart: broker-reset
 	./tools/broker-restart.sh testPublicReceiverObservesBrokerRestartAgainstArtemis
 	./tools/broker-restart.sh testPublicSenderObservesBrokerRestartAgainstArtemis
+	./tools/broker-restart.sh testPublicSettlementObservesBrokerRestartAgainstArtemis
 
 broker-up:
 	$(BROKER_COMPOSE) up -d qpid artemis rabbitmq toxiproxy
