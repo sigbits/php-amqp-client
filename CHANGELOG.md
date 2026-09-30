@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- RabbitMQ 4 AMQP 1.0 public accepted-delivery settlement integration coverage using a queue source address.
 - RabbitMQ 4 AMQP 1.0 public receiver integration coverage using a queue source address.
 - RabbitMQ 4 AMQP 1.0 public sender integration coverage using a queue target address.
 - RabbitMQ 4 AMQP 1.0 broker container wiring and handshake/public connection matrix entries for v0.9.0 interoperability hardening.
