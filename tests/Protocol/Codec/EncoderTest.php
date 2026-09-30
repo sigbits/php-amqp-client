@@ -7,6 +7,7 @@ namespace Sigbits\Amqp\Tests\Protocol\Codec;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\EncodeException;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
+use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\UByte;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\UShort;
@@ -74,6 +75,27 @@ final class EncoderTest extends TestCase
         $encoder = new Encoder();
 
         self::assertSame("\x70\xff\xff\xff\xff", $encoder->encode(new UInt(4294967295)));
+    }
+
+    public function testEncodesIntMinimum(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x71\x80\x00\x00\x00", $encoder->encode(new Int_(-2147483648)));
+    }
+
+    public function testEncodesIntZero(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x71\x00\x00\x00\x00", $encoder->encode(new Int_(0)));
+    }
+
+    public function testEncodesIntMaximum(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x71\x7f\xff\xff\xff", $encoder->encode(new Int_(2147483647)));
     }
 
     public function testRejectsUnsupportedValue(): void

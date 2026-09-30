@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Codec;
 
+use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\UByte;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\UShort;
@@ -24,6 +25,7 @@ final class Decoder
             0x56 => $this->decodeBoolean($bytes),
             0x60 => $this->decodeUShort($bytes),
             0x70 => $this->decodeUInt($bytes),
+            0x71 => $this->decodeInt($bytes),
             default => throw DecodeException::unsupportedFormatCode($formatCode),
         };
     }
@@ -76,5 +78,23 @@ final class Decoder
             | (ord($bytes[3]) << 8)
             | ord($bytes[4]),
         );
+    }
+
+    private function decodeInt(string $bytes): Int_
+    {
+        if (strlen($bytes) < 5) {
+            throw DecodeException::truncatedInt();
+        }
+
+        $unsigned = (ord($bytes[1]) << 24)
+            | (ord($bytes[2]) << 16)
+            | (ord($bytes[3]) << 8)
+            | ord($bytes[4]);
+
+        if ($unsigned >= 2147483648) {
+            return new Int_($unsigned - 4294967296);
+        }
+
+        return new Int_($unsigned);
     }
 }
