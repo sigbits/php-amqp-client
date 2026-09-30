@@ -40,5 +40,10 @@ test broker does not auto-create random targets.
 
 ActiveMQ Artemis is used for handshake, public connection/session lifecycle,
 public sender/receiver detach, send, receive, accepted settlement, long-running
-worker, bounded credit, reconnect, transport interruption, and large DATA
-message coverage.
+worker, bounded credit, reconnect, transport interruption, broker restart, and
+large DATA message coverage.
+
+`make test-broker-restart` currently exercises ActiveMQ Artemis restart during
+an active public receiver wait loop. The harness runs PHPUnit inside Docker and
+performs the actual broker container restart from the host-side Docker Compose
+process.

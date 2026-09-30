@@ -9,6 +9,8 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- ActiveMQ Artemis broker restart coverage for an active public receiver wait loop, with post-restart recovery verification.
+- Docker-first `make test-broker-restart` harness for host-orchestrated broker restart tests.
 - RabbitMQ 4 AMQP 1.0 public sender and receiver detach integration coverage using queue addresses.
 - RabbitMQ 4 AMQP 1.0 public accepted-delivery settlement integration coverage using a queue source address.
 - RabbitMQ 4 AMQP 1.0 public receiver integration coverage using a queue source address.
@@ -17,6 +19,7 @@ must have release notes in this file before the tag is created.
 
 ### Fixed
 
+- AMQP CLOSE decoding now accepts well-formed close error payloads so broker shutdown frames map to public remote-close behavior.
 - AMQP message header decoding now accepts `first-acquirer` and compact `delivery-count` fields sent by RabbitMQ.
 
 ## v0.8.0 - 2026-09-30
