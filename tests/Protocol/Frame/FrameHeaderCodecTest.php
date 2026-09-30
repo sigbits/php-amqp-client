@@ -64,4 +64,14 @@ final class FrameHeaderCodecTest extends TestCase
 
         new FrameHeader(size: 8, dataOffset: 3, type: 0, channel: 0);
     }
+
+    public function testRejectsEncodedDataOffsetBeyondFrameSize(): void
+    {
+        $codec = new FrameHeaderCodec();
+
+        $this->expectException(FrameException::class);
+        $this->expectExceptionMessage('AMQP frame data offset exceeds frame size.');
+
+        $codec->decode("\x00\x00\x00\x08\x03\x00\x00\x00");
+    }
 }
