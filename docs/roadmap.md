@@ -133,8 +133,8 @@ as a documented local-matrix gap.
 
 Public API stability was audited in
 [v1.0.0 Public API Stability Audit](api-stability-v1.0.0.md). The milestone is
-not ready for tagging until the remaining user-facing API decisions are
-resolved.
+not ready for tagging until release readiness is verified against the committed
+public API and production-hardening requirements.
 
 ## Immediate Development Slice
 
@@ -149,7 +149,7 @@ steps:
    supported extension point or moves it behind a documented factory/test seam.
    This is complete; `Connection::connect()` no longer exposes the connector
    seam and deterministic tests use the internal client object factory.
-3. Document the committed user-facing message model, timeout units, receiver
-   credit semantics, and exception retry boundaries.
-4. Refresh the public API stability audit after those decisions are implemented
-   and before preparing a v1.0.0 release-readiness audit.
+3. Documented and locked the committed user-facing message model, timeout
+   units, receiver credit semantics, and exception retry boundaries.
+4. Refresh the v1.0.0 release-readiness audit against the committed public API
+   and production-hardening requirements.

@@ -158,6 +158,19 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('Begin v1.0.0 production-oriented release work', $roadmap);
     }
 
+    public function testV100ApiStabilityAuditDocumentsPublicSemantics(): void
+    {
+        $roadmap = self::roadmap();
+        $audit = self::v100ApiStabilityAudit();
+
+        self::assertStringContainsString('Committed User-Facing Semantics', $audit);
+        self::assertStringContainsString('Message model commitment', $audit);
+        self::assertStringContainsString('Timeout unit commitment', $audit);
+        self::assertStringContainsString('Receiver credit commitment', $audit);
+        self::assertStringContainsString('Exception retry boundaries', $audit);
+        self::assertStringContainsString('Documented and locked the committed user-facing message model', $roadmap);
+    }
+
     private static function makefile(): string
     {
         $contents = file_get_contents(dirname(__DIR__, 2) . '/Makefile');
