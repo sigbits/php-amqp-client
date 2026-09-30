@@ -45,13 +45,20 @@ final class CloseCodecTest extends TestCase
         $codec->decode("\x00\x53\x18");
     }
 
-    public function testRejectsCloseWithErrorPayloadUntilErrorTypeIsSupported(): void
+    public function testDecodesCloseWithNullErrorField(): void
     {
         $codec = new CloseCodec();
 
-        $this->expectException(PerformativeException::class);
-        $this->expectExceptionMessage('AMQP close error payload is not supported yet.');
+        self::assertEquals(new Close(), $codec->decode("\x00\x53\x18\xc0\x02\x01\x40"));
+    }
 
-        $codec->decode("\x00\x53\x18\xc0\x01\x01");
+    public function testDecodesCloseWithErrorPayload(): void
+    {
+        $codec = new CloseCodec();
+
+        self::assertEquals(
+            new Close(),
+            $codec->decode("\x00\x53\x18\xc0\x16\x01\x00\x53\x1d\xc0\x10\x02\xa3\x08amqp:not\xa1\x03bye"),
+        );
     }
 }

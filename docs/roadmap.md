@@ -98,7 +98,8 @@ ready for tagging with the supported-surface scope documented there.
 - Run broker interoperability suites against Azure Service Bus, RabbitMQ AMQP
   1.0, Apache ActiveMQ Artemis, and Qpid-compatible peers.
 - Add broker restart coverage in addition to transport interruption coverage
-  for active public send, receive, and settlement loops.
+  for active public send, receive, and settlement loops. ActiveMQ Artemis
+  receive-loop restart coverage is in place.
 - Add configurable long-running soak profiles for send-only, receive-only,
   request/reply-like, bounded-credit, reconnect, and large-message workloads.
 - Validate TLS/SASL combinations across supported brokers, including failed
@@ -133,3 +134,5 @@ compatibility steps:
    queue address v2 semantics.
 3. Add the first non-local external broker target only after a real broker
    behavior gap is reproduced.
+4. Continue broker restart coverage beyond the first ActiveMQ Artemis
+   receive-loop scenario into active send and settlement loops.

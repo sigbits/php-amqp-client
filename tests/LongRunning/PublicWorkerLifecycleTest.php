@@ -6,6 +6,7 @@ namespace Sigbits\Amqp\Tests\LongRunning;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Sigbits\Amqp\Client\ClientException;
 use Sigbits\Amqp\Client\Connection;
 use Sigbits\Amqp\Engine\ReceiverLinkState;
 use Sigbits\Amqp\Engine\SenderLinkState;
@@ -322,6 +323,61 @@ final class PublicWorkerLifecycleTest extends TestCase
                 linkName: sprintf('recovery-%s-%d', $runId, $cycle),
             );
         }
+    }
+
+    public function testPublicReceiverObservesBrokerRestartAgainstArtemis(): void
+    {
+        if (getenv('RUN_LONG_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_LONG_TESTS=1 to run long-running worker hardening tests.');
+        }
+
+        $readyFile = getenv('AMQP_BROKER_RESTART_READY_FILE');
+        $continueFile = getenv('AMQP_BROKER_RESTART_CONTINUE_FILE');
+
+        if ($readyFile === false || $continueFile === false) {
+            self::markTestSkipped('Set AMQP_BROKER_RESTART_READY_FILE and AMQP_BROKER_RESTART_CONTINUE_FILE to run broker restart tests.');
+        }
+
+        $uri = getenv('AMQP_ARTEMIS_URI') ?: 'amqp://guest:guest@artemis:5672';
+        $runId = bin2hex(random_bytes(4));
+        $address = sprintf('sigbits.long.restart.artemis.%s', $runId);
+        $connection = Connection::connect(
+            $uri,
+            containerId: sprintf('sigbits-long-restart-artemis-%s', $runId),
+            timeoutSeconds: 5.0,
+        );
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address, name: sprintf('restart-receiver-%s', $runId));
+
+        if (file_put_contents($readyFile, 'ready') === false) {
+            self::fail('Could not write broker restart ready signal.');
+        }
+
+        $this->waitForSignalFile($continueFile, 'broker restart continue signal');
+        $caughtRestartFailure = false;
+
+        try {
+            $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+        } catch (TransportException|ClientException $exception) {
+            $caughtRestartFailure = true;
+            self::assertNotSame('', $exception->getMessage());
+        } finally {
+            try {
+                $connection->close();
+            } catch (TransportException|ClientException) {
+            }
+        }
+
+        self::assertTrue($caughtRestartFailure, 'Artemis receiver did not observe broker restart.');
+        $this->waitForAmqpConnection($uri, sprintf('sigbits-long-restart-ready-artemis-%s', $runId));
+        $this->roundTripOneMessage(
+            broker: 'artemis',
+            uri: $uri,
+            address: sprintf('sigbits.long.restart.recovery.artemis.%s', $runId),
+            body: 'restart recovery message',
+            containerId: sprintf('sigbits-long-restart-recovery-artemis-%s', $runId),
+            linkName: sprintf('restart-recovery-%s', $runId),
+        );
     }
 
     #[DataProvider('brokerProvider')]
@@ -708,6 +764,21 @@ final class PublicWorkerLifecycleTest extends TestCase
         } while (microtime(true) < $deadline);
 
         self::fail(sprintf('AMQP proxy did not recover: %s', $lastException->getMessage()));
+    }
+
+    private function waitForSignalFile(string $path, string $description): void
+    {
+        $deadline = microtime(true) + 30.0;
+
+        do {
+            if (is_file($path)) {
+                return;
+            }
+
+            usleep(100_000);
+        } while (microtime(true) < $deadline);
+
+        self::fail('Timed out waiting for ' . $description . '.');
     }
 
     /**

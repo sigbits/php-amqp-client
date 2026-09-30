@@ -14,6 +14,7 @@ final class MakefileBrokerWorkflowTest extends TestCase
 
         self::assertMatchesRegularExpression('/^test-integration:\s+broker-reset$/m', $makefile);
         self::assertMatchesRegularExpression('/^test-long:\s+broker-reset$/m', $makefile);
+        self::assertMatchesRegularExpression('/^test-broker-restart:\s+broker-reset$/m', $makefile);
     }
 
     public function testBrokerResetRecreatesBrokerStack(): void
@@ -38,6 +39,13 @@ final class MakefileBrokerWorkflowTest extends TestCase
             '$(BROKER_COMPOSE) rm --force --volumes qpid artemis rabbitmq toxiproxy',
             $makefile,
         );
+    }
+
+    public function testBrokerRestartSuiteUsesHostOrchestrator(): void
+    {
+        $makefile = self::makefile();
+
+        self::assertStringContainsString('./tools/broker-restart-receive.sh', $makefile);
     }
 
     public function testBrokerComposeDefinesRabbitMqAmqp10Service(): void
