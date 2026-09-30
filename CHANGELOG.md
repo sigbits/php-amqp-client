@@ -16,6 +16,7 @@ must have release notes in this file before the tag is created.
 - Long-running worker hardening coverage for fragmented large DATA messages against ActiveMQ Artemis and Qpid Broker-J.
 - Long-running worker hardening coverage for repeated reconnect send, receive, and accepted-delivery settlement cycles against ActiveMQ Artemis and Qpid Broker-J.
 - Long-running worker hardening coverage for public message-loop recovery after transport interruption against ActiveMQ Artemis and Qpid Broker-J.
+- Docker broker test workflow now resets broker containers and volumes before integration and long-running worker suites.
 - AMQP DATA body encode/decode support for `vbin32` payloads larger than 255 bytes.
 
 ## v0.6.0 - 2026-09-29

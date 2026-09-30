@@ -72,6 +72,8 @@ installable through Composer.
   ActiveMQ Artemis and Qpid Broker-J.
 - Fragmented large DATA message round trips against ActiveMQ Artemis and Qpid
   Broker-J.
+- Clean broker-state reset before broker integration and long-running worker
+  suites.
 - Basic memory-growth guard for long-running worker tests.
 
 ### v1.0.0: Production-Oriented Release

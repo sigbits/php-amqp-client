@@ -98,7 +98,8 @@ The package supports PHP 8.3 and newer. CI runs the quality pipeline across
 supported PHP versions.
 
 Broker integration tests run against Apache Qpid Broker-J and Apache ActiveMQ
-Artemis containers:
+Artemis containers. `make test-integration` resets broker containers and
+volumes before running so stale broker state cannot affect the suite:
 
 ```sh
 make test-integration
@@ -109,7 +110,8 @@ Long-running worker hardening tests are opt-in and also use the broker
 containers. They cover repeated public lifecycle cycles, repeated public send,
 receive, and accepted-delivery settlement cycles, bounded receiver credit
 windows, repeated reconnect message cycles, transport interruption recovery,
-and fragmented large DATA messages:
+and fragmented large DATA messages. `make test-long` also resets broker
+containers and volumes before running:
 
 ```sh
 make test-long
@@ -127,6 +129,9 @@ with `LONG_TEST_FAILURE_CYCLES`.
 
 The broker AMQP ports are also exposed on the host as `56720` for Qpid and
 `56730` for Artemis.
+
+Use `make broker-reset` to manually recreate the broker test stack with clean
+containers and volumes.
 
 ## Roadmap
 
