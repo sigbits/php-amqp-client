@@ -122,7 +122,7 @@ installable through Composer.
 Continue v0.8.0 protocol completeness with the smallest codec and state-machine
 hardening steps:
 
-1. Centralize shared AMQP scalar decoding used by performative codecs.
+1. Continue migrating performative codecs to the shared AMQP scalar reader.
 2. Add the first public protocol-state regression for remote connection close.
 3. Continue scalar primitive coverage with signed byte, signed short, and long
    encodings.

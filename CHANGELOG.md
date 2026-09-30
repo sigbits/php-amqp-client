@@ -9,6 +9,7 @@ must have release notes in this file before the tag is created.
 
 ### Added
 
+- Shared AMQP scalar reader for compact unsigned integer decoding and fixed-width value skipping in performative codecs.
 - AMQP primitive encode/decode support for signed 32-bit `int` values.
 - AMQP primitive decoder support for compact `uint0` and `smalluint` encodings.
 
