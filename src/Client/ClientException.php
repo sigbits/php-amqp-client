@@ -14,6 +14,11 @@ final class ClientException extends RuntimeException
         return new self('Cannot send on detached AMQP sender link.');
     }
 
+    public static function senderLinkCreditExhausted(?\Throwable $previous = null): self
+    {
+        return new self('Cannot send because AMQP sender link credit is exhausted.', previous: $previous);
+    }
+
     public static function senderLinkDetachedDuringOpen(?PerformativeError $error = null): self
     {
         return new self(self::withErrorDetails(

@@ -122,8 +122,9 @@ installable through Composer.
 Continue v0.8.0 protocol completeness with the smallest codec and state-machine
 hardening steps:
 
-1. Add exhausted link-credit public regression coverage.
-2. Expand parser/property regressions for malformed descriptor payloads across
+1. Expand parser/property regressions for malformed descriptor payloads across
    performative and message-section codecs.
-3. Reassess v0.8.0 release readiness against the protocol completeness and
+2. Reassess v0.8.0 release readiness against the protocol completeness and
    state hardening checklist.
+3. Prepare v0.8.0 release notes and tag only after the readiness checklist is
+   satisfied.
