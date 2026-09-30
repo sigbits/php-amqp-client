@@ -10,6 +10,7 @@ use Sigbits\Amqp\Client\Connection;
 use Sigbits\Amqp\Engine\ReceiverLinkState;
 use Sigbits\Amqp\Engine\SenderLinkState;
 use Sigbits\Amqp\Engine\SessionState;
+use Sigbits\Amqp\Transport\TransportException;
 
 final class PublicWorkerLifecycleTest extends TestCase
 {
@@ -247,6 +248,80 @@ final class PublicWorkerLifecycleTest extends TestCase
             $memoryGrowth,
             sprintf('Memory grew by %d bytes across %d %s reconnect message cycles.', $memoryGrowth, $cycles, $broker),
         );
+    }
+
+    #[DataProvider('brokerProvider')]
+    public function testPublicMessageLoopRecoversAfterTransportInterruption(string $broker, string $uri): void
+    {
+        if (getenv('RUN_LONG_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_LONG_TESTS=1 to run long-running worker hardening tests.');
+        }
+
+        $failureProxyApi = getenv('AMQP_TOXIPROXY_API');
+
+        if ($failureProxyApi === false) {
+            self::markTestSkipped('Set AMQP_TOXIPROXY_API to run broker transport interruption tests.');
+        }
+
+        $cycles = self::positiveIntegerFromEnvironment('AMQP_LONG_FAILURE_CYCLES', 3);
+        $runId = bin2hex(random_bytes(4));
+        $proxyUri = $this->resetFailureProxy($broker, $failureProxyApi);
+        $address = sprintf('sigbits.long.failure.%s.%s', $broker, $runId);
+
+        if ($broker === 'qpid') {
+            $this->createQpidQueue($address);
+        }
+
+        for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+            $this->roundTripOneMessage(
+                broker: $broker,
+                uri: $proxyUri,
+                address: $address,
+                body: sprintf('failure worker warmup %s %d', $broker, $cycle),
+                containerId: sprintf('sigbits-long-failure-warmup-%s-%s-%d', $broker, $runId, $cycle),
+                linkName: sprintf('warmup-%s-%d', $runId, $cycle),
+            );
+        }
+
+        $connection = Connection::connect(
+            $proxyUri,
+            containerId: sprintf('sigbits-long-failure-interrupted-%s-%s', $broker, $runId),
+            timeoutSeconds: 1.0,
+        );
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address, name: sprintf('interrupted-%s', $runId));
+
+        $this->disableFailureProxy($broker, $failureProxyApi);
+
+        $caughtTransportLoss = false;
+
+        try {
+            $receiver->receiveDelivery(timeoutMilliseconds: 1000);
+        } catch (TransportException $exception) {
+            $caughtTransportLoss = true;
+            self::assertNotSame('', $exception->getMessage());
+        } finally {
+            $this->enableFailureProxy($broker, $failureProxyApi);
+
+            try {
+                $connection->close();
+            } catch (TransportException) {
+            }
+        }
+
+        self::assertTrue($caughtTransportLoss, sprintf('%s receiver did not observe transport loss.', $broker));
+        $this->waitForAmqpConnection($proxyUri, sprintf('sigbits-long-failure-ready-%s-%s', $broker, $runId));
+
+        for ($cycle = 0; $cycle < $cycles; ++$cycle) {
+            $this->roundTripOneMessage(
+                broker: $broker,
+                uri: $proxyUri,
+                address: $address,
+                body: sprintf('failure worker recovery %s %d', $broker, $cycle),
+                containerId: sprintf('sigbits-long-failure-recovery-%s-%s-%d', $broker, $runId, $cycle),
+                linkName: sprintf('recovery-%s-%d', $runId, $cycle),
+            );
+        }
     }
 
     #[DataProvider('brokerProvider')]
@@ -503,6 +578,201 @@ final class PublicWorkerLifecycleTest extends TestCase
         $delivery->accept();
         $session->end();
         $connection->close();
+    }
+
+    private function roundTripOneMessage(
+        string $broker,
+        string $uri,
+        string $address,
+        string $body,
+        string $containerId,
+        string $linkName,
+    ): void {
+        if ($broker === 'qpid') {
+            $this->sendOneMessage(
+                uri: $uri,
+                address: $address,
+                body: $body,
+                containerId: $containerId . '-producer',
+                linkName: $linkName . '-sender',
+            );
+            $this->receiveOneMessage(
+                uri: $uri,
+                address: $address,
+                expectedBody: $body,
+                containerId: $containerId . '-consumer',
+                linkName: $linkName . '-receiver',
+            );
+
+            return;
+        }
+
+        $connection = Connection::connect($uri, containerId: $containerId, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address, name: $linkName . '-receiver');
+        $sender = $session->openSender($address, name: $linkName . '-sender');
+
+        $sender->send($body);
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame($body, $delivery->message()->body);
+
+        $delivery->accept();
+        $session->end();
+        $connection->close();
+    }
+
+    private function resetFailureProxy(string $broker, string $apiBaseUrl): string
+    {
+        $this->waitForFailureProxyController($apiBaseUrl);
+        $this->requestFailureProxy(
+            apiBaseUrl: $apiBaseUrl,
+            method: 'DELETE',
+            path: '/proxies/' . rawurlencode($this->failureProxyName($broker)),
+            allowNotFound: true,
+        );
+        $this->requestFailureProxy(
+            apiBaseUrl: $apiBaseUrl,
+            method: 'POST',
+            path: '/proxies',
+            payload: [
+                'name' => $this->failureProxyName($broker),
+                'listen' => '0.0.0.0:' . $this->failureProxyPort($broker),
+                'upstream' => $broker . ':5672',
+                'enabled' => true,
+            ],
+        );
+
+        return sprintf(
+            'amqp://guest:guest@toxiproxy:%d',
+            $this->failureProxyPort($broker),
+        );
+    }
+
+    private function disableFailureProxy(string $broker, string $apiBaseUrl): void
+    {
+        $this->setFailureProxyEnabled($broker, $apiBaseUrl, false);
+        usleep(250_000);
+    }
+
+    private function enableFailureProxy(string $broker, string $apiBaseUrl): void
+    {
+        $this->setFailureProxyEnabled($broker, $apiBaseUrl, true);
+    }
+
+    private function setFailureProxyEnabled(string $broker, string $apiBaseUrl, bool $enabled): void
+    {
+        $this->requestFailureProxy(
+            apiBaseUrl: $apiBaseUrl,
+            method: 'POST',
+            path: '/proxies/' . rawurlencode($this->failureProxyName($broker)),
+            payload: ['enabled' => $enabled],
+        );
+    }
+
+    private function waitForFailureProxyController(string $apiBaseUrl): void
+    {
+        $deadline = microtime(true) + 10.0;
+        $lastStatus = '';
+
+        do {
+            try {
+                $this->requestFailureProxy($apiBaseUrl, 'GET', '/proxies');
+
+                return;
+            } catch (\RuntimeException $exception) {
+                $lastStatus = $exception->getMessage();
+                usleep(250_000);
+            }
+        } while (microtime(true) < $deadline);
+
+        self::fail('Failure proxy controller did not become ready: ' . $lastStatus);
+    }
+
+    private function waitForAmqpConnection(string $uri, string $containerId): void
+    {
+        $deadline = microtime(true) + 20.0;
+        $lastException = null;
+
+        do {
+            try {
+                $connection = Connection::connect($uri, containerId: $containerId, timeoutSeconds: 1.0);
+                $connection->close();
+
+                return;
+            } catch (TransportException $exception) {
+                $lastException = $exception;
+                usleep(250_000);
+            }
+        } while (microtime(true) < $deadline);
+
+        self::fail(sprintf('AMQP proxy did not recover: %s', $lastException->getMessage()));
+    }
+
+    /**
+     * @param null|array<string, bool|string> $payload
+     */
+    private function requestFailureProxy(
+        string $apiBaseUrl,
+        string $method,
+        string $path,
+        ?array $payload = null,
+        bool $allowNotFound = false,
+    ): void {
+        $headers = '';
+        $content = '';
+
+        if ($payload !== null) {
+            $encoded = json_encode($payload);
+
+            if ($encoded === false) {
+                self::fail('Could not encode failure proxy request payload.');
+            }
+
+            $headers = "Content-Type: application/json\r\n";
+            $content = $encoded;
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => $method,
+                'header' => $headers,
+                'content' => $content,
+                'ignore_errors' => true,
+                'timeout' => 1.0,
+            ],
+        ]);
+        $response = @file_get_contents(rtrim($apiBaseUrl, '/') . $path, false, $context);
+        $status = $http_response_header[0] ?? '';
+
+        if ($response === false && $status === '') {
+            throw new \RuntimeException('No HTTP response from failure proxy controller.');
+        }
+
+        if (!preg_match('/^HTTP\/\S+\s+(\d+)/', $status, $matches)) {
+            throw new \RuntimeException('Unexpected failure proxy response: ' . $status);
+        }
+
+        $statusCode = (int) $matches[1];
+
+        if ($allowNotFound && $statusCode === 404) {
+            return;
+        }
+
+        if ($statusCode < 200 || $statusCode >= 300) {
+            throw new \RuntimeException(sprintf('Failure proxy returned %d for %s %s.', $statusCode, $method, $path));
+        }
+    }
+
+    private function failureProxyName(string $broker): string
+    {
+        return 'sigbits-' . $broker . '-failure';
+    }
+
+    private function failureProxyPort(string $broker): int
+    {
+        return $broker === 'qpid' ? 15672 : 15673;
     }
 
     private function createQpidQueue(string $name): void
