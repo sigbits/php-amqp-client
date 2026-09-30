@@ -7,6 +7,8 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+## v0.9.0 - 2026-09-30
+
 ### Added
 
 - RabbitMQ 4 TLS/SASL broker security coverage for trusted certificates, rejected untrusted certificates, and rejected invalid SASL PLAIN credentials through the local `rabbitmq-tls` endpoint.
