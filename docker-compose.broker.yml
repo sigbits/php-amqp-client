@@ -37,6 +37,16 @@ services:
       - "56740:5672"
       - "58172:15672"
 
+  rabbitmq-tls:
+    image: haproxy:3.0-alpine
+    depends_on:
+      - rabbitmq
+    volumes:
+      - ./docker/broker/haproxy-rabbitmq-tls.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./docker/broker/tls:/usr/local/etc/haproxy/certs:ro
+    ports:
+      - "56741:5671"
+
   toxiproxy:
     image: ghcr.io/shopify/toxiproxy:2.12.0
     ports:
