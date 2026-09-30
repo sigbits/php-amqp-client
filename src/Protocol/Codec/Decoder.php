@@ -18,7 +18,9 @@ final class Decoder
             0x40 => null,
             0x41 => true,
             0x42 => false,
+            0x43 => new UInt(0),
             0x50 => $this->decodeUByte($bytes),
+            0x52 => $this->decodeSmallUInt($bytes),
             0x56 => $this->decodeBoolean($bytes),
             0x60 => $this->decodeUShort($bytes),
             0x70 => $this->decodeUInt($bytes),
@@ -51,6 +53,15 @@ final class Decoder
         }
 
         return new UShort((ord($bytes[1]) << 8) | ord($bytes[2]));
+    }
+
+    private function decodeSmallUInt(string $bytes): UInt
+    {
+        if (strlen($bytes) < 2) {
+            throw DecodeException::truncatedUInt();
+        }
+
+        return new UInt(ord($bytes[1]));
     }
 
     private function decodeUInt(string $bytes): UInt

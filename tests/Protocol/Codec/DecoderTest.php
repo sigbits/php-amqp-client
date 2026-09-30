@@ -113,6 +113,30 @@ final class DecoderTest extends TestCase
         self::assertEquals(new UInt(0), $decoder->decode("\x70\x00\x00\x00\x00"));
     }
 
+    public function testDecodesUIntZeroCompactEncoding(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new UInt(0), $decoder->decode("\x43"));
+    }
+
+    public function testDecodesSmallUIntMaximum(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new UInt(255), $decoder->decode("\x52\xff"));
+    }
+
+    public function testRejectsTruncatedSmallUInt(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP uint value.');
+
+        $decoder->decode("\x52");
+    }
+
     public function testDecodesUIntMaximum(): void
     {
         $decoder = new Decoder();
@@ -135,8 +159,8 @@ final class DecoderTest extends TestCase
         $decoder = new Decoder();
 
         $this->expectException(DecodeException::class);
-        $this->expectExceptionMessage('Unsupported AMQP format code 0x43.');
+        $this->expectExceptionMessage('Unsupported AMQP format code 0x44.');
 
-        $decoder->decode("\x43");
+        $decoder->decode("\x44");
     }
 }
