@@ -128,8 +128,8 @@ compatibility steps:
 
 1. Add broker-specific compatibility notes for the currently supported Qpid
    Broker-J, ActiveMQ Artemis, and RabbitMQ matrix.
-2. Expand RabbitMQ 4 AMQP 1.0 coverage from handshake/session/send coverage to
-   public receive, settlement, and detach workflows using RabbitMQ address v2
+2. Expand RabbitMQ 4 AMQP 1.0 coverage from handshake/session/send/receive
+   coverage to settlement and detach workflows using RabbitMQ address v2
    semantics.
 3. Add the first non-local external broker target only after a real broker
    behavior gap is reproduced.
