@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Performative;
 
+use Sigbits\Amqp\Protocol\Codec\DecodeException;
+use Sigbits\Amqp\Protocol\Codec\ScalarReader;
 use Sigbits\Amqp\Protocol\Type\UInt;
 
 final class DispositionCodec
@@ -18,6 +20,13 @@ final class DispositionCodec
     private const int CONSTRUCTOR_NULL = 0x40;
     private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
     private const int CONSTRUCTOR_UINT = 0x70;
+
+    private readonly ScalarReader $scalarReader;
+
+    public function __construct(?ScalarReader $scalarReader = null)
+    {
+        $this->scalarReader = $scalarReader ?? new ScalarReader();
+    }
 
     public function encode(Disposition $disposition): string
     {
@@ -120,27 +129,15 @@ final class DispositionCodec
      */
     private function decodeUInt(string $bytes, int $cursor, int $listEnd): array
     {
-        if ($cursor >= $listEnd) {
+        try {
+            return $this->scalarReader->readUInt($bytes, $cursor, $listEnd);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Unsupported AMQP format code')) {
+                throw PerformativeException::missingDispositionRequiredFields();
+            }
+
             throw PerformativeException::truncatedDisposition();
         }
-
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_UINT) {
-            throw PerformativeException::missingDispositionRequiredFields();
-        }
-
-        ++$cursor;
-
-        if ($cursor + 4 > $listEnd) {
-            throw PerformativeException::truncatedDisposition();
-        }
-
-        return [
-            (ord($bytes[$cursor]) << 24)
-            | (ord($bytes[$cursor + 1]) << 16)
-            | (ord($bytes[$cursor + 2]) << 8)
-            | ord($bytes[$cursor + 3]),
-            $cursor + 4,
-        ];
     }
 
     private function skipNull(string $bytes, int $cursor, int $listEnd): int

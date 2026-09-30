@@ -66,6 +66,26 @@ final class DispositionCodecTest extends TestCase
         );
     }
 
+    public function testDecodesReceiverAcceptedDispositionWithSmallUIntDeliveryId(): void
+    {
+        $codec = new DispositionCodec();
+
+        self::assertEquals(
+            new Disposition(
+                deliveryId: 2,
+                outcome: SettlementOutcome::Accepted,
+            ),
+            $codec->decode(
+                "\x00\x53\x15\xc0\x0a\x05"
+                . "\x41"
+                . "\x52\x02"
+                . "\x40"
+                . "\x41"
+                . "\x00\x53\x24\x45",
+            ),
+        );
+    }
+
     public function testRejectsWrongDescriptor(): void
     {
         $codec = new DispositionCodec();
