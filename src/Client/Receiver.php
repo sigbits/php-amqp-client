@@ -67,6 +67,11 @@ final class Receiver
 
             if ($bytes !== null && $bytes !== '' && $this->isReceiverLinkFrame($bytes)) {
                 $this->link->push($bytes);
+
+                if ($this->link->state() === ReceiverLinkState::Detached) {
+                    throw ClientException::receiverLinkDetached();
+                }
+
                 $delivery = $this->link->receiveDelivery();
 
                 if ($delivery !== null) {

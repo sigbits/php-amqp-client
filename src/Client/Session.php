@@ -58,6 +58,8 @@ final class Session
         while ($engine->state() !== SenderLinkState::Attached || $engine->availableCredit() <= 0) {
             $frame = ($this->readFrame)();
 
+            $this->failIfRemoteSessionEnded($frame);
+
             if ($this->isAttach($frame) || $this->isDetach($frame) || $this->isFlow($frame)) {
                 $engine->push($frame);
             }
@@ -84,6 +86,8 @@ final class Session
 
         while ($engine->state() !== ReceiverLinkState::Attached) {
             $frame = ($this->readFrame)();
+
+            $this->failIfRemoteSessionEnded($frame);
 
             if ($this->isAttach($frame) || $this->isDetach($frame)) {
                 $engine->push($frame);
@@ -133,5 +137,16 @@ final class Session
     private function isDetach(string $frame): bool
     {
         return substr($frame, 8, 3) === "\x00\x53\x16";
+    }
+
+    private function failIfRemoteSessionEnded(string $frame): void
+    {
+        if (substr($frame, 8, 3) !== "\x00\x53\x17") {
+            return;
+        }
+
+        $this->engine->push($frame);
+
+        throw ClientException::remoteSessionEnded();
     }
 }

@@ -289,6 +289,36 @@ final class ConnectionTest extends TestCase
         $session->openSender('orders.test', name: 'sender', handle: 0);
     }
 
+    public function testOpenSenderFailsClearlyWhenRemoteEndsSession(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->endFrame(channel: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 0.001,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+
+        try {
+            $session->openSender('orders.test', name: 'sender', handle: 0);
+            self::fail('Expected remote session end to fail the public sender open.');
+        } catch (ClientException $exception) {
+            self::assertSame('AMQP session was ended by the remote peer.', $exception->getMessage());
+            self::assertSame(SessionState::Ended, $session->state());
+        }
+    }
+
     public function testSenderSendEmitsTransferAfterCreditArrives(): void
     {
         [$client, $server] = $this->streamPair();
@@ -317,6 +347,37 @@ final class ConnectionTest extends TestCase
 
         self::assertSame(0, $sender->availableCredit());
         self::assertSame($this->transferFrame(channel: 1, body: 'hello'), $this->readAvailable($server));
+    }
+
+    public function testSenderSendFailsClearlyWhenRemoteDetachesWhileWaitingForCredit(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteSenderAttachFrame(channel: 1)
+            . $this->senderCreditFrame(channel: 1, linkCredit: 1)
+            . $this->detachFrame(channel: 1, handle: 0),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 0.001,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $sender = $session->openSender('orders.test', name: 'sender', handle: 0);
+        $sender->send('first');
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('Cannot send on detached AMQP sender link.');
+
+        $sender->send('second');
     }
 
     public function testSenderDetachEmitsDetachFrameAndWaitsForRemoteDetach(): void
@@ -494,6 +555,35 @@ final class ConnectionTest extends TestCase
         $this->readAvailable($server);
 
         self::assertEquals(new Message(body: 'hello'), $receiver->receive(timeoutMilliseconds: 100));
+    }
+
+    public function testReceiverReceiveFailsClearlyWhenRemoteDetachesWhileWaitingForDelivery(): void
+    {
+        [$client, $server] = $this->streamPair();
+        fwrite(
+            $server,
+            $this->serverGreeting()
+            . $this->beginFrame(channel: 1)
+            . $this->remoteReceiverAttachFrame(channel: 1)
+            . $this->detachFrame(channel: 1, handle: 1),
+        );
+        $connector = new SaslStreamConnector(
+            streamConnector: new StreamConnector(static fn (): mixed => $client),
+            authenticator: new SaslStreamAuthenticator(),
+        );
+        $connection = Connection::connect(
+            'amqp://guest:secret@broker.example.test',
+            containerId: 'client',
+            timeoutSeconds: 1.0,
+            connector: $connector,
+        );
+        $session = $connection->beginSession(channel: 1);
+        $receiver = $session->openReceiver('orders.test', name: 'receiver', handle: 1);
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('Cannot receive from detached AMQP receiver link.');
+
+        $receiver->receive(timeoutMilliseconds: 100);
     }
 
     public function testReceiverDetachEmitsDetachFrameAndWaitsForRemoteDetach(): void
