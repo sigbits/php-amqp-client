@@ -21,6 +21,16 @@ final class OpenCodecTest extends TestCase
         );
     }
 
+    public function testEncodesOpenPerformativeWithHostname(): void
+    {
+        $codec = new OpenCodec();
+
+        self::assertSame(
+            "\x00\x53\x10\xc0\x1e\x02\xa1\x06client\xa1\x13servicebus-emulator",
+            $codec->encode(new Open(containerId: 'client', hostname: 'servicebus-emulator')),
+        );
+    }
+
     public function testDecodesMinimalOpenPerformative(): void
     {
         $codec = new OpenCodec();
@@ -28,6 +38,16 @@ final class OpenCodecTest extends TestCase
         self::assertEquals(
             new Open(containerId: 'client'),
             $codec->decode("\x00\x53\x10\xc0\x09\x01\xa1\x06client"),
+        );
+    }
+
+    public function testDecodesOpenPerformativeWithHostname(): void
+    {
+        $codec = new OpenCodec();
+
+        self::assertEquals(
+            new Open(containerId: 'client', hostname: 'servicebus-emulator'),
+            $codec->decode("\x00\x53\x10\xc0\x1e\x02\xa1\x06client\xa1\x13servicebus-emulator"),
         );
     }
 

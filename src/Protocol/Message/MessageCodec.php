@@ -29,23 +29,44 @@ final class MessageCodec
     private const int AMQP_SEQUENCE_DESCRIPTOR_LENGTH = 3;
     private const int AMQP_VALUE_DESCRIPTOR_LENGTH = 3;
     private const int FOOTER_DESCRIPTOR_LENGTH = 3;
+    private const int CONSTRUCTOR_DESCRIBED = 0x00;
     private const int CONSTRUCTOR_BOOL = 0x56;
     private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
     private const int CONSTRUCTOR_BOOL_FALSE = 0x42;
     private const int CONSTRUCTOR_UINT0 = 0x43;
+    private const int CONSTRUCTOR_ULONG0 = 0x44;
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
+    private const int CONSTRUCTOR_LIST32 = 0xd0;
     private const int CONSTRUCTOR_MAP8 = 0xc1;
+    private const int CONSTRUCTOR_MAP32 = 0xd1;
+    private const int CONSTRUCTOR_ARRAY8 = 0xe0;
+    private const int CONSTRUCTOR_ARRAY32 = 0xf0;
     private const int CONSTRUCTOR_NULL = 0x40;
     private const int CONSTRUCTOR_SMALLUINT = 0x52;
+    private const int CONSTRUCTOR_SMALLULONG = 0x53;
+    private const int CONSTRUCTOR_SMALLINT = 0x54;
+    private const int CONSTRUCTOR_SMALLLONG = 0x55;
     private const int CONSTRUCTOR_STRING8 = 0xa1;
+    private const int CONSTRUCTOR_STRING32 = 0xb1;
     private const int CONSTRUCTOR_SYMBOL8 = 0xa3;
+    private const int CONSTRUCTOR_SYMBOL32 = 0xb3;
     private const int CONSTRUCTOR_BYTE = 0x51;
     private const int CONSTRUCTOR_SHORT = 0x61;
+    private const int CONSTRUCTOR_USHORT = 0x60;
     private const int CONSTRUCTOR_INT = 0x71;
     private const int CONSTRUCTOR_LONG = 0x81;
     private const int CONSTRUCTOR_UBYTE = 0x50;
     private const int CONSTRUCTOR_UINT = 0x70;
+    private const int CONSTRUCTOR_ULONG = 0x80;
+    private const int CONSTRUCTOR_FLOAT = 0x72;
+    private const int CONSTRUCTOR_CHAR = 0x73;
+    private const int CONSTRUCTOR_DECIMAL32 = 0x74;
+    private const int CONSTRUCTOR_DOUBLE = 0x82;
+    private const int CONSTRUCTOR_TIMESTAMP = 0x83;
+    private const int CONSTRUCTOR_DECIMAL64 = 0x84;
+    private const int CONSTRUCTOR_DECIMAL128 = 0x94;
+    private const int CONSTRUCTOR_UUID = 0x98;
     private const int CONSTRUCTOR_VBIN8 = 0xa0;
     private const int CONSTRUCTOR_VBIN32 = 0xb0;
 
@@ -812,7 +833,10 @@ final class MessageCodec
         for ($i = 0; $i < $mapCount; $i += 2) {
             [$name, $cursor] = $this->decodeDeliveryAnnotationSymbol($bytes, $cursor, $mapEnd);
             [$value, $cursor] = $this->decodeDeliveryAnnotationValue($bytes, $cursor, $mapEnd);
-            $annotations[$name] = $value;
+
+            if ($value !== null) {
+                $annotations[$name] = $value;
+            }
         }
 
         if ($cursor !== $mapEnd) {
@@ -839,12 +863,25 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: string|Byte|Short|Int_|Long_, 1: int}
+     * @return array{0: string|Byte|Short|Int_|Long_|null, 1: int}
      */
     private function decodeDeliveryAnnotationValue(string $bytes, int $cursor, int $mapEnd): array
     {
         if ($cursor >= $mapEnd) {
             throw MessageException::truncatedDeliveryAnnotations();
+        }
+
+        if (!$this->isSupportedUserMapValueConstructor(ord($bytes[$cursor]))) {
+            return [
+                null,
+                $this->skipUnsupportedAnnotationValue(
+                    $bytes,
+                    $cursor,
+                    $mapEnd,
+                    MessageException::malformedDeliveryAnnotations(...),
+                    MessageException::truncatedDeliveryAnnotations(...),
+                ),
+            ];
         }
 
         return $this->decodeMapValue(
@@ -854,6 +891,115 @@ final class MessageCodec
             MessageException::malformedDeliveryAnnotations(...),
             MessageException::truncatedDeliveryAnnotations(...),
         );
+    }
+
+    private function isSupportedUserMapValueConstructor(int $constructor): bool
+    {
+        return in_array($constructor, [
+            self::CONSTRUCTOR_STRING8,
+            self::CONSTRUCTOR_BYTE,
+            self::CONSTRUCTOR_SHORT,
+            self::CONSTRUCTOR_INT,
+            self::CONSTRUCTOR_LONG,
+        ], true);
+    }
+
+    /**
+     * @param callable(): MessageException $malformed
+     * @param callable(): MessageException $truncated
+     */
+    private function skipUnsupportedAnnotationValue(
+        string $bytes,
+        int $cursor,
+        int $mapEnd,
+        callable $malformed,
+        callable $truncated,
+    ): int {
+        if ($cursor >= $mapEnd) {
+            throw $truncated();
+        }
+
+        $constructor = ord($bytes[$cursor]);
+
+        if ($constructor === self::CONSTRUCTOR_DESCRIBED) {
+            $cursor = $this->skipUnsupportedAnnotationValue($bytes, $cursor + 1, $mapEnd, $malformed, $truncated);
+
+            return $this->skipUnsupportedAnnotationValue($bytes, $cursor, $mapEnd, $malformed, $truncated);
+        }
+
+        $end = match ($constructor) {
+            self::CONSTRUCTOR_NULL,
+            self::CONSTRUCTOR_BOOL_TRUE,
+            self::CONSTRUCTOR_BOOL_FALSE,
+            self::CONSTRUCTOR_UINT0,
+            self::CONSTRUCTOR_ULONG0,
+            self::CONSTRUCTOR_LIST0 => $cursor + 1,
+            self::CONSTRUCTOR_UBYTE,
+            self::CONSTRUCTOR_SMALLUINT,
+            self::CONSTRUCTOR_SMALLULONG,
+            self::CONSTRUCTOR_SMALLINT,
+            self::CONSTRUCTOR_SMALLLONG,
+            self::CONSTRUCTOR_BOOL => $cursor + 2,
+            self::CONSTRUCTOR_USHORT => $cursor + 3,
+            self::CONSTRUCTOR_UINT,
+            self::CONSTRUCTOR_FLOAT,
+            self::CONSTRUCTOR_CHAR,
+            self::CONSTRUCTOR_DECIMAL32 => $cursor + 5,
+            self::CONSTRUCTOR_ULONG,
+            self::CONSTRUCTOR_DOUBLE,
+            self::CONSTRUCTOR_TIMESTAMP => $cursor + 9,
+            self::CONSTRUCTOR_DECIMAL64 => $cursor + 9,
+            self::CONSTRUCTOR_DECIMAL128 => $cursor + 17,
+            self::CONSTRUCTOR_UUID => $cursor + 17,
+            self::CONSTRUCTOR_STRING8,
+            self::CONSTRUCTOR_SYMBOL8,
+            self::CONSTRUCTOR_LIST8,
+            self::CONSTRUCTOR_MAP8,
+            self::CONSTRUCTOR_ARRAY8,
+            self::CONSTRUCTOR_VBIN8 => $this->skipVariable8($bytes, $cursor, $mapEnd, $truncated),
+            self::CONSTRUCTOR_STRING32,
+            self::CONSTRUCTOR_SYMBOL32,
+            self::CONSTRUCTOR_LIST32,
+            self::CONSTRUCTOR_MAP32,
+            self::CONSTRUCTOR_ARRAY32,
+            self::CONSTRUCTOR_VBIN32 => $this->skipVariable32($bytes, $cursor, $mapEnd, $truncated),
+            default => throw $malformed(),
+        };
+
+        if ($end > $mapEnd) {
+            throw $truncated();
+        }
+
+        return $end;
+    }
+
+    /**
+     * @param callable(): MessageException $truncated
+     */
+    private function skipVariable8(string $bytes, int $cursor, int $mapEnd, callable $truncated): int
+    {
+        if ($cursor + 2 > $mapEnd) {
+            throw $truncated();
+        }
+
+        return $cursor + 2 + ord($bytes[$cursor + 1]);
+    }
+
+    /**
+     * @param callable(): MessageException $truncated
+     */
+    private function skipVariable32(string $bytes, int $cursor, int $mapEnd, callable $truncated): int
+    {
+        if ($cursor + 5 > $mapEnd) {
+            throw $truncated();
+        }
+
+        $length = (ord($bytes[$cursor + 1]) << 24)
+            | (ord($bytes[$cursor + 2]) << 16)
+            | (ord($bytes[$cursor + 3]) << 8)
+            | ord($bytes[$cursor + 4]);
+
+        return $cursor + 5 + $length;
     }
 
     /**
@@ -922,7 +1068,10 @@ final class MessageCodec
         for ($i = 0; $i < $mapCount; $i += 2) {
             [$name, $cursor] = $this->decodeAnnotationSymbol($bytes, $cursor, $mapEnd);
             [$value, $cursor] = $this->decodeAnnotationValue($bytes, $cursor, $mapEnd);
-            $annotations[$name] = $value;
+
+            if ($value !== null) {
+                $annotations[$name] = $value;
+            }
         }
 
         if ($cursor !== $mapEnd) {
@@ -949,12 +1098,25 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: string|Byte|Short|Int_|Long_, 1: int}
+     * @return array{0: string|Byte|Short|Int_|Long_|null, 1: int}
      */
     private function decodeAnnotationValue(string $bytes, int $cursor, int $mapEnd): array
     {
         if ($cursor >= $mapEnd) {
             throw MessageException::truncatedMessageAnnotations();
+        }
+
+        if (!$this->isSupportedUserMapValueConstructor(ord($bytes[$cursor]))) {
+            return [
+                null,
+                $this->skipUnsupportedAnnotationValue(
+                    $bytes,
+                    $cursor,
+                    $mapEnd,
+                    MessageException::malformedMessageAnnotations(...),
+                    MessageException::truncatedMessageAnnotations(...),
+                ),
+            ];
         }
 
         return $this->decodeMapValue(
@@ -1057,7 +1219,7 @@ final class MessageCodec
                 continue;
             }
 
-            $cursor = $this->skipNull($bytes, $cursor, $listEnd);
+            $cursor = $this->skipPropertyValue($bytes, $cursor, $listEnd);
         }
 
         return [
@@ -1081,7 +1243,10 @@ final class MessageCodec
         }
 
         if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
-            throw MessageException::malformedProperties();
+            return [
+                null,
+                $this->skipPropertyValue($bytes, $cursor, $listEnd),
+            ];
         }
 
         return $this->decodeString8($bytes, $cursor + 1, $listEnd);
@@ -1097,7 +1262,10 @@ final class MessageCodec
         }
 
         if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYMBOL8) {
-            throw MessageException::malformedProperties();
+            return [
+                null,
+                $this->skipPropertyValue($bytes, $cursor, $listEnd),
+            ];
         }
 
         return $this->decodeString8($bytes, $cursor + 1, $listEnd);
@@ -1125,17 +1293,15 @@ final class MessageCodec
         ];
     }
 
-    private function skipNull(string $bytes, int $cursor, int $listEnd): int
+    private function skipPropertyValue(string $bytes, int $cursor, int $listEnd): int
     {
-        if ($cursor >= $listEnd) {
-            throw MessageException::truncatedProperties();
-        }
-
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_NULL) {
-            throw MessageException::malformedProperties();
-        }
-
-        return $cursor + 1;
+        return $this->skipUnsupportedAnnotationValue(
+            $bytes,
+            $cursor,
+            $listEnd,
+            MessageException::malformedProperties(...),
+            MessageException::truncatedProperties(...),
+        );
     }
 
     /**

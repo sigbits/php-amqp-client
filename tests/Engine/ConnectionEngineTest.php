@@ -26,6 +26,22 @@ final class ConnectionEngineTest extends TestCase
         self::assertSame(ConnectionState::OpenSent, $engine->state());
     }
 
+    public function testStartCanEmitOpenHostname(): void
+    {
+        $engine = new ConnectionEngine(
+            localContainerId: 'client',
+            hostname: 'servicebus-emulator',
+        );
+
+        self::assertSame(
+            [
+                "AMQP\x00\x01\x00\x00",
+                "\x00\x00\x00\x2b\x02\x00\x00\x00\x00\x53\x10\xc0\x1e\x02\xa1\x06client\xa1\x13servicebus-emulator",
+            ],
+            $engine->start(),
+        );
+    }
+
     public function testRemoteHeaderAndOpenTransitionConnectionToOpened(): void
     {
         $engine = new ConnectionEngine(localContainerId: 'client');

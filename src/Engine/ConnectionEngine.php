@@ -23,6 +23,7 @@ final class ConnectionEngine
 
     public function __construct(
         private readonly string $localContainerId,
+        private readonly ?string $hostname = null,
         private readonly ProtocolHeaderCodec $protocolHeaderCodec = new ProtocolHeaderCodec(),
         private readonly FrameHeaderCodec $frameHeaderCodec = new FrameHeaderCodec(),
         private readonly FrameParser $frameParser = new FrameParser(),
@@ -49,7 +50,7 @@ final class ConnectionEngine
 
         return [
             $this->protocolHeaderCodec->encode(ProtocolHeader::amqp()),
-            $this->frame($this->openCodec->encode(new Open($this->localContainerId))),
+            $this->frame($this->openCodec->encode(new Open($this->localContainerId, $this->hostname))),
         ];
     }
 

@@ -17,15 +17,30 @@ final class OpenCodec
     public function encode(Open $open): string
     {
         $containerIdLength = strlen($open->containerId);
+        $fieldCount = $open->hostname === null ? 1 : 2;
         $listSize = 1 + 1 + 1 + $containerIdLength;
 
-        return self::DESCRIPTOR
+        if ($open->hostname !== null) {
+            $listSize += 1 + 1 + strlen($open->hostname);
+        }
+
+        $payload = self::DESCRIPTOR
             . chr(self::CONSTRUCTOR_LIST8)
             . chr($listSize)
-            . "\x01"
+            . chr($fieldCount)
             . chr(self::CONSTRUCTOR_STR8)
             . chr($containerIdLength)
             . $open->containerId;
+
+        if ($open->hostname !== null) {
+            $hostnameLength = strlen($open->hostname);
+
+            $payload .= chr(self::CONSTRUCTOR_STR8)
+                . chr($hostnameLength)
+                . $open->hostname;
+        }
+
+        return $payload;
     }
 
     public function decode(string $bytes): Open
@@ -83,32 +98,15 @@ final class OpenCodec
             throw PerformativeException::truncatedOpen();
         }
 
-        $stringConstructor = ord($bytes[$cursor]);
-        ++$cursor;
+        $containerId = $this->readString($bytes, $cursor, $listEnd)
+            ?? throw PerformativeException::missingOpenContainerId();
+        $hostname = null;
 
-        if ($stringConstructor === self::CONSTRUCTOR_STR8) {
-            if ($cursor >= $listEnd) {
-                throw PerformativeException::truncatedOpen();
-            }
-
-            $containerIdLength = ord($bytes[$cursor]);
-            ++$cursor;
-        } elseif ($stringConstructor === self::CONSTRUCTOR_STR32) {
-            if ($cursor + 4 > $listEnd) {
-                throw PerformativeException::truncatedOpen();
-            }
-
-            $containerIdLength = $this->readUInt32($bytes, $cursor);
-            $cursor += 4;
-        } else {
-            throw PerformativeException::missingOpenContainerId();
+        if ($fieldCount >= 2 && $cursor < $listEnd) {
+            $hostname = $this->readString($bytes, $cursor, $listEnd);
         }
 
-        if ($cursor + $containerIdLength > $listEnd) {
-            throw PerformativeException::truncatedOpen();
-        }
-
-        return new Open(substr($bytes, $cursor, $containerIdLength));
+        return new Open($containerId, $hostname);
     }
 
     private function readUInt32(string $bytes, int $cursor): int
@@ -117,5 +115,38 @@ final class OpenCodec
             | (ord($bytes[$cursor + 1]) << 16)
             | (ord($bytes[$cursor + 2]) << 8)
             | ord($bytes[$cursor + 3]);
+    }
+
+    private function readString(string $bytes, int &$cursor, int $listEnd): ?string
+    {
+        $stringConstructor = ord($bytes[$cursor]);
+        ++$cursor;
+
+        if ($stringConstructor === self::CONSTRUCTOR_STR8) {
+            if ($cursor >= $listEnd) {
+                throw PerformativeException::truncatedOpen();
+            }
+
+            $length = ord($bytes[$cursor]);
+            ++$cursor;
+        } elseif ($stringConstructor === self::CONSTRUCTOR_STR32) {
+            if ($cursor + 4 > $listEnd) {
+                throw PerformativeException::truncatedOpen();
+            }
+
+            $length = $this->readUInt32($bytes, $cursor);
+            $cursor += 4;
+        } else {
+            return null;
+        }
+
+        if ($cursor + $length > $listEnd) {
+            throw PerformativeException::truncatedOpen();
+        }
+
+        $value = substr($bytes, $cursor, $length);
+        $cursor += $length;
+
+        return $value;
     }
 }

@@ -4,16 +4,16 @@ Date: 2026-09-30
 
 ## Decision
 
-v1.0.0 is not ready to tag until the remaining release-readiness audit is
-completed.
+v1.0.0 public API stability is ready for the first stable compatibility
+commitment.
 
-Audit status: v1.0.0 is not ready to tag until release readiness is verified.
+Audit status: release readiness is verified in
+`docs/release-readiness-v1.0.0.md`.
 
-The current public client surface is close enough to begin the v1.0.0
-stabilization milestone, but it is not yet safe to promise backward
-compatibility for every public symbol that PHP exposes today. This audit
-separates the stable-candidate surface from the pre-1.0 cleanup work that must
-be completed before the final release.
+The public client surface has been narrowed and documented enough for the
+v1.0.0 stabilization milestone. This audit separates the stable-candidate
+surface from PHP-visible implementation details that remain outside the
+compatibility promise.
 
 ## Stable-Candidate User Surface
 
@@ -196,9 +196,5 @@ The v1.0.0 retry guidance is:
 
 ## Current Status
 
-Ready to continue v1.0.0 release-readiness auditing.
-
-Not ready to tag v1.0.0.
-
-The next implementation slice should refresh the v1.0.0 release-readiness
-audit against the committed API and production-hardening requirements.
+Ready for v1.0.0 tagging with the release-readiness audit as the final
+verification record.

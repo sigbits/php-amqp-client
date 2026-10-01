@@ -47,6 +47,31 @@ services:
     ports:
       - "56741:5671"
 
+  servicebus-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: Sigbits_ServiceBus_Emulator_2026!
+    ports:
+      - "51433:1433"
+
+  servicebus-emulator:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    platform: linux/amd64
+    depends_on:
+      - servicebus-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      SQL_SERVER: servicebus-sql
+      MSSQL_SA_PASSWORD: Sigbits_ServiceBus_Emulator_2026!
+    volumes:
+      - ./docker/broker/servicebus-emulator-config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
+    ports:
+      - "56750:5672"
+      - "58300:5300"
+
   toxiproxy:
     image: ghcr.io/shopify/toxiproxy:2.12.0
     ports:

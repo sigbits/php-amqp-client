@@ -1026,8 +1026,9 @@ final class PublicWorkerLifecycleTest extends TestCase
         );
 
         return sprintf(
-            'amqp://guest:guest@toxiproxy:%d',
+            'amqp://guest:guest@toxiproxy:%d?hostname=%s',
             $this->failureProxyPort($broker),
+            rawurlencode($broker),
         );
     }
 

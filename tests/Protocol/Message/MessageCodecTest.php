@@ -257,6 +257,20 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testDecodesDataBodyWhenDeliveryAnnotationsContainUnsupportedBrokerScalar(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(body: 'payload'),
+            $codec->decode(
+                "\x00\x53\x71\xc1\x21\x02"
+                    . "\xa3\x15x-opt-sequence-number\x80\x00\x00\x00\x00\x00\x00\x00\x01"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
     public function testEncodesMessageAnnotationsBeforeDataBody(): void
     {
         $codec = new MessageCodec();
@@ -325,6 +339,34 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testDecodesDataBodyWhenMessageAnnotationsContainUnsupportedBrokerScalar(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(body: 'payload'),
+            $codec->decode(
+                "\x00\x53\x72\xc1\x21\x02"
+                    . "\xa3\x15x-opt-sequence-number\x80\x00\x00\x00\x00\x00\x00\x00\x01"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
+    public function testDecodesDataBodyWhenMessageAnnotationsContainUnsupportedDescribedBrokerValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(body: 'payload'),
+            $codec->decode(
+                "\x00\x53\x72\xc1\x1d\x02"
+                    . "\xa3\x15x-opt-sequence-number\x00\x53\x80\x52\x01"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
     public function testEncodesPropertiesBeforeDataBody(): void
     {
         $codec = new MessageCodec();
@@ -360,6 +402,22 @@ final class MessageCodecTest extends TestCase
             ),
             $codec->decode(
                 "\x00\x53\x73\xc0\x2f\x07\xa1\x03123\x40\x40\xa1\x0dorder.created\x40\xa1\x03456\xa3\x10application/json"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
+    public function testDecodesDataBodyWhenPropertiesContainUnsupportedBrokerField(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                properties: new Properties(),
+            ),
+            $codec->decode(
+                "\x00\x53\x73\xc0\x07\x02\x40\xa0\x03abc"
                     . "\x00\x53\x75\xa0\x07payload",
             ),
         );

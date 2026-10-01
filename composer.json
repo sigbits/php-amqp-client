@@ -1,8 +1,24 @@
 {
     "name": "sigbits/php-amqp-client",
-    "description": "Pure PHP AMQP 1.0 client library.",
+    "description": "Pure PHP AMQP 1.0 client library in early development.",
     "type": "library",
-    "license": "proprietary",
+    "license": "MIT",
+    "keywords": [
+        "amqp",
+        "amqp-1.0",
+        "amqp10",
+        "artemis",
+        "azure-service-bus",
+        "messaging",
+        "qpid",
+        "rabbitmq"
+    ],
+    "homepage": "https://github.com/sigbits/php-amqp-client",
+    "support": {
+        "issues": "https://github.com/sigbits/php-amqp-client/issues",
+        "source": "https://github.com/sigbits/php-amqp-client",
+        "docs": "https://github.com/sigbits/php-amqp-client/blob/main/docs/user-guide.md"
+    },
     "require": {
         "php": "^8.3"
     },

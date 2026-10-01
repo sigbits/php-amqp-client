@@ -33,13 +33,22 @@ final class MakefileBrokerWorkflowTest extends TestCase
     {
         $makefile = self::makefile();
 
-        self::assertStringContainsString('$(BROKER_COMPOSE) up -d qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy', $makefile);
+        self::assertStringContainsString('$(BROKER_COMPOSE) up -d qpid artemis artemis-tls rabbitmq rabbitmq-tls servicebus-sql servicebus-emulator toxiproxy', $makefile);
         self::assertStringContainsString('$(BROKER_COMPOSE) exec -T rabbitmq rabbitmq-diagnostics -q ping', $makefile);
-        self::assertStringContainsString('$(BROKER_COMPOSE) stop qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy', $makefile);
+        self::assertStringContainsString('$(BROKER_COMPOSE) stop qpid artemis artemis-tls rabbitmq rabbitmq-tls servicebus-emulator servicebus-sql toxiproxy', $makefile);
         self::assertStringContainsString(
-            '$(BROKER_COMPOSE) rm --force --volumes qpid artemis artemis-tls rabbitmq rabbitmq-tls toxiproxy',
+            '$(BROKER_COMPOSE) rm --force --volumes qpid artemis artemis-tls rabbitmq rabbitmq-tls servicebus-emulator servicebus-sql toxiproxy',
             $makefile,
         );
+    }
+
+    public function testBrokerLifecycleIncludesAzureServiceBusEmulator(): void
+    {
+        $makefile = self::makefile();
+
+        self::assertStringContainsString('servicebus-emulator', $makefile);
+        self::assertStringContainsString('servicebus-sql', $makefile);
+        self::assertStringContainsString('Azure Service Bus emulator ready.', $makefile);
     }
 
     public function testBrokerRestartSuiteUsesHostOrchestrator(): void
@@ -129,12 +138,45 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('"58172:15672"', $compose);
     }
 
+    public function testBrokerComposeDefinesAzureServiceBusEmulator(): void
+    {
+        $compose = self::brokerCompose();
+        $config = self::serviceBusEmulatorConfig();
+
+        self::assertStringContainsString('servicebus-emulator:', $compose);
+        self::assertStringContainsString('image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest', $compose);
+        self::assertStringContainsString('SQL_SERVER: servicebus-sql', $compose);
+        self::assertStringContainsString('MSSQL_SA_PASSWORD:', $compose);
+        self::assertStringContainsString('ACCEPT_EULA: "Y"', $compose);
+        self::assertStringContainsString('./docker/broker/servicebus-emulator-config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro', $compose);
+        self::assertStringContainsString('"56750:5672"', $compose);
+        self::assertStringContainsString('"58300:5300"', $compose);
+        self::assertStringContainsString('servicebus-sql:', $compose);
+        self::assertStringContainsString('image: mcr.microsoft.com/mssql/server:2022-latest', $compose);
+        self::assertStringContainsString('"Name": "sbemulatorns"', $config);
+        self::assertStringContainsString('"Name": "sigbits.public.accept"', $config);
+    }
+
     public function testBrokerCompatibilityDocumentsSecurityMatrix(): void
     {
         $documentation = self::brokerCompatibilityDocumentation();
 
         self::assertStringContainsString('ActiveMQ Artemis and RabbitMQ 4 through local TLS endpoints', $documentation);
         self::assertStringContainsString('Qpid Broker-J TLS/SASL security coverage is not yet wired', $documentation);
+    }
+
+    public function testBrokerCompatibilityDocumentsAzureServiceBusEmulatorMatrix(): void
+    {
+        $documentation = self::brokerCompatibilityDocumentation();
+        $audit = self::v100ReleaseReadinessAudit();
+
+        self::assertStringContainsString('Azure Service Bus emulator', $documentation);
+        self::assertStringContainsString('AMQP TCP on `servicebus-emulator:5672`', $documentation);
+        self::assertStringContainsString('does not claim production Azure Service Bus cloud coverage', $documentation);
+        self::assertStringContainsString('Azure Service Bus emulator', $audit);
+        self::assertStringContainsString('Ready with documented gaps.', $audit);
+        self::assertStringContainsString('real Azure Service Bus cloud service remains an external-provider verification gap', $audit);
+        self::assertStringNotContainsString('Confirm the supported broker matrix and document every accepted gap in the', $audit);
     }
 
     public function testRoadmapLinksV090ReleaseReadinessAudit(): void
@@ -155,7 +197,7 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('[v1.0.0 Public API Stability Audit](api-stability-v1.0.0.md)', $roadmap);
         self::assertStringContainsString('Session, Sender, Receiver, and Delivery constructors are hidden from the supported public API', $audit);
         self::assertStringContainsString('Connection::connect() no longer exposes SaslStreamConnector', $audit);
-        self::assertStringContainsString('Begin v1.0.0 production-oriented release work', $roadmap);
+        self::assertStringContainsString('v1.0.0 production-oriented release work completed these API stability', $roadmap);
     }
 
     public function testV100ApiStabilityAuditDocumentsPublicSemantics(): void
@@ -169,6 +211,87 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('Receiver credit commitment', $audit);
         self::assertStringContainsString('Exception retry boundaries', $audit);
         self::assertStringContainsString('Documented and locked the committed user-facing message model', $roadmap);
+    }
+
+    public function testRoadmapLinksV100ReleaseReadinessAudit(): void
+    {
+        $roadmap = self::roadmap();
+        $audit = self::v100ReleaseReadinessAudit();
+
+        self::assertStringContainsString('[v1.0.0 Release Readiness Audit](release-readiness-v1.0.0.md)', $roadmap);
+        self::assertStringContainsString('v1.0.0 is ready to tag from the verified release candidate', $audit);
+        self::assertStringContainsString('Committed Public API', $audit);
+        self::assertStringContainsString('Production Hardening Gate', $audit);
+        self::assertStringContainsString('Supported Broker Matrix', $audit);
+        self::assertStringContainsString('User Documentation Gate', $audit);
+        self::assertStringContainsString('Release Blockers', $audit);
+    }
+
+    public function testV100UserDocumentationGateHasGuideCoverage(): void
+    {
+        $readme = self::readme();
+        $guide = self::userGuide();
+        $audit = self::v100ReleaseReadinessAudit();
+
+        self::assertStringContainsString('[User Guide](docs/user-guide.md)', $readme);
+        self::assertStringContainsString('### Installation', $guide);
+        self::assertStringContainsString('### Connection Configuration', $guide);
+        self::assertStringContainsString('### Sending Messages', $guide);
+        self::assertStringContainsString('### Receiving Messages', $guide);
+        self::assertStringContainsString('### Delivery Settlement', $guide);
+        self::assertStringContainsString('### Receiver Credit Management', $guide);
+        self::assertStringContainsString('### TLS', $guide);
+        self::assertStringContainsString('### SASL', $guide);
+        self::assertStringContainsString('### Retry Boundaries', $guide);
+        self::assertStringContainsString('### Broker Interoperability', $guide);
+        self::assertStringContainsString('### Long-Running Worker Operation', $guide);
+        self::assertStringContainsString('User Documentation Gate', $audit);
+        self::assertStringContainsString('Ready.', $audit);
+        self::assertStringNotContainsString('Complete the missing user-facing documentation gate.', $audit);
+    }
+
+    public function testDeveloperHowtoDocumentsContributorWorkflowAndTestTypes(): void
+    {
+        $readme = self::readme();
+        $howto = self::developerHowto();
+        $roadmap = self::roadmap();
+
+        self::assertStringContainsString('[Developer HOWTO](docs/developer-howto.md)', $readme);
+        self::assertStringContainsString('## Test Types', $howto);
+        self::assertStringContainsString('### Broker Integration Tests', $howto);
+        self::assertStringContainsString('### TLS/SASL Security Tests', $howto);
+        self::assertStringContainsString('### Long-Running Worker Tests', $howto);
+        self::assertStringContainsString('### Broker Restart Tests', $howto);
+        self::assertStringContainsString('### Soak Profiles', $howto);
+        self::assertStringContainsString('### Release Verification Matrix', $howto);
+        self::assertStringContainsString('## Why Tests Are Skipped', $howto);
+        self::assertStringContainsString('RUN_BROKER_TESTS=1', $howto);
+        self::assertStringContainsString('RUN_BROKER_SECURITY_TESTS=1', $howto);
+        self::assertStringContainsString('RUN_LONG_TESTS=1', $howto);
+        self::assertStringContainsString('[Developer HOWTO](developer-howto.md)', $roadmap);
+    }
+
+    public function testRoadmapDocumentsPostV1DeliveryAndTransportDirection(): void
+    {
+        $roadmap = self::roadmap();
+
+        self::assertStringContainsString('### v1.1: Developer Workflow and Receive Semantics', $roadmap);
+        self::assertStringContainsString('### v1.2: Delivery Consumption Ergonomics', $roadmap);
+        self::assertStringContainsString('### v1.5: Internal Transport Abstraction', $roadmap);
+        self::assertStringContainsString('### v1.6: Additional Transports', $roadmap);
+        self::assertStringContainsString('AMQP over WebSockets first if Azure Service Bus cloud coverage requires', $roadmap);
+        self::assertStringContainsString('raw socket backend only if it proves concrete value over streams', $roadmap);
+    }
+
+    private static function readme(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/README.md');
+
+        if ($contents === false) {
+            self::fail('Could not read README documentation.');
+        }
+
+        return $contents;
     }
 
     private static function makefile(): string
@@ -226,6 +349,39 @@ final class MakefileBrokerWorkflowTest extends TestCase
         return $contents;
     }
 
+    private static function v100ReleaseReadinessAudit(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/docs/release-readiness-v1.0.0.md');
+
+        if ($contents === false) {
+            self::fail('Could not read v1.0.0 release readiness audit.');
+        }
+
+        return $contents;
+    }
+
+    private static function userGuide(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/docs/user-guide.md');
+
+        if ($contents === false) {
+            self::fail('Could not read user guide documentation.');
+        }
+
+        return $contents;
+    }
+
+    private static function developerHowto(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/docs/developer-howto.md');
+
+        if ($contents === false) {
+            self::fail('Could not read developer HOWTO documentation.');
+        }
+
+        return $contents;
+    }
+
     private static function longProfileScript(): string
     {
         $contents = file_get_contents(dirname(__DIR__, 2) . '/tools/long-profile.sh');
@@ -243,6 +399,17 @@ final class MakefileBrokerWorkflowTest extends TestCase
 
         if ($contents === false) {
             self::fail('Could not read broker Docker Compose file.');
+        }
+
+        return $contents;
+    }
+
+    private static function serviceBusEmulatorConfig(): string
+    {
+        $contents = file_get_contents(dirname(__DIR__, 2) . '/docker/broker/servicebus-emulator-config.json');
+
+        if ($contents === false) {
+            self::fail('Could not read Azure Service Bus emulator config.');
         }
 
         return $contents;
