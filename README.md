@@ -9,13 +9,20 @@ later driven by blocking streams or async transports.
 
 ## Status
 
-The `v1.0.0` release is the first production-ready baseline for the documented
-support matrix. It includes the protocol engine foundation, sender and receiver
-link engines, synchronous PHP stream transport, TLS stream setup, SASL
-ANONYMOUS/PLAIN negotiation, practical AMQP message section encoding, and
-protocol/state hardening for the committed public client surface. The public
-API can open connections, begin/end AMQP sessions, send messages, receive
-messages, manage receiver credit, and settle deliveries.
+This project is in early development. The `v1.0.0` release is the first stable
+public API baseline for the documented synchronous workflows, not a
+feature-complete AMQP 1.0 client.
+
+It is suitable for evaluation and early production use when the documented
+support matrix matches the application requirements. The supported surface
+covers connection/session lifecycle, synchronous send/receive, receiver credit,
+delivery settlement, TLS streams, SASL ANONYMOUS/PLAIN, and practical
+string-oriented message sections.
+
+Major planned areas still include broader AMQP type-system coverage, improved
+delivery-consumption ergonomics, additional broker address forms, real Azure
+Service Bus cloud verification, AMQP over WebSockets, and internal transport
+abstraction work.
 
 For user-facing connection, messaging, settlement, security, retry, broker, and
 worker-operation guidance, see the [User Guide](docs/user-guide.md).
