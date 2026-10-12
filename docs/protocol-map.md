@@ -58,7 +58,7 @@ specification.
 | Symbol | partial | `Symbol` value object plus generic `sym8`/`sym32` encode/decode; SASL, message map keys, content type, and detach errors also have local support. | Type, codec, SASL, and message tests. | Container integration and broader higher-level codec adoption. | P1 | v1.5 |
 | Lists | implemented | `AmqpList`; generic encoder/decoder support `list0`, `list8`, `list32`, and nested lists. Local list parsing also exists in performative/message/SASL codecs. | Type, codec, performative, SASL, and message tests. | Adopt generic lists in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
 | Maps | implemented | `AmqpMap`; generic encoder/decoder support `map8`, `map32`, nested maps, mixed values, and arbitrary AMQP key/value shapes. Message maps still have constrained local parsing. | Type, codec, and message tests. | Adopt generic maps in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
-| Arrays | implemented | `AmqpArray`; generic encoder/decoder support `array8`, `array32`, simple element constructors, and nested arrays. SASL mechanisms still have local array8 parsing. | Type, codec, SASL mechanisms, and message tests. | Described-array constructors and adoption in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
+| Arrays | implemented | `AmqpArray`; generic encoder/decoder support `array8`, `array32`, primitive, compound, and described element constructors, and nested arrays. SASL mechanisms still have local array8 parsing. | Type, codec, SASL mechanisms, and message tests. | Adopt generic arrays in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
 | Described values | implemented | `AmqpDescribedValue`; generic encoder/decoder support numeric and symbolic descriptors plus nested described values. Message sections, performatives, SASL performatives, source/target, outcomes, and detach errors still have hard-coded local parsing. | Type, codec, and existing protocol tests. | Adopt generic described values in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
 | Malformed type input | partial | Current codecs reject selected truncation and unsupported constructor paths. | Codec, scalar reader, message, frame, and performative tests. | Property/fuzz coverage across the full type system. | P0 | v1.5 |
 
@@ -177,8 +177,8 @@ specification.
 
 ## Next Implementation Slice
 
-The next implementation slice should continue v1.5 groundwork: remaining
-generic container codec expansion.
+The next implementation slices should adopt the generic value model in
+higher-level codecs without mixing unrelated protocol behavior into one change.
 
 Note on decimals: PHP does not provide a native decimal floating-point type.
 The `Decimal32`, `Decimal64`, and `Decimal128` value objects therefore preserve
@@ -186,16 +186,20 @@ the exact AMQP decimal interchange bytes. They do not perform decimal
 arithmetic, normalization, or conversion to PHP `float`; those helpers should be
 designed explicitly if a future public API needs them.
 
-Recommended first concrete task:
+Recommended concrete slices:
 
-1. Adopt the generic value model in AMQP message section codecs where it reduces
-   duplicate scalar, container, and described-value parsing.
-2. Add failing exact-binary tests for broader AMQP value bodies, application
-   properties, annotations, and footers.
-3. Preserve the current strict malformed-payload behavior while widening
-   accepted AMQP value shapes.
-4. Follow with performative field expansion and delivery-state models in
-   separate slices.
+1. Message value bodies: widen AMQP value body encode/decode to arbitrary
+   generic AMQP values, including scalar, container, and described values.
+2. Message maps: widen application properties, annotations, and footers to the
+   generic map/value model while preserving strict malformed-payload behavior.
+3. Message properties: widen message-id and correlation-id choice handling plus
+   remaining timestamp, binary, string, symbol, and numeric fields.
+4. Performatives and terminus fields: replace duplicated local list/map parsing
+   where the generic codec reduces risk, then expand optional fields in focused
+   slices.
+5. Delivery states and outcomes: model received, accepted, rejected, released,
+   modified, and transactional-state as described values with exact binary
+   fixtures.
 
 This order keeps full protocol coverage measurable and prevents transport work
 from absorbing protocol bugs that should be caught in memory-level fixtures.

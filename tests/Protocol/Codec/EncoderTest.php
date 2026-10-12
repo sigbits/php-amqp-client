@@ -433,6 +433,32 @@ final class EncoderTest extends TestCase
         );
     }
 
+    public function testEncodesArray8WithDescribedElementConstructor(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame(
+            "\xe0\x0f\x02\x00\x53\x75\xc0\x04\x01\xa1\x01x\x04\x01\xa1\x01y",
+            $encoder->encode(new AmqpArray("\x00\x53\x75\xc0", [
+                new AmqpDescribedValue(new ULong(117), new AmqpList(['x'])),
+                new AmqpDescribedValue(new ULong(117), new AmqpList(['y'])),
+            ])),
+        );
+    }
+
+    public function testEncodesArray32WithDescribedElementConstructor(): void
+    {
+        $encoder = new Encoder();
+        $text = str_repeat('x', 256);
+
+        self::assertSame(
+            "\xf0\x00\x00\x01\x10\x00\x00\x00\x01\x00\xa3\x04desc\xb1\x00\x00\x01\x00" . $text,
+            $encoder->encode(new AmqpArray("\x00\xa3\x04desc\xb1", [
+                new AmqpDescribedValue(new Symbol('desc'), $text),
+            ])),
+        );
+    }
+
     public function testRejectsArrayItemWithMismatchedElementConstructor(): void
     {
         $encoder = new Encoder();
