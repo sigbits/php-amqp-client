@@ -187,7 +187,8 @@ protocol engine.
   message properties, and AMQP sequence bodies.
 - Preserve AMQP decimal32/decimal64/decimal128 values as exact interchange
   bytes unless a future public API explicitly designs decimal arithmetic or
-  conversion helpers; PHP has no native decimal floating-point type.
+  conversion helpers. PHP has no native decimal floating-point type, so these
+  values must not be silently converted to PHP `float`.
 - Keep existing string-oriented message usage backwards compatible while
   widening message surfaces to richer AMQP value objects.
 
@@ -243,7 +244,8 @@ protocol engine.
   boundary.
 - Preserve AMQP decimal32/decimal64/decimal128 values as exact interchange
   bytes unless a future public API explicitly designs decimal arithmetic or
-  conversion helpers; PHP has no native decimal floating-point type.
+  conversion helpers. PHP has no native decimal floating-point type, so these
+  values must not be silently converted to PHP `float`.
 - Build property/fuzz tests and exact binary fixtures for every constructor,
   truncation path, unsupported constructor path, and round-trip guarantee.
 

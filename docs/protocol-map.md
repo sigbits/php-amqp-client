@@ -183,8 +183,9 @@ higher-level codecs without mixing unrelated protocol behavior into one change.
 Note on decimals: PHP does not provide a native decimal floating-point type.
 The `Decimal32`, `Decimal64`, and `Decimal128` value objects therefore preserve
 the exact AMQP decimal interchange bytes. They do not perform decimal
-arithmetic, normalization, or conversion to PHP `float`; those helpers should be
-designed explicitly if a future public API needs them.
+arithmetic, normalization, or conversion to PHP `float`, and callers must not
+receive a silent float conversion. Those helpers should be designed explicitly
+if a future public API needs them.
 
 Recommended concrete slices:
 
