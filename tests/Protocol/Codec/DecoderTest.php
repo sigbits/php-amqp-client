@@ -7,6 +7,7 @@ namespace Sigbits\Amqp\Tests\Protocol\Codec;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
+use Sigbits\Amqp\Protocol\Type\AmqpArray;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
@@ -754,6 +755,96 @@ final class DecoderTest extends TestCase
         $this->expectExceptionMessage('Truncated AMQP map value.');
 
         $decoder->decode("\xd1\x00\x00\x00\x04\x00\x00\x00");
+    }
+
+    public function testDecodesEmptyArray8(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new AmqpArray("\xa3", []), $decoder->decode("\xe0\x02\x00\xa3"));
+    }
+
+    public function testDecodesSymbolArray8(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpArray("\xa3", [new Symbol('a'), new Symbol('bb')]),
+            $decoder->decode("\xe0\x07\x02\xa3\x01a\x02bb"),
+        );
+    }
+
+    public function testDecodesUIntArray8(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpArray("\x70", [new UInt(1), new UInt(2)]),
+            $decoder->decode("\xe0\x0a\x02\x70\x00\x00\x00\x01\x00\x00\x00\x02"),
+        );
+    }
+
+    public function testDecodesNestedArray8(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpArray("\xe0", [
+                new AmqpArray("\xa3", [new Symbol('x')]),
+            ]),
+            $decoder->decode("\xe0\x07\x01\xe0\x04\x01\xa3\x01x"),
+        );
+    }
+
+    public function testDecodesArray32(): void
+    {
+        $decoder = new Decoder();
+        $text = str_repeat('x', 256);
+
+        self::assertEquals(
+            new AmqpArray("\xb1", [$text]),
+            $decoder->decode("\xf0\x00\x00\x01\x09\x00\x00\x00\x01\xb1\x00\x00\x01\x00" . $text),
+        );
+    }
+
+    public function testRejectsTruncatedArray8Header(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP array value.');
+
+        $decoder->decode("\xe0\x02\x00");
+    }
+
+    public function testRejectsTruncatedArray8Payload(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP array value.');
+
+        $decoder->decode("\xe0\x04\x01\xa3\x02x");
+    }
+
+    public function testRejectsMalformedArray8Size(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Malformed AMQP array value.');
+
+        $decoder->decode("\xe0\x01\x00");
+    }
+
+    public function testRejectsTruncatedArray32Header(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP array value.');
+
+        $decoder->decode("\xf0\x00\x00\x00\x05\x00\x00\x00\x00");
     }
 
     public function testRejectsUnsupportedFormatCode(): void
