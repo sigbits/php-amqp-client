@@ -14,6 +14,7 @@ use Sigbits\Amqp\Protocol\Type\AmqpDescribedValue;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Symbol;
+use Sigbits\Amqp\Protocol\Type\UByte;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\ULong;
 
@@ -51,33 +52,20 @@ final class AttachCodec
 
     public function encode(Attach $attach): string
     {
-        $fields = $this->encodeString($attach->name)
-            . $this->encodeUInt($attach->handle)
-            . ($attach->role === LinkRole::Receiver ? "\x41" : "\x42");
-        $fieldCount = 3;
+        $fields = $this->attachFields($attach);
+        $fieldCount = count($fields);
+        $encodedFields = implode('', array_map(
+            static fn (?string $field): string => $field ?? chr(self::CONSTRUCTOR_NULL),
+            $fields,
+        ));
 
-        if ($attach->source !== null || $attach->target !== null || $attach->initialDeliveryCount !== null) {
-            $fields .= chr(self::CONSTRUCTOR_NULL)
-                . chr(self::CONSTRUCTOR_NULL)
-                . ($attach->source !== null ? $this->encodeSource($attach->source) : chr(self::CONSTRUCTOR_NULL))
-                . ($attach->target !== null ? $this->encodeTarget($attach->target) : chr(self::CONSTRUCTOR_NULL));
-            $fieldCount = 7;
-        }
-
-        if ($attach->initialDeliveryCount !== null) {
-            $fields .= chr(self::CONSTRUCTOR_NULL)
-                . chr(self::CONSTRUCTOR_NULL)
-                . $this->encodeCompactUInt($attach->initialDeliveryCount);
-            $fieldCount = 10;
-        }
-
-        $listSize = 1 + strlen($fields);
+        $listSize = 1 + strlen($encodedFields);
 
         return self::DESCRIPTOR
             . chr(self::CONSTRUCTOR_LIST8)
             . chr($listSize)
             . chr($fieldCount)
-            . $fields;
+            . $encodedFields;
     }
 
     public function decode(string $bytes): Attach
@@ -127,13 +115,15 @@ final class AttachCodec
         $source = null;
         $target = null;
         $initialDeliveryCount = null;
+        $senderSettleMode = null;
+        $receiverSettleMode = null;
 
         if ($fieldCount >= 4) {
-            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+            [$senderSettleMode, $cursor] = $this->decodeNullableSettlementMode($bytes, $cursor, $listEnd, 2);
         }
 
         if ($fieldCount >= 5) {
-            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+            [$receiverSettleMode, $cursor] = $this->decodeNullableSettlementMode($bytes, $cursor, $listEnd, 1);
         }
 
         if ($fieldCount >= 6) {
@@ -171,6 +161,8 @@ final class AttachCodec
             source: $source,
             target: $target,
             initialDeliveryCount: $initialDeliveryCount,
+            senderSettleMode: $senderSettleMode,
+            receiverSettleMode: $receiverSettleMode,
         );
     }
 
@@ -199,6 +191,11 @@ final class AttachCodec
         return $this->encodeUInt($value);
     }
 
+    private function encodeSettlementMode(int $value): string
+    {
+        return $this->encoder->encode(new UByte($value));
+    }
+
     private function encodeSource(Source $source): string
     {
         return "\x00\x53\x28" . $this->encoder->encode(new AmqpList($this->sourceFields($source)));
@@ -207,6 +204,41 @@ final class AttachCodec
     private function encodeTarget(Target $target): string
     {
         return "\x00\x53\x29" . $this->encoder->encode(new AmqpList($this->targetFields($target)));
+    }
+
+    /**
+     * @return list<string|null>
+     */
+    private function attachFields(Attach $attach): array
+    {
+        $minimumFieldCount = $attach->source !== null || $attach->target !== null || $attach->initialDeliveryCount !== null ? 7 : 3;
+
+        return $this->trimAttachFields([
+            $this->encodeString($attach->name),
+            $this->encodeUInt($attach->handle),
+            $attach->role === LinkRole::Receiver ? "\x41" : "\x42",
+            $attach->senderSettleMode === null ? null : $this->encodeSettlementMode($attach->senderSettleMode),
+            $attach->receiverSettleMode === null ? null : $this->encodeSettlementMode($attach->receiverSettleMode),
+            $attach->source === null ? null : $this->encodeSource($attach->source),
+            $attach->target === null ? null : $this->encodeTarget($attach->target),
+            null,
+            null,
+            $attach->initialDeliveryCount === null ? null : $this->encodeCompactUInt($attach->initialDeliveryCount),
+        ], $minimumFieldCount);
+    }
+
+    /**
+     * @param list<string|null> $fields
+     *
+     * @return list<string|null>
+     */
+    private function trimAttachFields(array $fields, int $minimumFieldCount): array
+    {
+        while (count($fields) > $minimumFieldCount && end($fields) === null) {
+            array_pop($fields);
+        }
+
+        return $fields;
     }
 
     /**
@@ -274,6 +306,32 @@ final class AttachCodec
             self::CONSTRUCTOR_BOOL => $this->decodeBooleanRole($bytes, $cursor, $listEnd),
             default => throw PerformativeException::missingAttachRequiredFields(),
         };
+    }
+
+    /**
+     * @return array{0: int|null, 1: int}
+     */
+    private function decodeNullableSettlementMode(string $bytes, int $cursor, int $listEnd, int $max): array
+    {
+        if ($cursor >= $listEnd) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor + 1];
+        }
+
+        try {
+            [$value, $consumed] = $this->decoder->decodeWithConsumed(substr($bytes, $cursor, $listEnd - $cursor));
+        } catch (DecodeException|InvalidArgumentException) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (!$value instanceof UByte || $value->value > $max) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        return [$value->value, $cursor + $consumed];
     }
 
     /**

@@ -62,6 +62,8 @@ final class AttachCodecTest extends TestCase
                 handle: 0,
                 role: LinkRole::Receiver,
                 targetAddress: 'orders.test',
+                senderSettleMode: 2,
+                receiverSettleMode: 0,
             ),
             $codec->decode(
                 "\x00\x53\x12\xc0\x23\x07\xa1\x06sender"
@@ -73,6 +75,24 @@ final class AttachCodecTest extends TestCase
                 . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test",
             ),
         );
+    }
+
+    public function testDecodesAttachSettlementModes(): void
+    {
+        $codec = new AttachCodec();
+
+        $attach = $codec->decode(
+            "\x00\x53\x12\xc0\x23\x07\xa1\x06sender"
+            . "\x43"
+            . "\x41"
+            . "\x50\x02"
+            . "\x50\x00"
+            . "\x40"
+            . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test",
+        );
+
+        self::assertSame(2, $attach->senderSettleMode);
+        self::assertSame(0, $attach->receiverSettleMode);
     }
 
     public function testEncodesAttachWithSourceAndTargetTermini(): void
@@ -456,6 +476,29 @@ final class AttachCodecTest extends TestCase
                 handle: 0,
                 role: LinkRole::Sender,
                 targetAddress: 'orders.test',
+            )),
+        );
+    }
+
+    public function testEncodesAttachSettlementModes(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertSame(
+            "\x00\x53\x12\xc0\x27\x07\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x50\x02"
+            . "\x50\x00"
+            . "\x40"
+            . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test",
+            $codec->encode(new Attach(
+                name: 'sender',
+                handle: 0,
+                role: LinkRole::Sender,
+                targetAddress: 'orders.test',
+                senderSettleMode: 2,
+                receiverSettleMode: 0,
             )),
         );
     }
