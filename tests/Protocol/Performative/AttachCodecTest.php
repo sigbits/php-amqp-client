@@ -92,6 +92,39 @@ final class AttachCodecTest extends TestCase
         );
     }
 
+    public function testEncodesAttachWithSourceAndTargetLifecycleFields(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertSame(
+            "\x00\x53\x12\xc0\x4f\x07\xa1\x04link"
+            . "\x70\x00\x00\x00\x00"
+            . "\x41"
+            . "\x40\x40"
+            . "\x00\x53\x28\xc0\x1b\x05\xa1\x06source\x70\x00\x00\x00\x01\xa3\x05never\x70\x00\x00\x00\x3c\x41"
+            . "\x00\x53\x29\xc0\x1b\x05\xa1\x06target\x70\x00\x00\x00\x02\xa3\x05never\x70\x00\x00\x00\x78\x42",
+            $codec->encode(new Attach(
+                name: 'link',
+                handle: 0,
+                role: LinkRole::Receiver,
+                source: new Source(
+                    address: 'source',
+                    durable: 1,
+                    expiryPolicy: 'never',
+                    timeout: 60,
+                    dynamic: true,
+                ),
+                target: new Target(
+                    address: 'target',
+                    durable: 2,
+                    expiryPolicy: 'never',
+                    timeout: 120,
+                    dynamic: false,
+                ),
+            )),
+        );
+    }
+
     public function testDecodesAttachWithSourceAndTargetTermini(): void
     {
         $codec = new AttachCodec();
@@ -111,6 +144,41 @@ final class AttachCodecTest extends TestCase
                 . "\x40\x40"
                 . "\x00\x53\x28\xc0\x09\x01\xa1\x06source"
                 . "\x00\x53\x29\xc0\x09\x01\xa1\x06target",
+            ),
+        );
+    }
+
+    public function testDecodesAttachWithSourceAndTargetLifecycleFields(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertEquals(
+            new Attach(
+                name: 'link',
+                handle: 0,
+                role: LinkRole::Receiver,
+                source: new Source(
+                    address: 'source',
+                    durable: 1,
+                    expiryPolicy: 'never',
+                    timeout: 60,
+                    dynamic: true,
+                ),
+                target: new Target(
+                    address: 'target',
+                    durable: 2,
+                    expiryPolicy: 'never',
+                    timeout: 120,
+                    dynamic: false,
+                ),
+            ),
+            $codec->decode(
+                "\x00\x53\x12\xc0\x4b\x07\xa1\x04link"
+                . "\x43"
+                . "\x41"
+                . "\x40\x40"
+                . "\x00\x53\x28\xc0\x1b\x05\xa1\x06source\x70\x00\x00\x00\x01\xa3\x05never\x70\x00\x00\x00\x3c\x41"
+                . "\x00\x53\x29\xc0\x1b\x05\xa1\x06target\x70\x00\x00\x00\x02\xa3\x05never\x70\x00\x00\x00\x78\x42",
             ),
         );
     }

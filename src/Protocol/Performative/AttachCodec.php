@@ -7,9 +7,11 @@ namespace Sigbits\Amqp\Protocol\Performative;
 use InvalidArgumentException;
 use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
+use Sigbits\Amqp\Protocol\Codec\Encoder;
 use Sigbits\Amqp\Protocol\Codec\ScalarReader;
 use Sigbits\Amqp\Protocol\Type\AmqpDescribedValue;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
+use Sigbits\Amqp\Protocol\Type\Symbol;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\ULong;
 
@@ -27,16 +29,19 @@ final class AttachCodec
     private const int CONSTRUCTOR_SMALLUINT = 0x52;
     private const int CONSTRUCTOR_BOOL = 0x56;
     private const int CONSTRUCTOR_UINT = 0x70;
-    private const string SOURCE_DESCRIPTOR = "\x00\x53\x28";
-    private const string TARGET_DESCRIPTOR = "\x00\x53\x29";
 
     private readonly ScalarReader $scalarReader;
     private readonly Decoder $decoder;
+    private readonly Encoder $encoder;
 
-    public function __construct(?ScalarReader $scalarReader = null, ?Decoder $decoder = null)
-    {
+    public function __construct(
+        ?ScalarReader $scalarReader = null,
+        ?Decoder $decoder = null,
+        ?Encoder $encoder = null,
+    ) {
         $this->scalarReader = $scalarReader ?? new ScalarReader();
         $this->decoder = $decoder ?? new Decoder();
+        $this->encoder = $encoder ?? new Encoder();
     }
 
     public function encode(Attach $attach): string
@@ -177,28 +182,12 @@ final class AttachCodec
 
     private function encodeSource(Source $source): string
     {
-        if ($source->address === null) {
-            return self::SOURCE_DESCRIPTOR . chr(self::CONSTRUCTOR_LIST0);
-        }
-
-        return self::SOURCE_DESCRIPTOR
-            . chr(self::CONSTRUCTOR_LIST8)
-            . chr(1 + strlen($this->encodeString($source->address)))
-            . "\x01"
-            . $this->encodeString($source->address);
+        return "\x00\x53\x28" . $this->encoder->encode(new AmqpList($this->sourceFields($source)));
     }
 
     private function encodeTarget(Target $target): string
     {
-        if ($target->address === null) {
-            return self::TARGET_DESCRIPTOR . chr(self::CONSTRUCTOR_LIST0);
-        }
-
-        return self::TARGET_DESCRIPTOR
-            . chr(self::CONSTRUCTOR_LIST8)
-            . chr(1 + strlen($this->encodeString($target->address)))
-            . "\x01"
-            . $this->encodeString($target->address);
+        return "\x00\x53\x29" . $this->encoder->encode(new AmqpList($this->targetFields($target)));
     }
 
     /**
@@ -300,7 +289,7 @@ final class AttachCodec
             throw PerformativeException::truncatedAttach();
         }
 
-        return [new Source($this->terminusAddress($value)), $cursor];
+        return [$this->sourceFromTerminus($value), $cursor];
     }
 
     /**
@@ -318,7 +307,7 @@ final class AttachCodec
             throw PerformativeException::truncatedAttach();
         }
 
-        return [new Target($this->terminusAddress($value)), $cursor];
+        return [$this->targetFromTerminus($value), $cursor];
     }
 
     /**
@@ -347,23 +336,132 @@ final class AttachCodec
         return [$value, $cursor + $consumed];
     }
 
-    private function terminusAddress(AmqpDescribedValue $value): ?string
+    /**
+     * @return list<mixed>
+     */
+    private function sourceFields(Source $source): array
+    {
+        return $this->trimTerminusFields([
+            $source->address,
+            $source->durable === null ? null : new UInt($source->durable),
+            $source->expiryPolicy === null ? null : new Symbol($source->expiryPolicy),
+            $source->timeout === null ? null : new UInt($source->timeout),
+            $source->dynamic,
+        ]);
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    private function targetFields(Target $target): array
+    {
+        return $this->trimTerminusFields([
+            $target->address,
+            $target->durable === null ? null : new UInt($target->durable),
+            $target->expiryPolicy === null ? null : new Symbol($target->expiryPolicy),
+            $target->timeout === null ? null : new UInt($target->timeout),
+            $target->dynamic,
+        ]);
+    }
+
+    /**
+     * @param list<mixed> $fields
+     *
+     * @return list<mixed>
+     */
+    private function trimTerminusFields(array $fields): array
+    {
+        while ($fields !== [] && end($fields) === null) {
+            array_pop($fields);
+        }
+
+        return $fields;
+    }
+
+    private function sourceFromTerminus(AmqpDescribedValue $value): Source
+    {
+        $fields = $this->terminusFields($value);
+
+        return new Source(
+            address: $this->nullableString($fields[0] ?? null),
+            durable: $this->nullableUInt($fields[1] ?? null),
+            expiryPolicy: $this->nullableSymbol($fields[2] ?? null),
+            timeout: $this->nullableUInt($fields[3] ?? null),
+            dynamic: $this->nullableBool($fields[4] ?? null),
+        );
+    }
+
+    private function targetFromTerminus(AmqpDescribedValue $value): Target
+    {
+        $fields = $this->terminusFields($value);
+
+        return new Target(
+            address: $this->nullableString($fields[0] ?? null),
+            durable: $this->nullableUInt($fields[1] ?? null),
+            expiryPolicy: $this->nullableSymbol($fields[2] ?? null),
+            timeout: $this->nullableUInt($fields[3] ?? null),
+            dynamic: $this->nullableBool($fields[4] ?? null),
+        );
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    private function terminusFields(AmqpDescribedValue $value): array
     {
         if ($value->value instanceof AmqpList && $value->value->items === []) {
-            return null;
+            return [];
         }
 
         if (!$value->value instanceof AmqpList) {
             throw PerformativeException::truncatedAttach();
         }
 
-        $address = $value->value->items[0] ?? null;
+        return $value->value->items;
+    }
 
-        if ($address !== null && !is_string($address)) {
-            throw PerformativeException::truncatedAttach();
+    private function nullableString(mixed $value): ?string
+    {
+        if ($value === null || is_string($value)) {
+            return $value;
         }
 
-        return $address;
+        throw PerformativeException::truncatedAttach();
+    }
+
+    private function nullableUInt(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof UInt) {
+            return $value->value;
+        }
+
+        throw PerformativeException::truncatedAttach();
+    }
+
+    private function nullableSymbol(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof Symbol) {
+            return $value->value;
+        }
+
+        throw PerformativeException::truncatedAttach();
+    }
+
+    private function nullableBool(mixed $value): ?bool
+    {
+        if ($value === null || is_bool($value)) {
+            return $value;
+        }
+
+        throw PerformativeException::truncatedAttach();
     }
 
     private function skipValue(string $bytes, int $cursor, int $listEnd): int
