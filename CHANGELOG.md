@@ -9,6 +9,45 @@ must have release notes in this file before the tag is created.
 
 No unreleased changes.
 
+## v1.1.0 - 2026-10-12
+
+### Added
+
+- Generic AMQP 1.0 primitive codec coverage for `ulong`, `binary`, `string`,
+  and `symbol` values.
+- Generic AMQP 1.0 primitive codec coverage for `float`, `double`,
+  `timestamp`, and `uuid` values.
+- Generic AMQP 1.0 primitive codec coverage for `decimal32`, `decimal64`,
+  `decimal128`, and `char` values.
+- Strict value objects for AMQP primitive types that cannot be represented
+  unambiguously by PHP native scalar types.
+- AMQP 1.0 protocol coverage map for tracking remaining protocol, message,
+  settlement, transaction, and transport work.
+
+### Changed
+
+- AMQP decimal value objects preserve exact interchange bytes instead of
+  converting through PHP `float`, because PHP has no native decimal
+  floating-point type.
+- Post-v1 roadmap now prioritizes full protocol coverage before additional
+  transport backends.
+
+### Maintenance
+
+- Added CODEOWNERS metadata for repository ownership enforcement.
+
+## v1.0.1 - 2026-09-30
+
+### Added
+
+- Package metadata, MIT license file, developer HOWTO, user guide, broker
+  compatibility documentation, and v1.0.0 release-readiness audit updates.
+
+### Fixed
+
+- Additional AMQP message and connection-open compatibility hardening needed
+  for the documented v1.0.0 supported surface.
+
 ## v1.0.0 - 2026-09-30
 
 ### Added
