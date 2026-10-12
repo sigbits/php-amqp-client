@@ -121,7 +121,7 @@ specification.
 | Application properties | partial | Constrained map model. | `MessageCodecTest` | Full scalar/container values and string32/map32 support. | P0 | v1.4 |
 | DATA body | partial | `vbin8` and `vbin32` DATA sections. | Message and integration tests. | Multiple DATA sections and generic binary value integration. | P0 | v1.4 |
 | AMQP sequence body | partial | list8 of strings. | `MessageCodecTest` | Multiple sequence sections and arbitrary AMQP values. | P1 | v1.4 |
-| AMQP value body | partial | string8 only. | `MessageCodecTest` | Any single AMQP value, including null, scalar, compound, described, and binary values. | P0 | v1.4 |
+| AMQP value body | implemented | Any single generic AMQP value; `Message::$bodyValue` carries non-string values and explicit null, while string values remain available through `Message::$body` for backwards compatibility. | `MessageCodecTest`; generic codec tests. | Multiple AMQP value body sections are deliberately out of scope because the AMQP message body admits at most one `amqp-value` section. | P0 | v1.4 |
 | Footer | partial | Constrained map model. | `MessageCodecTest` | Full map value support and map32. | P1 | v1.4 |
 | Message format | partial | Transfer message-format is fixed to `0`. | Transfer and engine tests. | Validation and public behavior for non-zero message formats. | P2 | v1.6 |
 
@@ -188,16 +188,14 @@ designed explicitly if a future public API needs them.
 
 Recommended concrete slices:
 
-1. Message value bodies: widen AMQP value body encode/decode to arbitrary
-   generic AMQP values, including scalar, container, and described values.
-2. Message maps: widen application properties, annotations, and footers to the
+1. Message maps: widen application properties, annotations, and footers to the
    generic map/value model while preserving strict malformed-payload behavior.
-3. Message properties: widen message-id and correlation-id choice handling plus
+2. Message properties: widen message-id and correlation-id choice handling plus
    remaining timestamp, binary, string, symbol, and numeric fields.
-4. Performatives and terminus fields: replace duplicated local list/map parsing
+3. Performatives and terminus fields: replace duplicated local list/map parsing
    where the generic codec reduces risk, then expand optional fields in focused
    slices.
-5. Delivery states and outcomes: model received, accepted, rejected, released,
+4. Delivery states and outcomes: model received, accepted, rejected, released,
    modified, and transactional-state as described values with exact binary
    fixtures.
 

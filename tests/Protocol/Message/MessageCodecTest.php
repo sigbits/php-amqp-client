@@ -11,10 +11,15 @@ use Sigbits\Amqp\Protocol\Message\MessageBodySection;
 use Sigbits\Amqp\Protocol\Message\MessageCodec;
 use Sigbits\Amqp\Protocol\Message\MessageException;
 use Sigbits\Amqp\Protocol\Message\Properties;
+use Sigbits\Amqp\Protocol\Type\AmqpDescribedValue;
+use Sigbits\Amqp\Protocol\Type\AmqpList;
+use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\Long_;
 use Sigbits\Amqp\Protocol\Type\Short;
+use Sigbits\Amqp\Protocol\Type\UInt;
+use Sigbits\Amqp\Protocol\Type\ULong;
 
 final class MessageCodecTest extends TestCase
 {
@@ -76,14 +81,162 @@ final class MessageCodecTest extends TestCase
     public function testDecodesAmqpValueBodyMessage(): void
     {
         $codec = new MessageCodec();
+        $message = $codec->decode("\x00\x53\x77\xa1\x05hello");
 
         self::assertEquals(
             new Message(
                 body: 'hello',
                 bodySection: MessageBodySection::AmqpValue,
             ),
-            $codec->decode("\x00\x53\x77\xa1\x05hello"),
+            $message,
         );
+        self::assertFalse($message->hasBodyValue());
+    }
+
+    public function testEncodesAmqpValueBodyWithGenericList(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x77\xc0\x0f\x03\xa1\x06orders\x70\x00\x00\x00\x2a\x41",
+            $codec->encode(new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpValue,
+                bodyValue: new AmqpList(['orders', new UInt(42), true]),
+            )),
+        );
+    }
+
+    public function testDecodesAmqpValueBodyWithGenericList(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpValue,
+                bodyValue: new AmqpList(['orders', new UInt(42), true]),
+            ),
+            $codec->decode("\x00\x53\x77\xc0\x0f\x03\xa1\x06orders\x70\x00\x00\x00\x2a\x41"),
+        );
+    }
+
+    public function testEncodesAmqpValueBodyWithBinaryValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x77\xa0\x03abc",
+            $codec->encode(new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpValue,
+                bodyValue: new Binary('abc'),
+            )),
+        );
+    }
+
+    public function testDecodesAmqpValueBodyWithBinaryValue(): void
+    {
+        $codec = new MessageCodec();
+        $message = $codec->decode("\x00\x53\x77\xa0\x03abc");
+
+        self::assertEquals(
+            new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpValue,
+                bodyValue: new Binary('abc'),
+            ),
+            $message,
+        );
+        self::assertTrue($message->hasBodyValue());
+    }
+
+    public function testEncodesAmqpValueBodyWithDescribedValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x77\x00\x53\x75\xc0\x04\x01\xa1\x01x",
+            $codec->encode(new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpValue,
+                bodyValue: new AmqpDescribedValue(new ULong(117), new AmqpList(['x'])),
+            )),
+        );
+    }
+
+    public function testDecodesAmqpValueBodyWithDescribedValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpValue,
+                bodyValue: new AmqpDescribedValue(new ULong(117), new AmqpList(['x'])),
+            ),
+            $codec->decode("\x00\x53\x77\x00\x53\x75\xc0\x04\x01\xa1\x01x"),
+        );
+    }
+
+    public function testEncodesAmqpValueBodyWithNullValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x77\x40",
+            $codec->encode(new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpValue,
+                bodyValue: null,
+            )),
+        );
+    }
+
+    public function testDecodesAmqpValueBodyWithNullValue(): void
+    {
+        $codec = new MessageCodec();
+        $message = $codec->decode("\x00\x53\x77\x40");
+
+        self::assertEquals(
+            new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpValue,
+                bodyValue: null,
+            ),
+            $message,
+        );
+        self::assertTrue($message->hasBodyValue());
+    }
+
+    public function testDecodesFooterAfterAmqpValueBody(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpValue,
+                footer: [
+                    'checksum' => 'abc123',
+                ],
+                bodyValue: new Binary('abc'),
+            ),
+            $codec->decode(
+                "\x00\x53\x77\xa0\x03abc"
+                    . "\x00\x53\x78\xc1\x13\x02\xa3\x08checksum\xa1\x06abc123",
+            ),
+        );
+    }
+
+    public function testRejectsTruncatedAmqpValueBody(): void
+    {
+        $codec = new MessageCodec();
+
+        $this->expectException(MessageException::class);
+        $this->expectExceptionMessage('Truncated AMQP value body section.');
+
+        $codec->decode("\x00\x53\x77\xa1\x02x");
     }
 
     public function testEncodesAmqpSequenceBodyMessage(): void

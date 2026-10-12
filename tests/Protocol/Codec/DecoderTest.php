@@ -32,6 +32,13 @@ use Sigbits\Amqp\Protocol\Type\Uuid;
 
 final class DecoderTest extends TestCase
 {
+    public function testDecodesValueWithConsumedByteCount(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertSame(['hello', 7], $decoder->decodeWithConsumed("\xa1\x05hello\x40"));
+    }
+
     public function testDecodesNullEncodingAsNull(): void
     {
         $decoder = new Decoder();

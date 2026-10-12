@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Message;
 
+use Sigbits\Amqp\Protocol\Codec\DecodeException;
+use Sigbits\Amqp\Protocol\Codec\Decoder;
+use Sigbits\Amqp\Protocol\Codec\Encoder;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\Long_;
@@ -97,10 +100,7 @@ final class MessageCodec
         $sections .= match ($message->bodySection) {
             MessageBodySection::Data => $this->encodeDataBody($message->body),
             MessageBodySection::AmqpSequence => $this->encodeAmqpSequenceBody($message->bodySequence),
-            MessageBodySection::AmqpValue => self::AMQP_VALUE_DESCRIPTOR
-                . chr(self::CONSTRUCTOR_STRING8)
-                . chr(strlen($message->body))
-                . $message->body,
+            MessageBodySection::AmqpValue => $this->encodeAmqpValueBody($message),
         };
 
         if ($message->footer !== []) {
@@ -186,13 +186,14 @@ final class MessageCodec
             throw MessageException::unsupportedAmqpSequenceEncoding();
         }
 
-        if ($bodySection === MessageBodySection::AmqpValue && $bodyConstructor !== self::CONSTRUCTOR_STRING8) {
-            throw MessageException::unsupportedAmqpValueEncoding();
-        }
+        $bodyValue = new UnsetMessageBodyValue();
 
         if ($bodySection === MessageBodySection::AmqpSequence) {
             [$bodySequence, $cursor] = $this->decodeAmqpSequenceBody($bytes, $cursor);
             $body = '';
+        } elseif ($bodySection === MessageBodySection::AmqpValue) {
+            [$body, $bodyValue, $cursor] = $this->decodeAmqpValueBody($bytes, $cursor);
+            $bodySequence = [];
         } else {
             if ($bodyConstructor === self::CONSTRUCTOR_VBIN32) {
                 ++$cursor;
@@ -242,6 +243,7 @@ final class MessageCodec
             properties: $properties,
             applicationProperties: $applicationProperties,
             footer: $footer,
+            bodyValue: $bodyValue,
         );
     }
 
@@ -258,6 +260,13 @@ final class MessageCodec
             . chr(self::CONSTRUCTOR_VBIN32)
             . pack('N', strlen($body))
             . $body;
+    }
+
+    private function encodeAmqpValueBody(Message $message): string
+    {
+        $value = $message->hasBodyValue() ? $message->bodyValue : $message->body;
+
+        return self::AMQP_VALUE_DESCRIPTOR . (new Encoder())->encode($value);
     }
 
     private function encodeHeader(Header $header): string
@@ -656,6 +665,28 @@ final class MessageCodec
         }
 
         return [$items, $cursor];
+    }
+
+    /**
+     * @return array{0: string, 1: mixed, 2: int}
+     */
+    private function decodeAmqpValueBody(string $bytes, int $cursor): array
+    {
+        try {
+            [$value, $consumed] = (new Decoder())->decodeWithConsumed(substr($bytes, $cursor));
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
+                throw MessageException::truncatedAmqpValueBody();
+            }
+
+            throw MessageException::malformedAmqpValueBody();
+        }
+
+        if (is_string($value)) {
+            return [$value, new UnsetMessageBodyValue(), $cursor + $consumed];
+        }
+
+        return ['', $value, $cursor + $consumed];
     }
 
     /**

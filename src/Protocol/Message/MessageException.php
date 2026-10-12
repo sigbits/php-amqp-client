@@ -23,6 +23,16 @@ final class MessageException extends RuntimeException
         return new self('AMQP value body must use string8 encoding.');
     }
 
+    public static function malformedAmqpValueBody(): self
+    {
+        return new self('Malformed AMQP value body section.');
+    }
+
+    public static function truncatedAmqpValueBody(): self
+    {
+        return new self('Truncated AMQP value body section.');
+    }
+
     public static function unsupportedAmqpSequenceEncoding(): self
     {
         return new self('AMQP sequence body must use list8 encoding.');

@@ -40,6 +40,14 @@ final class Decoder
     /**
      * @return array{0: mixed, 1: int}
      */
+    public function decodeWithConsumed(string $bytes): array
+    {
+        return $this->decodeValue($bytes, 0, strlen($bytes));
+    }
+
+    /**
+     * @return array{0: mixed, 1: int}
+     */
     private function decodeValue(string $bytes, int $cursor, int $end): array
     {
         if ($cursor >= $end) {

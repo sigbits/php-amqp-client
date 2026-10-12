@@ -94,10 +94,32 @@ $sender->send(new Message(
 ));
 ```
 
+For an AMQP value body, set `bodySection` and pass the AMQP payload through
+`bodyValue`:
+
+```php
+<?php
+
+use Sigbits\Amqp\Protocol\Message\Message;
+use Sigbits\Amqp\Protocol\Message\MessageBodySection;
+use Sigbits\Amqp\Protocol\Type\AmqpList;
+use Sigbits\Amqp\Protocol\Type\UInt;
+
+$sender->send(new Message(
+    body: '',
+    bodySection: MessageBodySection::AmqpValue,
+    bodyValue: new AmqpList(['order-created', new UInt(42), true]),
+));
+```
+
 Supported map values are strings and signed AMQP scalar wrappers. String map
-keys must be non-empty and fit in the AMQP symbol8 encoding. AMQP value bodies,
-sequence items, and string property values must fit in the documented string8
-limits.
+keys must be non-empty and fit in the AMQP symbol8 encoding. AMQP value bodies
+use the generic AMQP value codec, including explicit `null`, scalars,
+containers, described values, and binary values. When receiving messages,
+decoded AMQP value strings remain in `Message::$body` for backwards
+compatibility; non-string values and explicit null are available through
+`Message::$bodyValue` when `Message::hasBodyValue()` is true. AMQP sequence
+items and string property values must fit in the documented string8 limits.
 
 ### Receiving Messages
 

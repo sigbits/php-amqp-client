@@ -12,12 +12,18 @@ use Sigbits\Amqp\Protocol\Type\Short;
 
 final readonly class Message
 {
+    public mixed $bodyValue;
+
+    private bool $hasBodyValue;
+
     /**
      * @param array<string, string|Byte|Short|Int_|Long_> $deliveryAnnotations
      * @param array<string, string|Byte|Short|Int_|Long_> $messageAnnotations
      * @param array<string, string|Byte|Short|Int_|Long_> $applicationProperties
      * @param array<string, string|Byte|Short|Int_|Long_> $footer
      * @param list<string> $bodySequence
+     * @param mixed $bodyValue AMQP value body payload when provided. Use `hasBodyValue()` to distinguish an
+     *                         explicit AMQP null from the legacy string body path.
      */
     public function __construct(
         public string $body,
@@ -29,8 +35,12 @@ final readonly class Message
         public ?Properties $properties = null,
         public array $applicationProperties = [],
         public array $footer = [],
+        mixed $bodyValue = new UnsetMessageBodyValue(),
     ) {
-        if ($bodySection === MessageBodySection::AmqpValue && strlen($body) > 255) {
+        $this->hasBodyValue = !$bodyValue instanceof UnsetMessageBodyValue;
+        $this->bodyValue = $this->hasBodyValue ? $bodyValue : null;
+
+        if ($bodySection === MessageBodySection::AmqpValue && !$this->hasBodyValue && strlen($body) > 255) {
             throw new InvalidArgumentException('AMQP value body must fit in string8 encoding.');
         }
 
@@ -103,6 +113,11 @@ final readonly class Message
 
             $this->assertSupportedMapValue($value, 'AMQP footer value');
         }
+    }
+
+    public function hasBodyValue(): bool
+    {
+        return $this->hasBodyValue;
     }
 
     private function assertSupportedMapValue(mixed $value, string $label): void
