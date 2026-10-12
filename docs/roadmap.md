@@ -191,16 +191,21 @@ protocol engine.
 - Keep existing string-oriented message usage backwards compatible while
   widening message surfaces to richer AMQP value objects.
 
-### v1.3: Delivery Consumption Ergonomics
+### v1.3: Performative and Terminus Coverage Foundation
 
-- Add a synchronous generator-style delivery API so applications can consume
-  deliveries without writing crude polling loops.
-- Keep the existing `receive()` and `receiveDelivery()` methods as the stable
-  low-level API.
-- Add managed credit helpers or documented patterns for bounded prefetch and
-  replenishment after settlement.
-- Cover delivery consumption with unit, broker integration, long-running, and
-  transport-interruption tests.
+- Adopt the generic AMQP value codec in performative codecs where it reduces
+  duplicate list, map, array, symbol, and described-value parsing.
+- Complete the `OPEN` field model with max-frame-size, channel-max,
+  idle-time-out, outgoing/incoming locales, offered/desired capabilities, and
+  connection properties.
+- Expand `BEGIN` with handle-max, offered/desired capabilities, properties, and
+  exact binary fixtures before changing session negotiation behavior.
+- Start the `ATTACH` terminus model with source and target value objects so
+  later slices can add durability, expiry policy, dynamic nodes, filters,
+  outcomes, capabilities, and terminus properties without widening the public
+  API accidentally.
+- Keep protocol behavior memory-testable first; broker and transport work
+  should validate the protocol model rather than define it.
 
 ### v1.4: Functional Broker Coverage Expansion
 
@@ -211,6 +216,9 @@ protocol engine.
   credentials, keeping emulator coverage as the default local path.
 - Expand settlement-effect coverage for accept, release, and reject across the
   supported broker matrix.
+- Add a synchronous generator-style delivery API after the underlying delivery
+  state model is strong enough that consumption ergonomics do not hide protocol
+  gaps.
 
 ### v1.5: Message Model Expansion
 

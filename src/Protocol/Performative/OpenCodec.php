@@ -4,43 +4,53 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Performative;
 
+use InvalidArgumentException;
+use Sigbits\Amqp\Protocol\Codec\DecodeException;
+use Sigbits\Amqp\Protocol\Codec\Decoder;
+use Sigbits\Amqp\Protocol\Codec\Encoder;
+use Sigbits\Amqp\Protocol\Type\AmqpArray;
+use Sigbits\Amqp\Protocol\Type\AmqpDescribedValue;
+use Sigbits\Amqp\Protocol\Type\AmqpList;
+use Sigbits\Amqp\Protocol\Type\AmqpMap;
+use Sigbits\Amqp\Protocol\Type\Symbol;
+use Sigbits\Amqp\Protocol\Type\UInt;
+use Sigbits\Amqp\Protocol\Type\ULong;
+use Sigbits\Amqp\Protocol\Type\UShort;
+
 final class OpenCodec
 {
     private const string DESCRIPTOR = "\x00\x53\x10";
     private const int DESCRIPTOR_LENGTH = 3;
-    private const int CONSTRUCTOR_LIST0 = 0x45;
-    private const int CONSTRUCTOR_LIST8 = 0xc0;
-    private const int CONSTRUCTOR_LIST32 = 0xd0;
-    private const int CONSTRUCTOR_STR8 = 0xa1;
-    private const int CONSTRUCTOR_STR32 = 0xb1;
+
+    private readonly Encoder $encoder;
+    private readonly Decoder $decoder;
+
+    public function __construct(?Encoder $encoder = null, ?Decoder $decoder = null)
+    {
+        $this->encoder = $encoder ?? new Encoder();
+        $this->decoder = $decoder ?? new Decoder();
+    }
 
     public function encode(Open $open): string
     {
-        $containerIdLength = strlen($open->containerId);
-        $fieldCount = $open->hostname === null ? 1 : 2;
-        $listSize = 1 + 1 + 1 + $containerIdLength;
+        $fields = [
+            $open->containerId,
+            $open->hostname,
+            $open->maxFrameSize === null ? null : new UInt($open->maxFrameSize),
+            $open->channelMax === null ? null : new UShort($open->channelMax),
+            $open->idleTimeOut === null ? null : new UInt($open->idleTimeOut),
+            $this->encodeMultipleSymbols($open->outgoingLocales),
+            $this->encodeMultipleSymbols($open->incomingLocales),
+            $this->encodeMultipleSymbols($open->offeredCapabilities),
+            $this->encodeMultipleSymbols($open->desiredCapabilities),
+            $open->properties,
+        ];
 
-        if ($open->hostname !== null) {
-            $listSize += 1 + 1 + strlen($open->hostname);
+        while (count($fields) > 1 && end($fields) === null) {
+            array_pop($fields);
         }
 
-        $payload = self::DESCRIPTOR
-            . chr(self::CONSTRUCTOR_LIST8)
-            . chr($listSize)
-            . chr($fieldCount)
-            . chr(self::CONSTRUCTOR_STR8)
-            . chr($containerIdLength)
-            . $open->containerId;
-
-        if ($open->hostname !== null) {
-            $hostnameLength = strlen($open->hostname);
-
-            $payload .= chr(self::CONSTRUCTOR_STR8)
-                . chr($hostnameLength)
-                . $open->hostname;
-        }
-
-        return $payload;
+        return self::DESCRIPTOR . $this->encoder->encode(new AmqpList($fields));
     }
 
     public function decode(string $bytes): Open
@@ -53,100 +63,118 @@ final class OpenCodec
             throw PerformativeException::expectedOpenDescriptor();
         }
 
-        $cursor = self::DESCRIPTOR_LENGTH;
-        $constructor = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($constructor === self::CONSTRUCTOR_LIST0) {
-            throw PerformativeException::missingOpenContainerId();
-        }
-
-        if ($constructor === self::CONSTRUCTOR_LIST8) {
-            if (strlen($bytes) < $cursor + 2) {
-                throw PerformativeException::truncatedOpen();
-            }
-
-            $listSize = ord($bytes[$cursor]);
-            ++$cursor;
-            $fieldCount = ord($bytes[$cursor]);
-            ++$cursor;
-            $listEnd = $cursor + $listSize - 1;
-        } elseif ($constructor === self::CONSTRUCTOR_LIST32) {
-            if (strlen($bytes) < $cursor + 8) {
-                throw PerformativeException::truncatedOpen();
-            }
-
-            $listSize = $this->readUInt32($bytes, $cursor);
-            $cursor += 4;
-            $fieldCount = $this->readUInt32($bytes, $cursor);
-            $cursor += 4;
-
-            if ($listSize < 4) {
-                throw PerformativeException::truncatedOpen();
-            }
-
-            $listEnd = $cursor + $listSize - 4;
-        } else {
+        try {
+            [$decoded] = $this->decoder->decodeWithConsumed($bytes);
+        } catch (DecodeException|InvalidArgumentException) {
             throw PerformativeException::truncatedOpen();
         }
 
-        if ($fieldCount < 1) {
-            throw PerformativeException::missingOpenContainerId();
-        }
-
-        if (strlen($bytes) < $listEnd || $cursor >= $listEnd) {
+        if (!$decoded instanceof AmqpDescribedValue
+            || !$decoded->descriptor instanceof ULong
+            || $decoded->descriptor->value !== '16'
+            || !$decoded->value instanceof AmqpList) {
             throw PerformativeException::truncatedOpen();
         }
 
-        $containerId = $this->readString($bytes, $cursor, $listEnd)
-            ?? throw PerformativeException::missingOpenContainerId();
-        $hostname = null;
+        $fields = $decoded->value->items;
 
-        if ($fieldCount >= 2 && $cursor < $listEnd) {
-            $hostname = $this->readString($bytes, $cursor, $listEnd);
+        if (count($fields) < 1 || !is_string($fields[0])) {
+            throw PerformativeException::missingOpenContainerId();
         }
 
-        return new Open($containerId, $hostname);
+        return new Open(
+            containerId: $fields[0],
+            hostname: $this->nullableString($fields[1] ?? null),
+            maxFrameSize: $this->nullableUInt($fields[2] ?? null),
+            channelMax: $this->nullableUShort($fields[3] ?? null),
+            idleTimeOut: $this->nullableUInt($fields[4] ?? null),
+            outgoingLocales: $this->multipleSymbols($fields[5] ?? null),
+            incomingLocales: $this->multipleSymbols($fields[6] ?? null),
+            offeredCapabilities: $this->multipleSymbols($fields[7] ?? null),
+            desiredCapabilities: $this->multipleSymbols($fields[8] ?? null),
+            properties: $this->nullableMap($fields[9] ?? null),
+        );
     }
 
-    private function readUInt32(string $bytes, int $cursor): int
+    /**
+     * @param list<string> $values
+     */
+    private function encodeMultipleSymbols(array $values): ?AmqpArray
     {
-        return (ord($bytes[$cursor]) << 24)
-            | (ord($bytes[$cursor + 1]) << 16)
-            | (ord($bytes[$cursor + 2]) << 8)
-            | ord($bytes[$cursor + 3]);
-    }
-
-    private function readString(string $bytes, int &$cursor, int $listEnd): ?string
-    {
-        $stringConstructor = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($stringConstructor === self::CONSTRUCTOR_STR8) {
-            if ($cursor >= $listEnd) {
-                throw PerformativeException::truncatedOpen();
-            }
-
-            $length = ord($bytes[$cursor]);
-            ++$cursor;
-        } elseif ($stringConstructor === self::CONSTRUCTOR_STR32) {
-            if ($cursor + 4 > $listEnd) {
-                throw PerformativeException::truncatedOpen();
-            }
-
-            $length = $this->readUInt32($bytes, $cursor);
-            $cursor += 4;
-        } else {
+        if ($values === []) {
             return null;
         }
 
-        if ($cursor + $length > $listEnd) {
-            throw PerformativeException::truncatedOpen();
+        return new AmqpArray(
+            "\xa3",
+            array_map(static fn (string $value): Symbol => new Symbol($value), $values),
+        );
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        if ($value === null || is_string($value)) {
+            return $value;
         }
 
-        $value = substr($bytes, $cursor, $length);
-        $cursor += $length;
+        throw PerformativeException::truncatedOpen();
+    }
 
-        return $value;
+    private function nullableUInt(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof UInt) {
+            return $value->value;
+        }
+
+        throw PerformativeException::truncatedOpen();
+    }
+
+    private function nullableUShort(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof UShort) {
+            return $value->value;
+        }
+
+        throw PerformativeException::truncatedOpen();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function multipleSymbols(mixed $value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        if ($value instanceof Symbol) {
+            return [$value->value];
+        }
+
+        if ($value instanceof AmqpArray && in_array($value->elementConstructor, ["\xa3", "\xb3"], true)) {
+            return array_map(
+                static fn (Symbol $symbol): string => $symbol->value,
+                $value->items,
+            );
+        }
+
+        throw PerformativeException::truncatedOpen();
+    }
+
+    private function nullableMap(mixed $value): ?AmqpMap
+    {
+        if ($value === null || $value instanceof AmqpMap) {
+            return $value;
+        }
+
+        throw PerformativeException::truncatedOpen();
     }
 }
