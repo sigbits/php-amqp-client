@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
 use Sigbits\Amqp\Protocol\Type\AmqpArray;
+use Sigbits\Amqp\Protocol\Type\AmqpDescribedValue;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
@@ -845,6 +846,69 @@ final class DecoderTest extends TestCase
         $this->expectExceptionMessage('Truncated AMQP array value.');
 
         $decoder->decode("\xf0\x00\x00\x00\x05\x00\x00\x00\x00");
+    }
+
+    public function testDecodesDescribedValueWithSmallULongDescriptor(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpDescribedValue(new ULong(117), new AmqpList(['body'])),
+            $decoder->decode("\x00\x53\x75\xc0\x07\x01\xa1\x04body"),
+        );
+    }
+
+    public function testDecodesDescribedValueWithSymbolDescriptor(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpDescribedValue(new Symbol('example:state'), 'ready'),
+            $decoder->decode("\x00\xa3\x0dexample:state\xa1\x05ready"),
+        );
+    }
+
+    public function testDecodesNestedDescribedValue(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpDescribedValue(
+                new Symbol('outer'),
+                new AmqpDescribedValue(new Symbol('inner'), true),
+            ),
+            $decoder->decode("\x00\xa3\x05outer\x00\xa3\x05inner\x41"),
+        );
+    }
+
+    public function testRejectsTruncatedDescribedValueDescriptor(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP described value.');
+
+        $decoder->decode("\x00\x53");
+    }
+
+    public function testRejectsTruncatedDescribedValueValue(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP described value.');
+
+        $decoder->decode("\x00\x53\x75");
+    }
+
+    public function testRejectsMalformedDescribedValueDescriptor(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Malformed AMQP described value.');
+
+        $decoder->decode("\x00\x70\x00\x00\x00\x01\x41");
     }
 
     public function testRejectsUnsupportedFormatCode(): void

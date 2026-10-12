@@ -6,6 +6,7 @@ namespace Sigbits\Amqp\Protocol\Codec;
 
 use LogicException;
 use Sigbits\Amqp\Protocol\Type\AmqpArray;
+use Sigbits\Amqp\Protocol\Type\AmqpDescribedValue;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
@@ -117,6 +118,10 @@ final class Encoder
 
         if ($value instanceof AmqpArray) {
             return $this->encodeArray($value);
+        }
+
+        if ($value instanceof AmqpDescribedValue) {
+            return $this->encodeDescribedValue($value);
         }
 
         if ($value instanceof Binary) {
@@ -250,6 +255,28 @@ final class Encoder
         }
 
         return substr($encoded, strlen($elementConstructor));
+    }
+
+    private function encodeDescribedValue(AmqpDescribedValue $value): string
+    {
+        return "\x00" . $this->encodeDescriptor($value->descriptor) . $this->encode($value->value);
+    }
+
+    private function encodeDescriptor(ULong|Symbol $descriptor): string
+    {
+        if ($descriptor instanceof Symbol) {
+            return $this->encode($descriptor);
+        }
+
+        if ($descriptor->value === '0') {
+            return "\x44";
+        }
+
+        if (strlen($descriptor->value) <= 3 && (int) $descriptor->value <= 255) {
+            return "\x53" . chr((int) $descriptor->value);
+        }
+
+        return $this->encode($descriptor);
     }
 
     /**

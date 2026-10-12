@@ -6,6 +6,7 @@ namespace Sigbits\Amqp\Protocol\Codec;
 
 use InvalidArgumentException;
 use Sigbits\Amqp\Protocol\Type\AmqpArray;
+use Sigbits\Amqp\Protocol\Type\AmqpDescribedValue;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
@@ -48,6 +49,7 @@ final class Decoder
         $formatCode = ord($bytes[$cursor]);
 
         return match ($formatCode) {
+            0x00 => $this->decodeDescribedValue($bytes, $cursor, $end),
             0x40 => [null, $cursor + 1],
             0x41 => [true, $cursor + 1],
             0x42 => [false, $cursor + 1],
@@ -87,6 +89,48 @@ final class Decoder
             0xf0 => $this->decodeArray32($bytes, $cursor, $end),
             default => throw DecodeException::unsupportedFormatCode($formatCode),
         };
+    }
+
+    /**
+     * @return array{0: AmqpDescribedValue, 1: int}
+     */
+    private function decodeDescribedValue(string $bytes, int $cursor, int $end): array
+    {
+        if ($end - $cursor < 2) {
+            throw DecodeException::truncatedDescribedValue();
+        }
+
+        try {
+            [$descriptor, $cursor] = $this->decodeValue($bytes, $cursor + 1, $end);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
+                throw DecodeException::truncatedDescribedValue();
+            }
+
+            throw $exception;
+        }
+
+        if (!$descriptor instanceof ULong && !$descriptor instanceof Symbol) {
+            throw DecodeException::malformedDescribedValue();
+        }
+
+        if ($cursor >= $end) {
+            throw DecodeException::truncatedDescribedValue();
+        }
+
+        try {
+            [$value, $cursor] = $this->decodeValue($bytes, $cursor, $end);
+
+            return [new AmqpDescribedValue($descriptor, $value), $cursor];
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
+                throw DecodeException::truncatedDescribedValue();
+            }
+
+            throw $exception;
+        } catch (InvalidArgumentException) {
+            throw DecodeException::malformedDescribedValue();
+        }
     }
 
     private function decodeBoolean(string $bytes): bool

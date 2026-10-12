@@ -28,7 +28,7 @@ specification.
 | Area | Status | Current shape | Target milestone |
 | --- | --- | --- | --- |
 | Protocol header and frame parsing | partial | AMQP/SASL headers and basic frames work; extended and negotiated behavior is limited. | v1.6 |
-| Generic AMQP type system | partial | Null, booleans, integer subset including `ulong`, floating point, decimals, char, timestamp, UUID, binary, string, symbol, generic lists, generic maps, and generic arrays are covered; described values remain missing. | v1.5 |
+| Generic AMQP type system | partial | Null, booleans, integer subset including `ulong`, floating point, decimals, char, timestamp, UUID, binary, string, symbol, generic lists, generic maps, generic arrays, and generic described values are covered. | v1.5 |
 | SASL client role | partial | ANONYMOUS and PLAIN client handshake. | v1.6 |
 | Connection/session/link performatives | partial | Core performatives exist, but most optional fields and negotiation behavior are absent. | v1.6 |
 | Message sections | partial | Practical string-oriented sections exist; full value fidelity is missing. | v1.4 |
@@ -58,8 +58,8 @@ specification.
 | Symbol | partial | `Symbol` value object plus generic `sym8`/`sym32` encode/decode; SASL, message map keys, content type, and detach errors also have local support. | Type, codec, SASL, and message tests. | Container integration and broader higher-level codec adoption. | P1 | v1.5 |
 | Lists | implemented | `AmqpList`; generic encoder/decoder support `list0`, `list8`, `list32`, and nested lists. Local list parsing also exists in performative/message/SASL codecs. | Type, codec, performative, SASL, and message tests. | Adopt generic lists in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
 | Maps | implemented | `AmqpMap`; generic encoder/decoder support `map8`, `map32`, nested maps, mixed values, and arbitrary AMQP key/value shapes. Message maps still have constrained local parsing. | Type, codec, and message tests. | Adopt generic maps in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
-| Arrays | implemented | `AmqpArray`; generic encoder/decoder support `array8`, `array32`, simple element constructors, and nested arrays. SASL mechanisms still have local array8 parsing. | Type, codec, SASL mechanisms, and message tests. | Described-array constructor support after generic described values exist; adopt generic arrays in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
-| Described values | partial | Message sections, performatives, SASL performatives, source/target, outcomes, and detach errors are hard-coded. | Existing protocol tests. | Generic described value representation and validation. | P0 | v1.5 |
+| Arrays | implemented | `AmqpArray`; generic encoder/decoder support `array8`, `array32`, simple element constructors, and nested arrays. SASL mechanisms still have local array8 parsing. | Type, codec, SASL mechanisms, and message tests. | Described-array constructors and adoption in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
+| Described values | implemented | `AmqpDescribedValue`; generic encoder/decoder support numeric and symbolic descriptors plus nested described values. Message sections, performatives, SASL performatives, source/target, outcomes, and detach errors still have hard-coded local parsing. | Type, codec, and existing protocol tests. | Adopt generic described values in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
 | Malformed type input | partial | Current codecs reject selected truncation and unsupported constructor paths. | Codec, scalar reader, message, frame, and performative tests. | Property/fuzz coverage across the full type system. | P0 | v1.5 |
 
 ## Frame Layer and Protocol Headers
@@ -188,13 +188,14 @@ designed explicitly if a future public API needs them.
 
 Recommended first concrete task:
 
-1. Introduce generic described value support.
-2. Add failing exact-binary tests for message sections, performatives, delivery
-   states, and nested described values.
-3. Extend the generic encoder/decoder before widening higher-level message or
-   performative codecs.
-4. Follow by replacing duplicated described-value parsing in higher-level
-   codecs where that reduces risk.
+1. Adopt the generic value model in AMQP message section codecs where it reduces
+   duplicate scalar, container, and described-value parsing.
+2. Add failing exact-binary tests for broader AMQP value bodies, application
+   properties, annotations, and footers.
+3. Preserve the current strict malformed-payload behavior while widening
+   accepted AMQP value shapes.
+4. Follow with performative field expansion and delivery-state models in
+   separate slices.
 
 This order keeps full protocol coverage measurable and prevents transport work
 from absorbing protocol bugs that should be caught in memory-level fixtures.
