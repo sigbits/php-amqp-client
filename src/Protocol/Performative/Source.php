@@ -12,6 +12,7 @@ final readonly class Source
 {
     /**
      * @param list<string> $capabilities
+     * @param list<string> $outcomes
      */
     public function __construct(
         public ?string $address = null,
@@ -21,6 +22,8 @@ final readonly class Source
         public ?bool $dynamic = null,
         public ?AmqpMap $dynamicNodeProperties = null,
         public array $capabilities = [],
+        public ?string $distributionMode = null,
+        public array $outcomes = [],
     ) {
         if ($address === '') {
             throw new InvalidArgumentException('AMQP source address must not be empty.');
@@ -42,7 +45,12 @@ final readonly class Source
             new UInt($timeout);
         }
 
+        if ($distributionMode === '') {
+            throw new InvalidArgumentException('AMQP source distribution-mode must not be empty.');
+        }
+
         $this->assertSymbolList($capabilities, 'capabilities');
+        $this->assertSymbolList($outcomes, 'outcomes');
     }
 
     /**

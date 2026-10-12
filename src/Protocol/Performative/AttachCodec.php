@@ -350,10 +350,10 @@ final class AttachCodec
             $source->timeout === null ? null : new UInt($source->timeout),
             $source->dynamic,
             $source->dynamicNodeProperties,
+            $source->distributionMode === null ? null : new Symbol($source->distributionMode),
             null,
             null,
-            null,
-            null,
+            $this->encodeMultipleSymbols($source->outcomes),
             $this->encodeMultipleSymbols($source->capabilities),
         ]);
     }
@@ -414,6 +414,8 @@ final class AttachCodec
             timeout: $this->nullableUInt($fields[3] ?? null),
             dynamic: $this->nullableBool($fields[4] ?? null),
             dynamicNodeProperties: $this->nullableMap($fields[5] ?? null),
+            distributionMode: $this->nullableSymbol($fields[6] ?? null),
+            outcomes: $this->multipleSymbols($fields[9] ?? null),
             capabilities: $this->multipleSymbols($fields[10] ?? null),
         );
     }
