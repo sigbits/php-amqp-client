@@ -351,7 +351,7 @@ final class AttachCodec
             $source->dynamic,
             $source->dynamicNodeProperties,
             $source->distributionMode === null ? null : new Symbol($source->distributionMode),
-            null,
+            $source->filter,
             null,
             $this->encodeMultipleSymbols($source->outcomes),
             $this->encodeMultipleSymbols($source->capabilities),
@@ -417,6 +417,7 @@ final class AttachCodec
             distributionMode: $this->nullableSymbol($fields[6] ?? null),
             outcomes: $this->multipleSymbols($fields[9] ?? null),
             capabilities: $this->multipleSymbols($fields[10] ?? null),
+            filter: $this->nullableMap($fields[7] ?? null),
         );
     }
 
