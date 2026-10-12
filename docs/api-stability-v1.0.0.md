@@ -122,14 +122,16 @@ The committed v1.0.0 message model supports these user-facing sections:
   scalar wrappers: `Byte`, `Short`, `Int_`, and `Long_`.
 - `Properties` fields for message ID, correlation ID, content type, and
   subject.
-- DATA bodies, AMQP value string bodies, and AMQP sequence bodies containing
-  strings.
+- DATA bodies, generic AMQP value bodies through `Message::$bodyValue` for
+  non-string values and explicit null, legacy AMQP value string bodies through
+  `Message::$body`, and AMQP sequence bodies containing strings.
 
-Encoding limits are part of the public model. AMQP value bodies and sequence
-items use string8-sized values, map names use symbol8-sized values, string map
-values use string8-sized values, and DATA bodies may use vbin8 or vbin32.
-Unsupported AMQP section shapes and scalar types remain protocol-internal
-details, not v1.0.0 user-facing API.
+Encoding limits are part of the public model. Legacy AMQP value string bodies
+and sequence items use string8-sized values, map names use symbol8-sized values,
+string map values use string8-sized values, and DATA bodies may use vbin8 or
+vbin32. Generic AMQP value bodies use the generic value codec. Unsupported AMQP
+section shapes and scalar types remain protocol-internal details, not v1.0.0
+user-facing API.
 
 ### Timeout Unit Commitment
 
