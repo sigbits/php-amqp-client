@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Codec;
 
+use InvalidArgumentException;
+use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Char;
@@ -27,39 +29,56 @@ final class Decoder
 {
     public function decode(string $bytes): mixed
     {
-        $formatCode = ord($bytes[0]);
+        [$value] = $this->decodeValue($bytes, 0, strlen($bytes));
+
+        return $value;
+    }
+
+    /**
+     * @return array{0: mixed, 1: int}
+     */
+    private function decodeValue(string $bytes, int $cursor, int $end): array
+    {
+        if ($cursor >= $end) {
+            throw DecodeException::truncatedValue();
+        }
+
+        $formatCode = ord($bytes[$cursor]);
 
         return match ($formatCode) {
-            0x40 => null,
-            0x41 => true,
-            0x42 => false,
-            0x43 => new UInt(0),
-            0x50 => $this->decodeUByte($bytes),
-            0x51 => $this->decodeByte($bytes),
-            0x52 => $this->decodeSmallUInt($bytes),
-            0x56 => $this->decodeBoolean($bytes),
-            0x60 => $this->decodeUShort($bytes),
-            0x61 => $this->decodeShort($bytes),
-            0x70 => $this->decodeUInt($bytes),
-            0x71 => $this->decodeInt($bytes),
-            0x72 => $this->decodeFloat32($bytes),
-            0x73 => $this->decodeChar($bytes),
-            0x74 => $this->decodeDecimal32($bytes),
-            0x80 => $this->decodeULong($bytes),
-            0x81 => $this->decodeLong($bytes),
-            0x82 => $this->decodeFloat64($bytes),
-            0x83 => $this->decodeTimestamp($bytes),
-            0x84 => $this->decodeDecimal64($bytes),
-            0x94 => $this->decodeDecimal128($bytes),
-            0x98 => $this->decodeUuid($bytes),
-            0xa0 => $this->decodeBinary8($bytes),
-            0xa1 => $this->decodeString8($bytes),
-            0xa3 => $this->decodeSymbol8($bytes),
-            0xb0 => $this->decodeBinary32($bytes),
-            0xb1 => $this->decodeString32($bytes),
-            0xb3 => $this->decodeSymbol32($bytes),
-            0x44 => new ULong(0),
-            0x53 => $this->decodeSmallULong($bytes),
+            0x40 => [null, $cursor + 1],
+            0x41 => [true, $cursor + 1],
+            0x42 => [false, $cursor + 1],
+            0x43 => [new UInt(0), $cursor + 1],
+            0x44 => [new ULong(0), $cursor + 1],
+            0x45 => [new AmqpList([]), $cursor + 1],
+            0x50 => [$this->decodeUByte(substr($bytes, $cursor, 2)), $cursor + 2],
+            0x51 => [$this->decodeByte(substr($bytes, $cursor, 2)), $cursor + 2],
+            0x52 => [$this->decodeSmallUInt(substr($bytes, $cursor, 2)), $cursor + 2],
+            0x53 => [$this->decodeSmallULong(substr($bytes, $cursor, 2)), $cursor + 2],
+            0x56 => [$this->decodeBoolean(substr($bytes, $cursor, 2)), $cursor + 2],
+            0x60 => [$this->decodeUShort(substr($bytes, $cursor, 3)), $cursor + 3],
+            0x61 => [$this->decodeShort(substr($bytes, $cursor, 3)), $cursor + 3],
+            0x70 => [$this->decodeUInt(substr($bytes, $cursor, 5)), $cursor + 5],
+            0x71 => [$this->decodeInt(substr($bytes, $cursor, 5)), $cursor + 5],
+            0x72 => [$this->decodeFloat32(substr($bytes, $cursor, 5)), $cursor + 5],
+            0x73 => [$this->decodeChar(substr($bytes, $cursor, 5)), $cursor + 5],
+            0x74 => [$this->decodeDecimal32(substr($bytes, $cursor, 5)), $cursor + 5],
+            0x80 => [$this->decodeULong(substr($bytes, $cursor, 9)), $cursor + 9],
+            0x81 => [$this->decodeLong(substr($bytes, $cursor, 9)), $cursor + 9],
+            0x82 => [$this->decodeFloat64(substr($bytes, $cursor, 9)), $cursor + 9],
+            0x83 => [$this->decodeTimestamp(substr($bytes, $cursor, 9)), $cursor + 9],
+            0x84 => [$this->decodeDecimal64(substr($bytes, $cursor, 9)), $cursor + 9],
+            0x94 => [$this->decodeDecimal128(substr($bytes, $cursor, 17)), $cursor + 17],
+            0x98 => [$this->decodeUuid(substr($bytes, $cursor, 17)), $cursor + 17],
+            0xa0 => $this->decodeVariableValue8($bytes, $cursor, $end, static fn (string $value): Binary => new Binary($value), DecodeException::truncatedBinary(...)),
+            0xa1 => $this->decodeVariableValue8($bytes, $cursor, $end, static fn (string $value): string => $value, DecodeException::truncatedString(...)),
+            0xa3 => $this->decodeVariableValue8($bytes, $cursor, $end, static fn (string $value): Symbol => new Symbol($value), DecodeException::truncatedSymbol(...)),
+            0xb0 => $this->decodeVariableValue32($bytes, $cursor, $end, static fn (string $value): Binary => new Binary($value), DecodeException::truncatedBinary(...)),
+            0xb1 => $this->decodeVariableValue32($bytes, $cursor, $end, static fn (string $value): string => $value, DecodeException::truncatedString(...)),
+            0xb3 => $this->decodeVariableValue32($bytes, $cursor, $end, static fn (string $value): Symbol => new Symbol($value), DecodeException::truncatedSymbol(...)),
+            0xc0 => $this->decodeList8($bytes, $cursor, $end),
+            0xd0 => $this->decodeList32($bytes, $cursor, $end),
             default => throw DecodeException::unsupportedFormatCode($formatCode),
         };
     }
@@ -277,6 +296,141 @@ final class Decoder
         ));
     }
 
+    /**
+     * @param callable(string): mixed $factory
+     * @param callable(): DecodeException $truncated
+     *
+     * @return array{0: mixed, 1: int}
+     */
+    private function decodeVariableValue8(string $bytes, int $cursor, int $end, callable $factory, callable $truncated): array
+    {
+        if ($end - $cursor < 2) {
+            throw $truncated();
+        }
+
+        $length = ord($bytes[$cursor + 1]);
+        $next = $cursor + 2 + $length;
+
+        if ($next > $end) {
+            throw $truncated();
+        }
+
+        return [$factory(substr($bytes, $cursor + 2, $length)), $next];
+    }
+
+    /**
+     * @param callable(string): mixed $factory
+     * @param callable(): DecodeException $truncated
+     *
+     * @return array{0: mixed, 1: int}
+     */
+    private function decodeVariableValue32(string $bytes, int $cursor, int $end, callable $factory, callable $truncated): array
+    {
+        if ($end - $cursor < 5) {
+            throw $truncated();
+        }
+
+        $length = (ord($bytes[$cursor + 1]) << 24)
+            | (ord($bytes[$cursor + 2]) << 16)
+            | (ord($bytes[$cursor + 3]) << 8)
+            | ord($bytes[$cursor + 4]);
+        $next = $cursor + 5 + $length;
+
+        if ($next > $end) {
+            throw $truncated();
+        }
+
+        return [$factory(substr($bytes, $cursor + 5, $length)), $next];
+    }
+
+    /**
+     * @return array{0: AmqpList, 1: int}
+     */
+    private function decodeList8(string $bytes, int $cursor, int $end): array
+    {
+        if ($end - $cursor < 3) {
+            throw DecodeException::truncatedList();
+        }
+
+        $size = ord($bytes[$cursor + 1]);
+
+        if ($size < 1) {
+            throw DecodeException::malformedList();
+        }
+
+        $listEnd = $cursor + 2 + $size;
+
+        if ($listEnd > $end) {
+            throw DecodeException::truncatedList();
+        }
+
+        return [$this->decodeListItems($bytes, $cursor + 3, $listEnd, ord($bytes[$cursor + 2])), $listEnd];
+    }
+
+    /**
+     * @return array{0: AmqpList, 1: int}
+     */
+    private function decodeList32(string $bytes, int $cursor, int $end): array
+    {
+        if ($end - $cursor < 9) {
+            throw DecodeException::truncatedList();
+        }
+
+        $size = (ord($bytes[$cursor + 1]) << 24)
+            | (ord($bytes[$cursor + 2]) << 16)
+            | (ord($bytes[$cursor + 3]) << 8)
+            | ord($bytes[$cursor + 4]);
+
+        if ($size < 4) {
+            throw DecodeException::malformedList();
+        }
+
+        $listEnd = $cursor + 5 + $size;
+
+        if ($listEnd > $end) {
+            throw DecodeException::truncatedList();
+        }
+
+        $count = (ord($bytes[$cursor + 5]) << 24)
+            | (ord($bytes[$cursor + 6]) << 16)
+            | (ord($bytes[$cursor + 7]) << 8)
+            | ord($bytes[$cursor + 8]);
+
+        return [$this->decodeListItems($bytes, $cursor + 9, $listEnd, $count), $listEnd];
+    }
+
+    private function decodeListItems(string $bytes, int $cursor, int $end, int $count): AmqpList
+    {
+        $items = [];
+
+        for ($index = 0; $index < $count; ++$index) {
+            if ($cursor >= $end) {
+                throw DecodeException::malformedList();
+            }
+
+            try {
+                [$item, $cursor] = $this->decodeValue($bytes, $cursor, $end);
+                $items[] = $item;
+            } catch (DecodeException $exception) {
+                if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
+                    throw DecodeException::truncatedList();
+                }
+
+                throw $exception;
+            }
+        }
+
+        if ($cursor !== $end) {
+            throw DecodeException::malformedList();
+        }
+
+        try {
+            return new AmqpList($items);
+        } catch (InvalidArgumentException) {
+            throw DecodeException::malformedList();
+        }
+    }
+
     private function signedInt64BytesToInt(string $bytes): int
     {
         $high = (ord($bytes[0]) << 24)
@@ -293,75 +447,6 @@ final class Decoder
         }
 
         return ($high << 32) | $low;
-    }
-
-    private function decodeBinary8(string $bytes): Binary
-    {
-        return new Binary($this->decodeVariable8($bytes, DecodeException::truncatedBinary(...)));
-    }
-
-    private function decodeBinary32(string $bytes): Binary
-    {
-        return new Binary($this->decodeVariable32($bytes, DecodeException::truncatedBinary(...)));
-    }
-
-    private function decodeString8(string $bytes): string
-    {
-        return $this->decodeVariable8($bytes, DecodeException::truncatedString(...));
-    }
-
-    private function decodeString32(string $bytes): string
-    {
-        return $this->decodeVariable32($bytes, DecodeException::truncatedString(...));
-    }
-
-    private function decodeSymbol8(string $bytes): Symbol
-    {
-        return new Symbol($this->decodeVariable8($bytes, DecodeException::truncatedSymbol(...)));
-    }
-
-    private function decodeSymbol32(string $bytes): Symbol
-    {
-        return new Symbol($this->decodeVariable32($bytes, DecodeException::truncatedSymbol(...)));
-    }
-
-    /**
-     * @param callable(): DecodeException $truncated
-     */
-    private function decodeVariable8(string $bytes, callable $truncated): string
-    {
-        if (strlen($bytes) < 2) {
-            throw $truncated();
-        }
-
-        $length = ord($bytes[1]);
-
-        if (strlen($bytes) < 2 + $length) {
-            throw $truncated();
-        }
-
-        return substr($bytes, 2, $length);
-    }
-
-    /**
-     * @param callable(): DecodeException $truncated
-     */
-    private function decodeVariable32(string $bytes, callable $truncated): string
-    {
-        if (strlen($bytes) < 5) {
-            throw $truncated();
-        }
-
-        $length = (ord($bytes[1]) << 24)
-            | (ord($bytes[2]) << 16)
-            | (ord($bytes[3]) << 8)
-            | ord($bytes[4]);
-
-        if (strlen($bytes) < 5 + $length) {
-            throw $truncated();
-        }
-
-        return substr($bytes, 5, $length);
     }
 
     private function unsignedInt64BytesToDecimal(string $bytes): string

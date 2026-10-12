@@ -121,6 +121,16 @@ final class DecodeException extends RuntimeException
         return new self('Truncated AMQP symbol value.');
     }
 
+    public static function truncatedList(): self
+    {
+        return new self('Truncated AMQP list value.');
+    }
+
+    public static function malformedList(): self
+    {
+        return new self('Malformed AMQP list value.');
+    }
+
     public static function truncatedValue(): self
     {
         return new self('Truncated AMQP value.');

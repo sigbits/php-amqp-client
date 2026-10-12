@@ -7,6 +7,7 @@ namespace Sigbits\Amqp\Tests\Protocol\Codec;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
+use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Char;
@@ -587,6 +588,84 @@ final class DecoderTest extends TestCase
         $this->expectExceptionMessage('Truncated AMQP symbol value.');
 
         $decoder->decode("\xb3\x00\x00\x00");
+    }
+
+    public function testDecodesList0(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new AmqpList([]), $decoder->decode("\x45"));
+    }
+
+    public function testDecodesList8(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpList(['orders', new UInt(42), true]),
+            $decoder->decode("\xc0\x0f\x03\xa1\x06orders\x70\x00\x00\x00\x2a\x41"),
+        );
+    }
+
+    public function testDecodesNestedList8(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpList([new AmqpList(['x'])]),
+            $decoder->decode("\xc0\x07\x01\xc0\x04\x01\xa1\x01x"),
+        );
+    }
+
+    public function testDecodesList32(): void
+    {
+        $decoder = new Decoder();
+        $text = str_repeat('x', 256);
+
+        self::assertEquals(
+            new AmqpList([$text]),
+            $decoder->decode("\xd0\x00\x00\x01\x09\x00\x00\x00\x01\xb1\x00\x00\x01\x00" . $text),
+        );
+    }
+
+    public function testRejectsTruncatedList8Header(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP list value.');
+
+        $decoder->decode("\xc0\x01");
+    }
+
+    public function testRejectsTruncatedList8Payload(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP list value.');
+
+        $decoder->decode("\xc0\x04\x01\xa1\x02x");
+    }
+
+    public function testRejectsMalformedList8Count(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Malformed AMQP list value.');
+
+        $decoder->decode("\xc0\x01\x01");
+    }
+
+    public function testRejectsTruncatedList32Header(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP list value.');
+
+        $decoder->decode("\xd0\x00\x00\x00\x04\x00\x00\x00");
     }
 
     public function testRejectsUnsupportedFormatCode(): void
