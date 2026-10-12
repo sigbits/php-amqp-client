@@ -18,8 +18,10 @@ use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\Long_;
 use Sigbits\Amqp\Protocol\Type\Short;
+use Sigbits\Amqp\Protocol\Type\Timestamp;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\ULong;
+use Sigbits\Amqp\Protocol\Type\Uuid;
 
 final class MessageCodecTest extends TestCase
 {
@@ -575,7 +577,129 @@ final class MessageCodecTest extends TestCase
         );
     }
 
-    public function testDecodesDataBodyWhenPropertiesContainUnsupportedBrokerField(): void
+    public function testEncodesPropertiesWithChoiceAndRemainingFields(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x73\xc0\x7b\x0d"
+                . "\x80\x00\x00\x00\x00\x00\x00\x00\x2a"
+                . "\xa0\x03usr"
+                . "\xa1\x06orders"
+                . "\xa1\x07created"
+                . "\xa1\x07replies"
+                . "\x98\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff"
+                . "\xa3\x10application/json"
+                . "\xa3\x05utf-8"
+                . "\x83\x00\x00\x00\x00\x00\x00\x03\xe8"
+                . "\x83\x00\x00\x00\x00\x00\x00\x01\xf4"
+                . "\xa1\x06orders"
+                . "\x70\x00\x00\x00\x07"
+                . "\xa1\x07workers"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                properties: new Properties(
+                    messageId: new ULong(42),
+                    correlationId: new Uuid('00112233-4455-6677-8899-aabbccddeeff'),
+                    contentType: 'application/json',
+                    subject: 'created',
+                    userId: new Binary('usr'),
+                    to: 'orders',
+                    replyTo: 'replies',
+                    contentEncoding: 'utf-8',
+                    absoluteExpiryTime: new Timestamp(1000),
+                    creationTime: new Timestamp(500),
+                    groupId: 'orders',
+                    groupSequence: new UInt(7),
+                    replyToGroupId: 'workers',
+                ),
+            )),
+        );
+    }
+
+    public function testDecodesPropertiesWithChoiceAndRemainingFields(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                properties: new Properties(
+                    messageId: new ULong(42),
+                    correlationId: new Uuid('00112233-4455-6677-8899-aabbccddeeff'),
+                    contentType: 'application/json',
+                    subject: 'created',
+                    userId: new Binary('usr'),
+                    to: 'orders',
+                    replyTo: 'replies',
+                    contentEncoding: 'utf-8',
+                    absoluteExpiryTime: new Timestamp(1000),
+                    creationTime: new Timestamp(500),
+                    groupId: 'orders',
+                    groupSequence: new UInt(7),
+                    replyToGroupId: 'workers',
+                ),
+            ),
+            $codec->decode(
+                "\x00\x53\x73\xc0\x7b\x0d"
+                    . "\x80\x00\x00\x00\x00\x00\x00\x00\x2a"
+                    . "\xa0\x03usr"
+                    . "\xa1\x06orders"
+                    . "\xa1\x07created"
+                    . "\xa1\x07replies"
+                    . "\x98\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff"
+                    . "\xa3\x10application/json"
+                    . "\xa3\x05utf-8"
+                    . "\x83\x00\x00\x00\x00\x00\x00\x03\xe8"
+                    . "\x83\x00\x00\x00\x00\x00\x00\x01\xf4"
+                    . "\xa1\x06orders"
+                    . "\x70\x00\x00\x00\x07"
+                    . "\xa1\x07workers"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
+    public function testEncodesPropertiesWithList32AndString32(): void
+    {
+        $codec = new MessageCodec();
+        $subject = str_repeat('x', 256);
+
+        self::assertSame(
+            "\x00\x53\x73\xd0\x00\x00\x01\x0c\x00\x00\x00\x04"
+                . "\x40\x40\x40\xb1\x00\x00\x01\x00" . $subject
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                properties: new Properties(
+                    subject: $subject,
+                ),
+            )),
+        );
+    }
+
+    public function testDecodesPropertiesWithList32AndString32(): void
+    {
+        $codec = new MessageCodec();
+        $subject = str_repeat('x', 256);
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                properties: new Properties(
+                    subject: $subject,
+                ),
+            ),
+            $codec->decode(
+                "\x00\x53\x73\xd0\x00\x00\x01\x0c\x00\x00\x00\x04"
+                    . "\x40\x40\x40\xb1\x00\x00\x01\x00" . $subject
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
+    public function testDecodesDataBodyWhenPropertiesContainUnsupportedFieldType(): void
     {
         $codec = new MessageCodec();
 
@@ -585,7 +709,7 @@ final class MessageCodecTest extends TestCase
                 properties: new Properties(),
             ),
             $codec->decode(
-                "\x00\x53\x73\xc0\x07\x02\x40\xa0\x03abc"
+                "\x00\x53\x73\xc0\x07\x02\x40\xa1\x03abc"
                     . "\x00\x53\x75\xa0\x07payload",
             ),
         );

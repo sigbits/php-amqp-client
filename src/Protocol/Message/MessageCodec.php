@@ -7,8 +7,14 @@ namespace Sigbits\Amqp\Protocol\Message;
 use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
+use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\AmqpMap;
+use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Symbol;
+use Sigbits\Amqp\Protocol\Type\Timestamp;
+use Sigbits\Amqp\Protocol\Type\UInt;
+use Sigbits\Amqp\Protocol\Type\ULong;
+use Sigbits\Amqp\Protocol\Type\Uuid;
 
 final class MessageCodec
 {
@@ -30,40 +36,17 @@ final class MessageCodec
     private const int AMQP_SEQUENCE_DESCRIPTOR_LENGTH = 3;
     private const int AMQP_VALUE_DESCRIPTOR_LENGTH = 3;
     private const int FOOTER_DESCRIPTOR_LENGTH = 3;
-    private const int CONSTRUCTOR_DESCRIBED = 0x00;
     private const int CONSTRUCTOR_BOOL = 0x56;
     private const int CONSTRUCTOR_BOOL_TRUE = 0x41;
     private const int CONSTRUCTOR_BOOL_FALSE = 0x42;
     private const int CONSTRUCTOR_UINT0 = 0x43;
-    private const int CONSTRUCTOR_ULONG0 = 0x44;
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
-    private const int CONSTRUCTOR_LIST32 = 0xd0;
-    private const int CONSTRUCTOR_MAP8 = 0xc1;
-    private const int CONSTRUCTOR_MAP32 = 0xd1;
-    private const int CONSTRUCTOR_ARRAY8 = 0xe0;
-    private const int CONSTRUCTOR_ARRAY32 = 0xf0;
     private const int CONSTRUCTOR_NULL = 0x40;
     private const int CONSTRUCTOR_SMALLUINT = 0x52;
-    private const int CONSTRUCTOR_SMALLULONG = 0x53;
-    private const int CONSTRUCTOR_SMALLINT = 0x54;
-    private const int CONSTRUCTOR_SMALLLONG = 0x55;
     private const int CONSTRUCTOR_STRING8 = 0xa1;
-    private const int CONSTRUCTOR_STRING32 = 0xb1;
-    private const int CONSTRUCTOR_SYMBOL8 = 0xa3;
-    private const int CONSTRUCTOR_SYMBOL32 = 0xb3;
-    private const int CONSTRUCTOR_USHORT = 0x60;
     private const int CONSTRUCTOR_UBYTE = 0x50;
     private const int CONSTRUCTOR_UINT = 0x70;
-    private const int CONSTRUCTOR_ULONG = 0x80;
-    private const int CONSTRUCTOR_FLOAT = 0x72;
-    private const int CONSTRUCTOR_CHAR = 0x73;
-    private const int CONSTRUCTOR_DECIMAL32 = 0x74;
-    private const int CONSTRUCTOR_DOUBLE = 0x82;
-    private const int CONSTRUCTOR_TIMESTAMP = 0x83;
-    private const int CONSTRUCTOR_DECIMAL64 = 0x84;
-    private const int CONSTRUCTOR_DECIMAL128 = 0x94;
-    private const int CONSTRUCTOR_UUID = 0x98;
     private const int CONSTRUCTOR_VBIN8 = 0xa0;
     private const int CONSTRUCTOR_VBIN32 = 0xb0;
 
@@ -325,19 +308,25 @@ final class MessageCodec
     private function encodeProperties(Properties $properties): string
     {
         $fields = [
-            $this->encodeNullableString($properties->messageId),
-            chr(self::CONSTRUCTOR_NULL),
-            chr(self::CONSTRUCTOR_NULL),
-            $this->encodeNullableString($properties->subject),
-            chr(self::CONSTRUCTOR_NULL),
-            $this->encodeNullableString($properties->correlationId),
-            $this->encodeNullableSymbol($properties->contentType),
+            $properties->messageId,
+            $properties->userId,
+            $properties->to,
+            $properties->subject,
+            $properties->replyTo,
+            $properties->correlationId,
+            $properties->contentType === null ? null : new Symbol($properties->contentType),
+            $properties->contentEncoding === null ? null : new Symbol($properties->contentEncoding),
+            $properties->absoluteExpiryTime,
+            $properties->creationTime,
+            $properties->groupId,
+            $properties->groupSequence,
+            $properties->replyToGroupId,
         ];
 
         $lastSetField = -1;
 
         foreach ($fields as $index => $field) {
-            if ($field !== chr(self::CONSTRUCTOR_NULL)) {
+            if ($field !== null) {
                 $lastSetField = $index;
             }
         }
@@ -346,32 +335,8 @@ final class MessageCodec
             return self::PROPERTIES_DESCRIPTOR . chr(self::CONSTRUCTOR_LIST0);
         }
 
-        $encodedFields = implode('', array_slice($fields, 0, $lastSetField + 1));
-        $listSize = 1 + strlen($encodedFields);
-
         return self::PROPERTIES_DESCRIPTOR
-            . chr(self::CONSTRUCTOR_LIST8)
-            . chr($listSize)
-            . chr($lastSetField + 1)
-            . $encodedFields;
-    }
-
-    private function encodeNullableString(?string $value): string
-    {
-        if ($value === null) {
-            return chr(self::CONSTRUCTOR_NULL);
-        }
-
-        return chr(self::CONSTRUCTOR_STRING8) . chr(strlen($value)) . $value;
-    }
-
-    private function encodeNullableSymbol(?string $value): string
-    {
-        if ($value === null) {
-            return chr(self::CONSTRUCTOR_NULL);
-        }
-
-        return chr(self::CONSTRUCTOR_SYMBOL8) . chr(strlen($value)) . $value;
+            . (new Encoder())->encode(new AmqpList(array_slice($fields, 0, $lastSetField + 1)));
     }
 
     /**
@@ -762,104 +727,6 @@ final class MessageCodec
     }
 
     /**
-     * @param callable(): MessageException $malformed
-     * @param callable(): MessageException $truncated
-     */
-    private function skipUnsupportedAnnotationValue(
-        string $bytes,
-        int $cursor,
-        int $mapEnd,
-        callable $malformed,
-        callable $truncated,
-    ): int {
-        if ($cursor >= $mapEnd) {
-            throw $truncated();
-        }
-
-        $constructor = ord($bytes[$cursor]);
-
-        if ($constructor === self::CONSTRUCTOR_DESCRIBED) {
-            $cursor = $this->skipUnsupportedAnnotationValue($bytes, $cursor + 1, $mapEnd, $malformed, $truncated);
-
-            return $this->skipUnsupportedAnnotationValue($bytes, $cursor, $mapEnd, $malformed, $truncated);
-        }
-
-        $end = match ($constructor) {
-            self::CONSTRUCTOR_NULL,
-            self::CONSTRUCTOR_BOOL_TRUE,
-            self::CONSTRUCTOR_BOOL_FALSE,
-            self::CONSTRUCTOR_UINT0,
-            self::CONSTRUCTOR_ULONG0,
-            self::CONSTRUCTOR_LIST0 => $cursor + 1,
-            self::CONSTRUCTOR_UBYTE,
-            self::CONSTRUCTOR_SMALLUINT,
-            self::CONSTRUCTOR_SMALLULONG,
-            self::CONSTRUCTOR_SMALLINT,
-            self::CONSTRUCTOR_SMALLLONG,
-            self::CONSTRUCTOR_BOOL => $cursor + 2,
-            self::CONSTRUCTOR_USHORT => $cursor + 3,
-            self::CONSTRUCTOR_UINT,
-            self::CONSTRUCTOR_FLOAT,
-            self::CONSTRUCTOR_CHAR,
-            self::CONSTRUCTOR_DECIMAL32 => $cursor + 5,
-            self::CONSTRUCTOR_ULONG,
-            self::CONSTRUCTOR_DOUBLE,
-            self::CONSTRUCTOR_TIMESTAMP => $cursor + 9,
-            self::CONSTRUCTOR_DECIMAL64 => $cursor + 9,
-            self::CONSTRUCTOR_DECIMAL128 => $cursor + 17,
-            self::CONSTRUCTOR_UUID => $cursor + 17,
-            self::CONSTRUCTOR_STRING8,
-            self::CONSTRUCTOR_SYMBOL8,
-            self::CONSTRUCTOR_LIST8,
-            self::CONSTRUCTOR_MAP8,
-            self::CONSTRUCTOR_ARRAY8,
-            self::CONSTRUCTOR_VBIN8 => $this->skipVariable8($bytes, $cursor, $mapEnd, $truncated),
-            self::CONSTRUCTOR_STRING32,
-            self::CONSTRUCTOR_SYMBOL32,
-            self::CONSTRUCTOR_LIST32,
-            self::CONSTRUCTOR_MAP32,
-            self::CONSTRUCTOR_ARRAY32,
-            self::CONSTRUCTOR_VBIN32 => $this->skipVariable32($bytes, $cursor, $mapEnd, $truncated),
-            default => throw $malformed(),
-        };
-
-        if ($end > $mapEnd) {
-            throw $truncated();
-        }
-
-        return $end;
-    }
-
-    /**
-     * @param callable(): MessageException $truncated
-     */
-    private function skipVariable8(string $bytes, int $cursor, int $mapEnd, callable $truncated): int
-    {
-        if ($cursor + 2 > $mapEnd) {
-            throw $truncated();
-        }
-
-        return $cursor + 2 + ord($bytes[$cursor + 1]);
-    }
-
-    /**
-     * @param callable(): MessageException $truncated
-     */
-    private function skipVariable32(string $bytes, int $cursor, int $mapEnd, callable $truncated): int
-    {
-        if ($cursor + 5 > $mapEnd) {
-            throw $truncated();
-        }
-
-        $length = (ord($bytes[$cursor + 1]) << 24)
-            | (ord($bytes[$cursor + 2]) << 16)
-            | (ord($bytes[$cursor + 3]) << 8)
-            | ord($bytes[$cursor + 4]);
-
-        return $cursor + 5 + $length;
-    }
-
-    /**
      * @return array{0: array<string, mixed>, 1: int}
      */
     private function decodeMessageAnnotations(string $bytes, int $cursor): array
@@ -896,144 +763,76 @@ final class MessageCodec
         }
 
         $cursor += self::PROPERTIES_DESCRIPTOR_LENGTH;
-        $constructor = ord($bytes[$cursor]);
-        ++$cursor;
 
-        if ($constructor === self::CONSTRUCTOR_LIST0) {
-            return [new Properties(), $cursor];
-        }
-
-        if ($constructor !== self::CONSTRUCTOR_LIST8) {
-            throw MessageException::malformedProperties();
-        }
-
-        if (strlen($bytes) < $cursor + 2) {
-            throw MessageException::truncatedProperties();
-        }
-
-        $listSize = ord($bytes[$cursor]);
-        ++$cursor;
-        $fieldCount = ord($bytes[$cursor]);
-        ++$cursor;
-        $listEnd = $cursor + $listSize - 1;
-
-        if (strlen($bytes) < $listEnd) {
-            throw MessageException::truncatedProperties();
-        }
-
-        $messageId = null;
-        $correlationId = null;
-        $contentType = null;
-        $subject = null;
-
-        for ($field = 0; $field < $fieldCount; ++$field) {
-            if ($cursor >= $listEnd) {
+        try {
+            [$properties, $consumed] = (new Decoder())->decodeWithConsumed(substr($bytes, $cursor));
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
                 throw MessageException::truncatedProperties();
             }
 
-            if ($field === 0) {
-                [$messageId, $cursor] = $this->decodeNullableString($bytes, $cursor, $listEnd);
-                continue;
-            }
-
-            if ($field === 3) {
-                [$subject, $cursor] = $this->decodeNullableString($bytes, $cursor, $listEnd);
-                continue;
-            }
-
-            if ($field === 5) {
-                [$correlationId, $cursor] = $this->decodeNullableString($bytes, $cursor, $listEnd);
-                continue;
-            }
-
-            if ($field === 6) {
-                [$contentType, $cursor] = $this->decodeNullableSymbol($bytes, $cursor, $listEnd);
-                continue;
-            }
-
-            $cursor = $this->skipPropertyValue($bytes, $cursor, $listEnd);
+            throw MessageException::malformedProperties();
         }
+
+        if (!$properties instanceof AmqpList) {
+            throw MessageException::malformedProperties();
+        }
+
+        $fields = $properties->items;
 
         return [
             new Properties(
-                messageId: $messageId,
-                correlationId: $correlationId,
-                contentType: $contentType,
-                subject: $subject,
+                messageId: $this->nullableMessageId($fields[0] ?? null),
+                correlationId: $this->nullableMessageId($fields[5] ?? null),
+                contentType: $this->nullableSymbolValue($fields[6] ?? null),
+                subject: $this->nullableString($fields[3] ?? null),
+                userId: $this->nullableBinary($fields[1] ?? null),
+                to: $this->nullableString($fields[2] ?? null),
+                replyTo: $this->nullableString($fields[4] ?? null),
+                contentEncoding: $this->nullableSymbolValue($fields[7] ?? null),
+                absoluteExpiryTime: $this->nullableTimestamp($fields[8] ?? null),
+                creationTime: $this->nullableTimestamp($fields[9] ?? null),
+                groupId: $this->nullableString($fields[10] ?? null),
+                groupSequence: $this->nullableUInt($fields[11] ?? null),
+                replyToGroupId: $this->nullableString($fields[12] ?? null),
             ),
-            $cursor,
+            $cursor + $consumed,
         ];
     }
 
-    /**
-     * @return array{0: ?string, 1: int}
-     */
-    private function decodeNullableString(string $bytes, int $cursor, int $listEnd): array
+    private function nullableString(mixed $value): ?string
     {
-        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
-            return [null, $cursor + 1];
-        }
+        return is_string($value) ? $value : null;
+    }
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
-            return [
-                null,
-                $this->skipPropertyValue($bytes, $cursor, $listEnd),
-            ];
-        }
-
-        return $this->decodeString8($bytes, $cursor + 1, $listEnd);
+    private function nullableSymbolValue(mixed $value): ?string
+    {
+        return $value instanceof Symbol ? $value->value : null;
     }
 
     /**
-     * @return array{0: ?string, 1: int}
+     * @return string|ULong|Uuid|Binary|null
      */
-    private function decodeNullableSymbol(string $bytes, int $cursor, int $listEnd): array
+    private function nullableMessageId(mixed $value): string|ULong|Uuid|Binary|null
     {
-        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
-            return [null, $cursor + 1];
-        }
-
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYMBOL8) {
-            return [
-                null,
-                $this->skipPropertyValue($bytes, $cursor, $listEnd),
-            ];
-        }
-
-        return $this->decodeString8($bytes, $cursor + 1, $listEnd);
+        return is_string($value) || $value instanceof ULong || $value instanceof Uuid || $value instanceof Binary
+            ? $value
+            : null;
     }
 
-    /**
-     * @return array{0: string, 1: int}
-     */
-    private function decodeString8(string $bytes, int $cursor, int $listEnd): array
+    private function nullableBinary(mixed $value): ?Binary
     {
-        if ($cursor >= $listEnd) {
-            throw MessageException::truncatedProperties();
-        }
-
-        $length = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($cursor + $length > $listEnd) {
-            throw MessageException::truncatedProperties();
-        }
-
-        return [
-            substr($bytes, $cursor, $length),
-            $cursor + $length,
-        ];
+        return $value instanceof Binary ? $value : null;
     }
 
-    private function skipPropertyValue(string $bytes, int $cursor, int $listEnd): int
+    private function nullableTimestamp(mixed $value): ?Timestamp
     {
-        return $this->skipUnsupportedAnnotationValue(
-            $bytes,
-            $cursor,
-            $listEnd,
-            MessageException::malformedProperties(...),
-            MessageException::truncatedProperties(...),
-        );
+        return $value instanceof Timestamp ? $value : null;
+    }
+
+    private function nullableUInt(mixed $value): ?UInt
+    {
+        return $value instanceof UInt ? $value : null;
     }
 
     /**

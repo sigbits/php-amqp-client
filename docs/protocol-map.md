@@ -31,7 +31,7 @@ specification.
 | Generic AMQP type system | partial | Null, booleans, integer subset including `ulong`, floating point, decimals, char, timestamp, UUID, binary, string, symbol, generic lists, generic maps, generic arrays, and generic described values are covered. | v1.5 |
 | SASL client role | partial | ANONYMOUS and PLAIN client handshake. | v1.6 |
 | Connection/session/link performatives | partial | Core performatives exist, but most optional fields and negotiation behavior are absent. | v1.6 |
-| Message sections | partial | Practical string-oriented sections exist; full value fidelity is missing. | v1.4 |
+| Message sections | partial | Generic annotation/property maps, full properties, DATA, AMQP value, and limited AMQP sequence sections exist. | v1.4 |
 | Delivery settlement | partial | Receiver accepted/released/rejected settlement exists. | v1.7 |
 | Delivery states | partial | Accepted, released, rejected exist as settlement outcomes only. | v1.7 |
 | Transactions | missing | No coordinator or transactional delivery state. | v1.7 |
@@ -51,11 +51,11 @@ specification.
 | Floating point | implemented | `Float32`, `Float64`; generic encoder/decoder support `float` and `double`. | Type and codec tests. | Integrate into the eventual generic value tree and nested containers. | P2 | v1.5 |
 | Decimal types | implemented | `Decimal32`, `Decimal64`, `Decimal128`; generic encoder/decoder preserve the fixed-width AMQP decimal interchange bytes. | Type and codec tests. | Public decimal arithmetic/conversion helpers are deliberately deferred because PHP has no native decimal floating-point type. | P2 | v1.5 |
 | Char | implemented | `Char`; generic encoder/decoder support Unicode scalar values in UTF-32BE wire form. | Type and codec tests. | Integrate into the eventual generic value tree and nested containers. | P2 | v1.5 |
-| Timestamp | implemented | `Timestamp`; generic encoder/decoder support signed 64-bit millisecond values. | Type and codec tests. | Integrate into message properties and nested containers. | P2 | v1.5 |
-| UUID | implemented | `Uuid`; generic encoder/decoder support strict RFC 4122 text form and 16-byte wire encoding. | Type and codec tests. | Integrate into message-id/correlation-id choice handling and nested containers. | P2 | v1.5 |
-| Binary | partial | `Binary` value object plus generic `vbin8`/`vbin32` encode/decode; DATA bodies, transfer tags, and SASL initial response also have local support. | Type, codec, message, transfer, and SASL tests. | Container integration and broad use in higher-level codecs. | P1 | v1.5 |
-| String | partial | Generic PHP string encode/decode for `str8`/`str32`; message and performative codecs also have local support. | Codec, message, and performative tests. | Container integration and UTF-8 validation policy. | P1 | v1.5 |
-| Symbol | partial | `Symbol` value object plus generic `sym8`/`sym32` encode/decode; SASL, message map keys, content type, and detach errors also have local support. | Type, codec, SASL, and message tests. | Container integration and broader higher-level codec adoption. | P1 | v1.5 |
+| Timestamp | implemented | `Timestamp`; generic encoder/decoder support signed 64-bit millisecond values and message property timestamp fields. | Type, codec, and message tests. | Broader higher-level codec adoption where AMQP timestamp fields appear. | P2 | v1.5 |
+| UUID | implemented | `Uuid`; generic encoder/decoder support strict RFC 4122 text form, 16-byte wire encoding, and message-id/correlation-id choices. | Type, codec, and message tests. | Broader higher-level codec adoption where AMQP UUID fields appear. | P2 | v1.5 |
+| Binary | partial | `Binary` value object plus generic `vbin8`/`vbin32` encode/decode; DATA bodies, message `user-id`, message-id/correlation-id choices, transfer tags, and SASL initial response also have local support. | Type, codec, message, transfer, and SASL tests. | Broader use in higher-level codecs. | P1 | v1.5 |
+| String | partial | Generic PHP string encode/decode for `str8`/`str32`; message properties, message maps, and performative codecs also have local support. | Codec, message, and performative tests. | UTF-8 validation policy and broader higher-level codec adoption. | P1 | v1.5 |
+| Symbol | partial | `Symbol` value object plus generic `sym8`/`sym32` encode/decode; SASL, message map keys, content type/encoding, and detach errors also have local support. | Type, codec, SASL, and message tests. | Broader higher-level codec adoption. | P1 | v1.5 |
 | Lists | implemented | `AmqpList`; generic encoder/decoder support `list0`, `list8`, `list32`, and nested lists. Local list parsing also exists in performative/message/SASL codecs. | Type, codec, performative, SASL, and message tests. | Adopt generic lists in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
 | Maps | implemented | `AmqpMap`; generic encoder/decoder support `map8`, `map32`, nested maps, mixed values, and arbitrary AMQP key/value shapes. Message maps still have constrained local parsing. | Type, codec, and message tests. | Adopt generic maps in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
 | Arrays | implemented | `AmqpArray`; generic encoder/decoder support `array8`, `array32`, primitive, compound, and described element constructors, and nested arrays. SASL mechanisms still have local array8 parsing. | Type, codec, SASL mechanisms, and message tests. | Adopt generic arrays in higher-level codecs where that reduces duplicate parsing. | P2 | v1.5 |
@@ -117,7 +117,7 @@ specification.
 | Header section | partial | `Header`, `MessageCodec` | `MessageCodecTest` | Confirm full field validation and generic value integration. | P1 | v1.4 |
 | Delivery annotations | partial | Non-empty string public keys encoded as AMQP symbols; generic AMQP values, `map8`, and `map32` decode/encode through the generic map codec. | `MessageCodecTest` | Public representation for arbitrary non-string annotation keys if future API needs them. | P1 | v1.4 |
 | Message annotations | partial | Non-empty string public keys encoded as AMQP symbols; generic AMQP values, `map8`, and `map32` decode/encode through the generic map codec. | `MessageCodecTest` | Public representation for arbitrary non-string annotation keys if future API needs them. | P1 | v1.4 |
-| Properties | partial | message-id, correlation-id, content-type, subject. | `MessageCodecTest` | user-id, to, reply-to, absolute-expiry-time, creation-time, group-id, group-sequence, reply-to-group-id, and message-id/correlation-id choice types. | P0 | v1.4 |
+| Properties | implemented | All AMQP property fields are encoded/decoded through generic list values: message-id and correlation-id choices, user-id, to, subject, reply-to, content-type, content-encoding, absolute-expiry-time, creation-time, group-id, group-sequence, and reply-to-group-id. | `MessageCodecTest` | None for the AMQP property field set; public PHP value wrappers remain the compatibility boundary for AMQP-only types. | P0 | v1.4 |
 | Application properties | implemented | Non-empty string public keys encoded as AMQP symbols; generic AMQP values, `string32`, `map8`, and `map32` decode/encode through the generic map codec. | `MessageCodecTest` | Revisit key constructor choice if strict AMQP application-property string-key enforcement becomes necessary. | P1 | v1.4 |
 | DATA body | partial | `vbin8` and `vbin32` DATA sections. | Message and integration tests. | Multiple DATA sections and generic binary value integration. | P0 | v1.4 |
 | AMQP sequence body | partial | list8 of strings. | `MessageCodecTest` | Multiple sequence sections and arbitrary AMQP values. | P1 | v1.4 |
@@ -188,14 +188,12 @@ designed explicitly if a future public API needs them.
 
 Recommended concrete slices:
 
-1. Message properties: widen message-id and correlation-id choice handling plus
-   remaining timestamp, binary, string, symbol, and numeric fields.
-2. AMQP sequence bodies: widen from list8 of strings to arbitrary AMQP values
+1. AMQP sequence bodies: widen from list8 of strings to arbitrary AMQP values
    through the generic list model.
-3. Performatives and terminus fields: replace duplicated local list/map parsing
+2. Performatives and terminus fields: replace duplicated local list/map parsing
    where the generic codec reduces risk, then expand optional fields in focused
    slices.
-4. Delivery states and outcomes: model received, accepted, rejected, released,
+3. Delivery states and outcomes: model received, accepted, rejected, released,
    modified, and transactional-state as described values with exact binary
    fixtures.
 

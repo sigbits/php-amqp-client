@@ -40,8 +40,8 @@ The current development line supports:
 - AMQP 1.0 protocol header, frame parsing, OPEN/CLOSE, BEGIN/END, ATTACH/DETACH,
   FLOW, TRANSFER, and DISPOSITION foundations.
 - Message DATA, AMQP value, and AMQP sequence body sections.
-- Header, properties, delivery annotations, message annotations, application
-  properties, and footer sections for practical string-oriented messages.
+- Header, full AMQP properties, delivery annotations, message annotations,
+  application properties, and footer sections.
 - Public synchronous Connection, Session, Sender, and Receiver APIs.
 - Documented public timeout, lifecycle, and transport error semantics.
 - Public receiver delivery settlement through accepted, released, and rejected

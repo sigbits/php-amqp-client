@@ -131,6 +131,11 @@ vbin32. Message map values and generic AMQP value bodies use the generic value
 codec, including large encodings when needed. Unsupported AMQP section shapes
 remain protocol-internal details, not v1.0.0 user-facing API.
 
+The current post-v1.0 development line extends `Properties` without breaking
+the v1.0.0 constructor names: message-id and correlation-id now accept AMQP
+`string`, `ULong`, `Uuid`, and `Binary` choices, and the remaining AMQP
+property fields are available through additional named arguments.
+
 ### Timeout Unit Commitment
 
 `Connection::connect(..., timeoutSeconds: $timeoutSeconds)` interprets the
