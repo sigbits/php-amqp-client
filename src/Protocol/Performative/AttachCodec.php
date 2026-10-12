@@ -35,15 +35,18 @@ final class AttachCodec
     private readonly ScalarReader $scalarReader;
     private readonly Decoder $decoder;
     private readonly Encoder $encoder;
+    private readonly DeliveryStateCodec $deliveryStateCodec;
 
     public function __construct(
         ?ScalarReader $scalarReader = null,
         ?Decoder $decoder = null,
         ?Encoder $encoder = null,
+        ?DeliveryStateCodec $deliveryStateCodec = null,
     ) {
         $this->scalarReader = $scalarReader ?? new ScalarReader();
         $this->decoder = $decoder ?? new Decoder();
         $this->encoder = $encoder ?? new Encoder();
+        $this->deliveryStateCodec = $deliveryStateCodec ?? new DeliveryStateCodec();
     }
 
     public function encode(Attach $attach): string
@@ -352,7 +355,7 @@ final class AttachCodec
             $source->dynamicNodeProperties,
             $source->distributionMode === null ? null : new Symbol($source->distributionMode),
             $source->filter,
-            null,
+            $source->defaultOutcome === null ? null : $this->stateValue($source->defaultOutcome),
             $this->encodeMultipleSymbols($source->outcomes),
             $this->encodeMultipleSymbols($source->capabilities),
         ]);
@@ -418,6 +421,7 @@ final class AttachCodec
             outcomes: $this->multipleSymbols($fields[9] ?? null),
             capabilities: $this->multipleSymbols($fields[10] ?? null),
             filter: $this->nullableMap($fields[7] ?? null),
+            defaultOutcome: $this->nullableDeliveryState($fields[8] ?? null),
         );
     }
 
@@ -503,6 +507,28 @@ final class AttachCodec
         }
 
         throw PerformativeException::truncatedAttach();
+    }
+
+    private function stateValue(DeliveryState $state): AmqpDescribedValue
+    {
+        return $this->deliveryStateCodec->toDescribedValue($state);
+    }
+
+    private function nullableDeliveryState(mixed $value): ?DeliveryState
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (!$value instanceof AmqpDescribedValue) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        try {
+            return $this->deliveryStateCodec->fromDescribedValue($value);
+        } catch (DecodeException|InvalidArgumentException) {
+            throw PerformativeException::truncatedAttach();
+        }
     }
 
     /**

@@ -29,10 +29,7 @@ final class DeliveryStateCodec
 
     public function encode(DeliveryState $state): string
     {
-        return $this->encoder->encode(new AmqpDescribedValue(
-            new ULong($this->descriptorForState($state)),
-            new AmqpList([]),
-        ));
+        return $this->encoder->encode($this->toDescribedValue($state));
     }
 
     public function decode(string $bytes): DeliveryState
@@ -61,22 +58,38 @@ final class DeliveryStateCodec
             throw DecodeException::malformedDescribedValue();
         }
 
-        if (!$decoded instanceof AmqpDescribedValue
-            || !$decoded->descriptor instanceof ULong
-            || !$decoded->value instanceof AmqpList
-            || $decoded->value->items !== []) {
+        if (!$decoded instanceof AmqpDescribedValue) {
             throw DecodeException::malformedDescribedValue();
         }
 
         return [
-            match ($decoded->descriptor->value) {
-                self::ACCEPTED_DESCRIPTOR => new Accepted(),
-                self::REJECTED_DESCRIPTOR => new Rejected(),
-                self::RELEASED_DESCRIPTOR => new Released(),
-                default => throw DecodeException::malformedDescribedValue(),
-            },
+            $this->fromDescribedValue($decoded),
             $consumed,
         ];
+    }
+
+    public function toDescribedValue(DeliveryState $state): AmqpDescribedValue
+    {
+        return new AmqpDescribedValue(
+            new ULong($this->descriptorForState($state)),
+            new AmqpList([]),
+        );
+    }
+
+    public function fromDescribedValue(AmqpDescribedValue $value): DeliveryState
+    {
+        if (!$value->descriptor instanceof ULong
+            || !$value->value instanceof AmqpList
+            || $value->value->items !== []) {
+            throw DecodeException::malformedDescribedValue();
+        }
+
+        return match ($value->descriptor->value) {
+            self::ACCEPTED_DESCRIPTOR => new Accepted(),
+            self::REJECTED_DESCRIPTOR => new Rejected(),
+            self::RELEASED_DESCRIPTOR => new Released(),
+            default => throw DecodeException::malformedDescribedValue(),
+        };
     }
 
     private function descriptorForState(DeliveryState $state): string
