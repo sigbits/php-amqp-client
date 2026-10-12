@@ -42,9 +42,9 @@ final class MessageCodec
     private const int CONSTRUCTOR_UINT0 = 0x43;
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
+    private const int CONSTRUCTOR_LIST32 = 0xd0;
     private const int CONSTRUCTOR_NULL = 0x40;
     private const int CONSTRUCTOR_SMALLUINT = 0x52;
-    private const int CONSTRUCTOR_STRING8 = 0xa1;
     private const int CONSTRUCTOR_UBYTE = 0x50;
     private const int CONSTRUCTOR_UINT = 0x70;
     private const int CONSTRUCTOR_VBIN8 = 0xa0;
@@ -159,7 +159,12 @@ final class MessageCodec
             throw MessageException::unsupportedDataBodyEncoding();
         }
 
-        if ($bodySection === MessageBodySection::AmqpSequence && $bodyConstructor !== self::CONSTRUCTOR_LIST8) {
+        if (
+            $bodySection === MessageBodySection::AmqpSequence
+            && $bodyConstructor !== self::CONSTRUCTOR_LIST0
+            && $bodyConstructor !== self::CONSTRUCTOR_LIST8
+            && $bodyConstructor !== self::CONSTRUCTOR_LIST32
+        ) {
             throw MessageException::unsupportedAmqpSequenceEncoding();
         }
 
@@ -347,33 +352,12 @@ final class MessageCodec
         return self::APPLICATION_PROPERTIES_DESCRIPTOR . $this->encodeMessageMap($properties);
     }
 
-    private function encodeString(string $value): string
-    {
-        return chr(self::CONSTRUCTOR_STRING8) . chr(strlen($value)) . $value;
-    }
-
     /**
-     * @param list<string> $items
+     * @param list<mixed> $items
      */
     private function encodeAmqpSequenceBody(array $items): string
     {
-        $encodedItems = '';
-
-        foreach ($items as $item) {
-            $encodedItems .= $this->encodeString($item);
-        }
-
-        $listSize = 1 + strlen($encodedItems);
-
-        if ($listSize > 255) {
-            throw new \InvalidArgumentException('AMQP sequence body must fit in list8 encoding.');
-        }
-
-        return self::AMQP_SEQUENCE_DESCRIPTOR
-            . chr(self::CONSTRUCTOR_LIST8)
-            . chr($listSize)
-            . chr(count($items))
-            . $encodedItems;
+        return self::AMQP_SEQUENCE_DESCRIPTOR . (new Encoder())->encode(new AmqpList($items));
     }
 
     /**
@@ -509,45 +493,25 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: list<string>, 1: int}
+     * @return array{0: list<mixed>, 1: int}
      */
     private function decodeAmqpSequenceBody(string $bytes, int $cursor): array
     {
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_LIST8) {
-            throw MessageException::unsupportedAmqpSequenceEncoding();
-        }
-
-        ++$cursor;
-
-        if (strlen($bytes) < $cursor + 2) {
-            throw MessageException::truncatedDataBody();
-        }
-
-        $listSize = ord($bytes[$cursor]);
-        ++$cursor;
-        $fieldCount = ord($bytes[$cursor]);
-        ++$cursor;
-        $listEnd = $cursor + $listSize - 1;
-
-        if (strlen($bytes) < $listEnd) {
-            throw MessageException::truncatedDataBody();
-        }
-
-        $items = [];
-
-        for ($i = 0; $i < $fieldCount; ++$i) {
-            if ($cursor >= $listEnd) {
+        try {
+            [$list, $consumed] = (new Decoder())->decodeWithConsumed(substr($bytes, $cursor));
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
                 throw MessageException::truncatedDataBody();
             }
 
-            if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_STRING8) {
-                throw MessageException::unsupportedAmqpSequenceEncoding();
-            }
-
-            [$items[], $cursor] = $this->decodeSequenceString8($bytes, $cursor + 1, $listEnd);
+            throw MessageException::unsupportedAmqpSequenceEncoding();
         }
 
-        return [$items, $cursor];
+        if (!$list instanceof AmqpList) {
+            throw MessageException::unsupportedAmqpSequenceEncoding();
+        }
+
+        return [$list->items, $cursor + $consumed];
     }
 
     /**
@@ -570,28 +534,6 @@ final class MessageCodec
         }
 
         return ['', $value, $cursor + $consumed];
-    }
-
-    /**
-     * @return array{0: string, 1: int}
-     */
-    private function decodeSequenceString8(string $bytes, int $cursor, int $listEnd): array
-    {
-        if ($cursor >= $listEnd) {
-            throw MessageException::truncatedDataBody();
-        }
-
-        $length = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($cursor + $length > $listEnd) {
-            throw MessageException::truncatedDataBody();
-        }
-
-        return [
-            substr($bytes, $cursor, $length),
-            $cursor + $length,
-        ];
     }
 
     /**

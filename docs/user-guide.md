@@ -116,6 +116,24 @@ $sender->send(new Message(
 ));
 ```
 
+For an AMQP sequence body, set `bodySection` and pass the ordered AMQP values
+through `bodySequence`:
+
+```php
+<?php
+
+use Sigbits\Amqp\Protocol\Message\Message;
+use Sigbits\Amqp\Protocol\Message\MessageBodySection;
+use Sigbits\Amqp\Protocol\Type\Binary;
+use Sigbits\Amqp\Protocol\Type\UInt;
+
+$sender->send(new Message(
+    body: '',
+    bodySection: MessageBodySection::AmqpSequence,
+    bodySequence: ['order-created', new UInt(42), true, new Binary('raw')],
+));
+```
+
 Message map keys must be non-empty strings. Map values and AMQP value bodies use
 the generic AMQP value codec, including explicit `null`, scalars, containers,
 described values, binary values, and large `string32`/`map32` encodings when
@@ -124,8 +142,8 @@ needed. When receiving messages, decoded AMQP value strings remain in
 null are available through `Message::$bodyValue` when `Message::hasBodyValue()`
 is true. Message properties support the AMQP property field set, including
 message-id/correlation-id choices via `string`, `ULong`, `Uuid`, or `Binary`
-values. AMQP sequence items currently must fit in the documented string8
-limits.
+values. AMQP sequence bodies use the generic AMQP value codec for ordered items,
+including large `list32` and `string32` encodings when needed.
 
 ### Receiving Messages
 

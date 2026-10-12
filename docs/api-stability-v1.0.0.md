@@ -136,6 +136,10 @@ the v1.0.0 constructor names: message-id and correlation-id now accept AMQP
 `string`, `ULong`, `Uuid`, and `Binary` choices, and the remaining AMQP
 property fields are available through additional named arguments.
 
+It also extends AMQP sequence bodies without breaking existing string
+sequences: `Message::$bodySequence` now accepts generic AMQP values and the
+codec uses `list0`, `list8`, or `list32` as needed.
+
 ### Timeout Unit Commitment
 
 `Connection::connect(..., timeoutSeconds: $timeoutSeconds)` interprets the
