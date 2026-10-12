@@ -7,6 +7,7 @@ namespace Sigbits\Amqp\Tests\Protocol\Codec;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\EncodeException;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
+use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Char;
@@ -292,6 +293,44 @@ final class EncoderTest extends TestCase
         $text = str_repeat('x', 256);
 
         self::assertSame("\xb3\x00\x00\x01\x00" . $text, $encoder->encode(new Symbol($text)));
+    }
+
+    public function testEncodesEmptyListAsList0(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x45", $encoder->encode(new AmqpList([])));
+    }
+
+    public function testEncodesList8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame(
+            "\xc0\x0f\x03\xa1\x06orders\x70\x00\x00\x00\x2a\x41",
+            $encoder->encode(new AmqpList(['orders', new UInt(42), true])),
+        );
+    }
+
+    public function testEncodesNestedList8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame(
+            "\xc0\x07\x01\xc0\x04\x01\xa1\x01x",
+            $encoder->encode(new AmqpList([new AmqpList(['x'])])),
+        );
+    }
+
+    public function testEncodesList32(): void
+    {
+        $encoder = new Encoder();
+        $text = str_repeat('x', 256);
+
+        self::assertSame(
+            "\xd0\x00\x00\x01\x09\x00\x00\x00\x01\xb1\x00\x00\x01\x00" . $text,
+            $encoder->encode(new AmqpList([$text])),
+        );
     }
 
     public function testRejectsUnsupportedValue(): void
