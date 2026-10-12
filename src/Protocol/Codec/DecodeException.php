@@ -61,6 +61,26 @@ final class DecodeException extends RuntimeException
         return new self('Truncated AMQP ulong value.');
     }
 
+    public static function truncatedFloat(): self
+    {
+        return new self('Truncated AMQP float value.');
+    }
+
+    public static function truncatedDouble(): self
+    {
+        return new self('Truncated AMQP double value.');
+    }
+
+    public static function truncatedTimestamp(): self
+    {
+        return new self('Truncated AMQP timestamp value.');
+    }
+
+    public static function truncatedUuid(): self
+    {
+        return new self('Truncated AMQP uuid value.');
+    }
+
     public static function truncatedBinary(): self
     {
         return new self('Truncated AMQP binary value.');

@@ -9,14 +9,18 @@ use Sigbits\Amqp\Protocol\Codec\EncodeException;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
+use Sigbits\Amqp\Protocol\Type\Float32;
+use Sigbits\Amqp\Protocol\Type\Float64;
 use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\Long_;
 use Sigbits\Amqp\Protocol\Type\Short;
 use Sigbits\Amqp\Protocol\Type\Symbol;
+use Sigbits\Amqp\Protocol\Type\Timestamp;
 use Sigbits\Amqp\Protocol\Type\UByte;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\ULong;
 use Sigbits\Amqp\Protocol\Type\UShort;
+use Sigbits\Amqp\Protocol\Type\Uuid;
 
 final class EncoderTest extends TestCase
 {
@@ -179,6 +183,37 @@ final class EncoderTest extends TestCase
         $encoder = new Encoder();
 
         self::assertSame("\x80\xff\xff\xff\xff\xff\xff\xff\xff", $encoder->encode(new ULong('18446744073709551615')));
+    }
+
+    public function testEncodesFloat32(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x72\x3f\xc0\x00\x00", $encoder->encode(new Float32(1.5)));
+    }
+
+    public function testEncodesFloat64(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x82\x3f\xf8\x00\x00\x00\x00\x00\x00", $encoder->encode(new Float64(1.5)));
+    }
+
+    public function testEncodesTimestamp(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x83\x00\x00\x00\x00\x00\x00\x00\x01", $encoder->encode(new Timestamp(1)));
+    }
+
+    public function testEncodesUuid(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame(
+            "\x98\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff",
+            $encoder->encode(new Uuid('00112233-4455-6677-8899-aabbccddeeff')),
+        );
     }
 
     public function testEncodesBinary8(): void
