@@ -126,6 +126,7 @@ final class AttachCodec
         [$role, $cursor] = $this->decodeRole($bytes, $cursor, $listEnd);
         $source = null;
         $target = null;
+        $initialDeliveryCount = null;
 
         if ($fieldCount >= 4) {
             $cursor = $this->skipValue($bytes, $cursor, $listEnd);
@@ -143,7 +144,19 @@ final class AttachCodec
             [$target, $cursor] = $this->decodeTarget($bytes, $cursor, $listEnd);
         }
 
-        for ($field = 7; $field < $fieldCount; ++$field) {
+        if ($fieldCount >= 8) {
+            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        }
+
+        if ($fieldCount >= 9) {
+            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        }
+
+        if ($fieldCount >= 10) {
+            [$initialDeliveryCount, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
+        }
+
+        for ($field = 10; $field < $fieldCount; ++$field) {
             $cursor = $this->skipValue($bytes, $cursor, $listEnd);
         }
 
@@ -157,6 +170,7 @@ final class AttachCodec
             role: $role,
             source: $source,
             target: $target,
+            initialDeliveryCount: $initialDeliveryCount,
         );
     }
 
