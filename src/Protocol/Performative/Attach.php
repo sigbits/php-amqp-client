@@ -6,6 +6,7 @@ namespace Sigbits\Amqp\Protocol\Performative;
 
 use InvalidArgumentException;
 use Sigbits\Amqp\Protocol\Type\UInt;
+use Sigbits\Amqp\Protocol\Type\ULong;
 
 final readonly class Attach
 {
@@ -17,6 +18,7 @@ final readonly class Attach
     public ?int $initialDeliveryCount;
     public ?int $senderSettleMode;
     public ?int $receiverSettleMode;
+    public ?ULong $maxMessageSize;
     public ?Source $source;
     public ?Target $target;
 
@@ -31,6 +33,7 @@ final readonly class Attach
         ?Target $target = null,
         ?int $senderSettleMode = null,
         ?int $receiverSettleMode = null,
+        ?ULong $maxMessageSize = null,
     ) {
         if ($name === '') {
             throw new InvalidArgumentException('AMQP attach name must not be empty.');
@@ -75,5 +78,6 @@ final readonly class Attach
         $this->initialDeliveryCount = $initialDeliveryCount;
         $this->senderSettleMode = $senderSettleMode;
         $this->receiverSettleMode = $receiverSettleMode;
+        $this->maxMessageSize = $maxMessageSize;
     }
 }
