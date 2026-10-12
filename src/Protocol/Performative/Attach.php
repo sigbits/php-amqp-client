@@ -15,6 +15,8 @@ final readonly class Attach
     public ?string $sourceAddress;
     public ?string $targetAddress;
     public ?int $initialDeliveryCount;
+    public ?int $senderSettleMode;
+    public ?int $receiverSettleMode;
     public ?Source $source;
     public ?Target $target;
 
@@ -27,6 +29,8 @@ final readonly class Attach
         ?int $initialDeliveryCount = null,
         ?Source $source = null,
         ?Target $target = null,
+        ?int $senderSettleMode = null,
+        ?int $receiverSettleMode = null,
     ) {
         if ($name === '') {
             throw new InvalidArgumentException('AMQP attach name must not be empty.');
@@ -53,6 +57,14 @@ final readonly class Attach
             new UInt($initialDeliveryCount);
         }
 
+        if ($senderSettleMode !== null && ($senderSettleMode < 0 || $senderSettleMode > 2)) {
+            throw new InvalidArgumentException('AMQP sender settle mode must be 0, 1, or 2.');
+        }
+
+        if ($receiverSettleMode !== null && ($receiverSettleMode < 0 || $receiverSettleMode > 1)) {
+            throw new InvalidArgumentException('AMQP receiver settle mode must be 0 or 1.');
+        }
+
         $this->name = $name;
         $this->handle = $handle;
         $this->role = $role;
@@ -61,5 +73,7 @@ final readonly class Attach
         $this->sourceAddress = $source?->address;
         $this->targetAddress = $target?->address;
         $this->initialDeliveryCount = $initialDeliveryCount;
+        $this->senderSettleMode = $senderSettleMode;
+        $this->receiverSettleMode = $receiverSettleMode;
     }
 }
