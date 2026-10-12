@@ -25,6 +25,7 @@ final readonly class Source
         public ?string $distributionMode = null,
         public array $outcomes = [],
         public ?AmqpMap $filter = null,
+        public ?DeliveryState $defaultOutcome = null,
     ) {
         if ($address === '') {
             throw new InvalidArgumentException('AMQP source address must not be empty.');
