@@ -481,6 +481,29 @@ final class AttachCodecTest extends TestCase
         );
     }
 
+    public function testDecodesSenderAttachWithInitialDeliveryCount(): void
+    {
+        $codec = new AttachCodec();
+
+        $attach = $codec->decode(
+            "\x00\x53\x12\xc0\x28\x0a\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40"
+            . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test"
+            . "\x40\x40\x43",
+        );
+
+        self::assertEquals(new Attach(
+            name: 'sender',
+            handle: 0,
+            role: LinkRole::Sender,
+            targetAddress: 'orders.test',
+            initialDeliveryCount: 0,
+        ), $attach);
+        self::assertSame(0, $attach->initialDeliveryCount);
+    }
+
     public function testEncodesReceiverAttachWithSourceAddress(): void
     {
         $codec = new AttachCodec();
