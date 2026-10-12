@@ -92,7 +92,7 @@ specification.
 | --- | --- | --- | --- | --- | --- | --- |
 | OPEN | partial | `Open`, `OpenCodec`, `ConnectionEngine`; all `OPEN` fields can be encoded/decoded, including locales, capabilities, and properties. | `OpenCodecTest`, `ConnectionEngineTest`, client/integration tests | Negotiating/enforcing max-frame-size, channel-max, idle-time-out, capabilities, and properties in connection state. | P0 | v1.3 |
 | BEGIN | partial | `Begin`, `BeginCodec`, `SessionEngine`; all `BEGIN` fields can be encoded/decoded, including handle-max, capabilities, and properties. | `BeginCodecTest`, `SessionEngineTest` | remote-channel mapping beyond one public session path, negotiating/enforcing handle-max and capabilities, and complete incoming/outgoing window behavior. | P0 | v1.3 |
-| ATTACH | partial | `Attach`, `AttachCodec`, sender/receiver link engines | `AttachCodecTest`, link engine tests | snd/rcv settle modes, max-message-size, offered/desired capabilities, properties, unsettled map, incomplete-unsettled, initial delivery count semantics, full source/target fields. | P0 | v1.6 |
+| ATTACH | partial | `Attach`, `AttachCodec`, `Source`, `Target`, sender/receiver link engines; source/target address termini can be encoded and decoded as value objects. | `AttachCodecTest`, link engine tests | snd/rcv settle modes, max-message-size, offered/desired capabilities, properties, unsettled map, incomplete-unsettled, initial delivery count semantics, full source/target fields beyond address. | P0 | v1.3 |
 | FLOW | partial | `Flow`, `FlowCodec`, link engines | `FlowCodecTest`, sender/receiver engine tests | drain, echo, properties, session-only flow, complete window behavior, credit edge cases. | P0 | v1.6 |
 | TRANSFER | partial | `Transfer`, `TransferCodec`, sender/receiver engines | `TransferCodecTest`, link engine tests, large message tests | settled, state, resume, aborted, batchable, omitted repeated fields across continuation frames, full delivery-state handling. | P0 | v1.6 |
 | DISPOSITION | partial | `Disposition`, `DispositionCodec`, receiver settlement | `DispositionCodecTest`, receiver/client tests | sender role, delivery ranges, settled false, received/rejected/released/modified/transactional-state with fields, batchable. | P0 | v1.7 |
@@ -104,8 +104,8 @@ specification.
 
 | AMQP area | Status | Current implementation | Current tests | Missing behavior | Priority | Target |
 | --- | --- | --- | --- | --- | --- | --- |
-| Source address | partial | `AttachCodec` can encode a source with address only. | Attach and receiver engine tests. | durability, expiry-policy, timeout, dynamic, dynamic-node-properties, distribution-mode, filter, default-outcome, outcomes, capabilities. | P0 | v1.6 |
-| Target address | partial | `AttachCodec` can encode a target with address only. | Attach and sender engine tests. | durability, expiry-policy, timeout, dynamic, dynamic-node-properties, capabilities. | P0 | v1.6 |
+| Source address | partial | `Source` and `AttachCodec` can encode and decode a source with address only. | Attach and receiver engine tests. | durability, expiry-policy, timeout, dynamic, dynamic-node-properties, distribution-mode, filter, default-outcome, outcomes, capabilities. | P0 | v1.3 |
+| Target address | partial | `Target` and `AttachCodec` can encode and decode a target with address only. | Attach and sender engine tests. | durability, expiry-policy, timeout, dynamic, dynamic-node-properties, capabilities. | P0 | v1.3 |
 | Filters/selectors | missing | None. | None. | Described filter set support and broker interoperability tests. | P1 | v1.6 |
 | Dynamic nodes | missing | None. | None. | Dynamic source/target negotiation and returned terminus fields. | P1 | v1.6 |
 | Broker management APIs | not applicable | Test helpers create broker queues externally. | Tool and integration tests. | Keep outside core AMQP unless a future management client is explicitly designed. | P3 | none |
@@ -189,8 +189,9 @@ designed explicitly if a future public API needs them.
 Recommended concrete slices:
 
 1. Performatives and terminus fields: `OPEN` and `BEGIN` optional field
-   encode/decode are in place for v1.3. Continue by introducing source/target
-   terminus value objects for `ATTACH`.
+   encode/decode are in place for v1.3, and `ATTACH` now has source/target
+   terminus value objects. Continue by expanding source and target fields beyond
+   address in focused slices.
 2. Delivery states and outcomes: model received, accepted, rejected, released,
    modified, and transactional-state as described values with exact binary
    fixtures.
