@@ -35,7 +35,7 @@ final class MessageException extends RuntimeException
 
     public static function unsupportedAmqpSequenceEncoding(): self
     {
-        return new self('AMQP sequence body must use list8 encoding.');
+        return new self('AMQP sequence body must use AMQP list encoding.');
     }
 
     public static function truncatedDataBody(): self

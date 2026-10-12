@@ -17,7 +17,7 @@ final readonly class Message
      * @param array<string, mixed> $messageAnnotations
      * @param array<string, mixed> $applicationProperties
      * @param array<string, mixed> $footer
-     * @param list<string> $bodySequence
+     * @param list<mixed> $bodySequence
      * @param mixed $bodyValue AMQP value body payload when provided. Use `hasBodyValue()` to distinguish an
      *                         explicit AMQP null from the legacy string body path.
      */
@@ -38,12 +38,6 @@ final readonly class Message
 
         if ($bodySection === MessageBodySection::AmqpValue && !$this->hasBodyValue && strlen($body) > 255) {
             throw new InvalidArgumentException('AMQP value body must fit in string8 encoding.');
-        }
-
-        foreach ($bodySequence as $item) {
-            if (strlen($item) > 255) {
-                throw new InvalidArgumentException('AMQP sequence item must fit in string8 encoding.');
-            }
         }
 
         foreach ($deliveryAnnotations as $name => $value) {
