@@ -118,6 +118,8 @@ final class AttachCodec
         $senderSettleMode = null;
         $receiverSettleMode = null;
         $maxMessageSize = null;
+        $offeredCapabilities = [];
+        $desiredCapabilities = [];
 
         if ($fieldCount >= 4) {
             [$senderSettleMode, $cursor] = $this->decodeNullableSettlementMode($bytes, $cursor, $listEnd, 2);
@@ -151,7 +153,15 @@ final class AttachCodec
             [$maxMessageSize, $cursor] = $this->decodeNullableMaxMessageSize($bytes, $cursor, $listEnd);
         }
 
-        for ($field = 11; $field < $fieldCount; ++$field) {
+        if ($fieldCount >= 12) {
+            [$offeredCapabilities, $cursor] = $this->decodeMultipleSymbols($bytes, $cursor, $listEnd);
+        }
+
+        if ($fieldCount >= 13) {
+            [$desiredCapabilities, $cursor] = $this->decodeMultipleSymbols($bytes, $cursor, $listEnd);
+        }
+
+        for ($field = 13; $field < $fieldCount; ++$field) {
             $cursor = $this->skipValue($bytes, $cursor, $listEnd);
         }
 
@@ -169,6 +179,8 @@ final class AttachCodec
             senderSettleMode: $senderSettleMode,
             receiverSettleMode: $receiverSettleMode,
             maxMessageSize: $maxMessageSize,
+            offeredCapabilities: $offeredCapabilities,
+            desiredCapabilities: $desiredCapabilities,
         );
     }
 
@@ -231,6 +243,8 @@ final class AttachCodec
             null,
             $attach->initialDeliveryCount === null ? null : $this->encodeCompactUInt($attach->initialDeliveryCount),
             $attach->maxMessageSize === null ? null : $this->encoder->encode($attach->maxMessageSize),
+            $this->encodeCapabilities($attach->offeredCapabilities),
+            $this->encodeCapabilities($attach->desiredCapabilities),
         ], $minimumFieldCount);
     }
 
@@ -246,6 +260,16 @@ final class AttachCodec
         }
 
         return $fields;
+    }
+
+    /**
+     * @param list<string> $capabilities
+     */
+    private function encodeCapabilities(array $capabilities): ?string
+    {
+        $encoded = $this->encodeMultipleSymbols($capabilities);
+
+        return $encoded === null ? null : $this->encoder->encode($encoded);
     }
 
     /**
@@ -381,6 +405,28 @@ final class AttachCodec
         }
 
         return [$value, $cursor + $consumed];
+    }
+
+    /**
+     * @return array{0: list<string>, 1: int}
+     */
+    private function decodeMultipleSymbols(string $bytes, int $cursor, int $listEnd): array
+    {
+        if ($cursor >= $listEnd) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
+            return [[], $cursor + 1];
+        }
+
+        try {
+            [$value, $consumed] = $this->decoder->decodeWithConsumed(substr($bytes, $cursor, $listEnd - $cursor));
+        } catch (DecodeException|InvalidArgumentException) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        return [$this->multipleSymbols($value), $cursor + $consumed];
     }
 
     /**
