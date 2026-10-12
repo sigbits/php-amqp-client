@@ -7,6 +7,7 @@ namespace Sigbits\Amqp\Tests\Protocol\Codec;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\EncodeException;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
+use Sigbits\Amqp\Protocol\Type\AmqpArray;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
@@ -379,6 +380,66 @@ final class EncoderTest extends TestCase
                 ['payload', $text],
             ])),
         );
+    }
+
+    public function testEncodesEmptyArray8WithElementConstructor(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\xe0\x02\x00\xa3", $encoder->encode(new AmqpArray("\xa3", [])));
+    }
+
+    public function testEncodesSymbolArray8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame(
+            "\xe0\x07\x02\xa3\x01a\x02bb",
+            $encoder->encode(new AmqpArray("\xa3", [new Symbol('a'), new Symbol('bb')])),
+        );
+    }
+
+    public function testEncodesUIntArray8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame(
+            "\xe0\x0a\x02\x70\x00\x00\x00\x01\x00\x00\x00\x02",
+            $encoder->encode(new AmqpArray("\x70", [new UInt(1), new UInt(2)])),
+        );
+    }
+
+    public function testEncodesNestedArray8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame(
+            "\xe0\x07\x01\xe0\x04\x01\xa3\x01x",
+            $encoder->encode(new AmqpArray("\xe0", [
+                new AmqpArray("\xa3", [new Symbol('x')]),
+            ])),
+        );
+    }
+
+    public function testEncodesArray32(): void
+    {
+        $encoder = new Encoder();
+        $text = str_repeat('x', 256);
+
+        self::assertSame(
+            "\xf0\x00\x00\x01\x09\x00\x00\x00\x01\xb1\x00\x00\x01\x00" . $text,
+            $encoder->encode(new AmqpArray("\xb1", [$text])),
+        );
+    }
+
+    public function testRejectsArrayItemWithMismatchedElementConstructor(): void
+    {
+        $encoder = new Encoder();
+
+        $this->expectException(EncodeException::class);
+        $this->expectExceptionMessage('AMQP array item does not match the declared element constructor.');
+
+        $encoder->encode(new AmqpArray("\xa3", ['string']));
     }
 
     public function testRejectsUnsupportedValue(): void

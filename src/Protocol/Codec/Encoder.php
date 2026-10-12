@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Protocol\Codec;
 
 use LogicException;
+use Sigbits\Amqp\Protocol\Type\AmqpArray;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
@@ -114,6 +115,10 @@ final class Encoder
             return $this->encodeMap($value);
         }
 
+        if ($value instanceof AmqpArray) {
+            return $this->encodeArray($value);
+        }
+
         if ($value instanceof Binary) {
             return $this->encodeVariableBytes($value->value, "\xa0", "\xb0");
         }
@@ -200,6 +205,51 @@ final class Encoder
         }
 
         return "\xd1" . pack('N', strlen($payload) + 4) . pack('N', $count) . $payload;
+    }
+
+    private function encodeArray(AmqpArray $array): string
+    {
+        $payload = '';
+
+        foreach ($array->items as $item) {
+            $payload .= $this->encodeArrayItem($array->elementConstructor, $item);
+        }
+
+        $count = count($array->items);
+        $smallSize = strlen($payload) + strlen($array->elementConstructor) + 1;
+
+        if ($smallSize <= 255 && $count <= 255) {
+            return "\xe0" . chr($smallSize) . chr($count) . $array->elementConstructor . $payload;
+        }
+
+        return "\xf0" . pack('N', strlen($payload) + strlen($array->elementConstructor) + 4) . pack('N', $count) . $array->elementConstructor . $payload;
+    }
+
+    private function encodeArrayItem(string $elementConstructor, mixed $item): string
+    {
+        if ($elementConstructor === "\x40" && $item === null) {
+            return '';
+        }
+
+        if ($elementConstructor === "\x41" && $item === true) {
+            return '';
+        }
+
+        if ($elementConstructor === "\x42" && $item === false) {
+            return '';
+        }
+
+        if ($elementConstructor === "\x56" && is_bool($item)) {
+            return $item ? "\x01" : "\x00";
+        }
+
+        $encoded = $this->encode($item);
+
+        if (!str_starts_with($encoded, $elementConstructor)) {
+            throw EncodeException::mismatchedArrayElementConstructor();
+        }
+
+        return substr($encoded, strlen($elementConstructor));
     }
 
     /**

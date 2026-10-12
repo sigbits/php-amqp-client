@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Protocol\Codec;
 
 use InvalidArgumentException;
+use Sigbits\Amqp\Protocol\Type\AmqpArray;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
@@ -82,6 +83,8 @@ final class Decoder
             0xc1 => $this->decodeMap8($bytes, $cursor, $end),
             0xd0 => $this->decodeList32($bytes, $cursor, $end),
             0xd1 => $this->decodeMap32($bytes, $cursor, $end),
+            0xe0 => $this->decodeArray8($bytes, $cursor, $end),
+            0xf0 => $this->decodeArray32($bytes, $cursor, $end),
             default => throw DecodeException::unsupportedFormatCode($formatCode),
         };
     }
@@ -530,6 +533,181 @@ final class Decoder
         } catch (InvalidArgumentException) {
             throw DecodeException::malformedMap();
         }
+    }
+
+    /**
+     * @return array{0: AmqpArray, 1: int}
+     */
+    private function decodeArray8(string $bytes, int $cursor, int $end): array
+    {
+        if ($end - $cursor < 3) {
+            throw DecodeException::truncatedArray();
+        }
+
+        $size = ord($bytes[$cursor + 1]);
+
+        if ($size < 2) {
+            throw DecodeException::malformedArray();
+        }
+
+        $arrayEnd = $cursor + 2 + $size;
+
+        if ($arrayEnd > $end) {
+            throw DecodeException::truncatedArray();
+        }
+
+        return $this->decodeArrayItems($bytes, $cursor + 3, $arrayEnd, ord($bytes[$cursor + 2]));
+    }
+
+    /**
+     * @return array{0: AmqpArray, 1: int}
+     */
+    private function decodeArray32(string $bytes, int $cursor, int $end): array
+    {
+        if ($end - $cursor < 9) {
+            throw DecodeException::truncatedArray();
+        }
+
+        $size = (ord($bytes[$cursor + 1]) << 24)
+            | (ord($bytes[$cursor + 2]) << 16)
+            | (ord($bytes[$cursor + 3]) << 8)
+            | ord($bytes[$cursor + 4]);
+
+        if ($size < 5) {
+            throw DecodeException::malformedArray();
+        }
+
+        $arrayEnd = $cursor + 5 + $size;
+
+        if ($arrayEnd > $end) {
+            throw DecodeException::truncatedArray();
+        }
+
+        $count = (ord($bytes[$cursor + 5]) << 24)
+            | (ord($bytes[$cursor + 6]) << 16)
+            | (ord($bytes[$cursor + 7]) << 8)
+            | ord($bytes[$cursor + 8]);
+
+        return $this->decodeArrayItems($bytes, $cursor + 9, $arrayEnd, $count);
+    }
+
+    /**
+     * @return array{0: AmqpArray, 1: int}
+     */
+    private function decodeArrayItems(string $bytes, int $cursor, int $end, int $count): array
+    {
+        if ($cursor >= $end) {
+            throw DecodeException::truncatedArray();
+        }
+
+        $formatCode = ord($bytes[$cursor]);
+        $elementConstructor = $bytes[$cursor];
+        ++$cursor;
+
+        $items = [];
+
+        for ($index = 0; $index < $count; ++$index) {
+            try {
+                [$item, $cursor] = $this->decodeArrayElement($formatCode, $bytes, $cursor, $end);
+                $items[] = $item;
+            } catch (DecodeException $exception) {
+                if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
+                    throw DecodeException::truncatedArray();
+                }
+
+                throw $exception;
+            }
+        }
+
+        if ($cursor !== $end) {
+            throw DecodeException::malformedArray();
+        }
+
+        try {
+            return [new AmqpArray($elementConstructor, $items), $end];
+        } catch (InvalidArgumentException) {
+            throw DecodeException::malformedArray();
+        }
+    }
+
+    /**
+     * @return array{0: mixed, 1: int}
+     */
+    private function decodeArrayElement(int $formatCode, string $bytes, int $cursor, int $end): array
+    {
+        return match ($formatCode) {
+            0x40 => [null, $cursor],
+            0x41 => [true, $cursor],
+            0x42 => [false, $cursor],
+            0x43 => [new UInt(0), $cursor],
+            0x44 => [new ULong(0), $cursor],
+            0x45 => [new AmqpList([]), $cursor],
+            0x50 => [$this->decodeUByte("\x50" . substr($bytes, $cursor, 1)), $cursor + 1],
+            0x51 => [$this->decodeByte("\x51" . substr($bytes, $cursor, 1)), $cursor + 1],
+            0x52 => [$this->decodeSmallUInt("\x52" . substr($bytes, $cursor, 1)), $cursor + 1],
+            0x53 => [$this->decodeSmallULong("\x53" . substr($bytes, $cursor, 1)), $cursor + 1],
+            0x56 => [$this->decodeBoolean("\x56" . substr($bytes, $cursor, 1)), $cursor + 1],
+            0x60 => [$this->decodeUShort("\x60" . substr($bytes, $cursor, 2)), $cursor + 2],
+            0x61 => [$this->decodeShort("\x61" . substr($bytes, $cursor, 2)), $cursor + 2],
+            0x70 => [$this->decodeUInt("\x70" . substr($bytes, $cursor, 4)), $cursor + 4],
+            0x71 => [$this->decodeInt("\x71" . substr($bytes, $cursor, 4)), $cursor + 4],
+            0x72 => [$this->decodeFloat32("\x72" . substr($bytes, $cursor, 4)), $cursor + 4],
+            0x73 => [$this->decodeChar("\x73" . substr($bytes, $cursor, 4)), $cursor + 4],
+            0x74 => [$this->decodeDecimal32("\x74" . substr($bytes, $cursor, 4)), $cursor + 4],
+            0x80 => [$this->decodeULong("\x80" . substr($bytes, $cursor, 8)), $cursor + 8],
+            0x81 => [$this->decodeLong("\x81" . substr($bytes, $cursor, 8)), $cursor + 8],
+            0x82 => [$this->decodeFloat64("\x82" . substr($bytes, $cursor, 8)), $cursor + 8],
+            0x83 => [$this->decodeTimestamp("\x83" . substr($bytes, $cursor, 8)), $cursor + 8],
+            0x84 => [$this->decodeDecimal64("\x84" . substr($bytes, $cursor, 8)), $cursor + 8],
+            0x94 => [$this->decodeDecimal128("\x94" . substr($bytes, $cursor, 16)), $cursor + 16],
+            0x98 => [$this->decodeUuid("\x98" . substr($bytes, $cursor, 16)), $cursor + 16],
+            0xa0 => $this->decodeArrayElementVariable($bytes, $cursor, $end, "\xa0", $this->decodeVariableValue8(...), static fn (string $value): Binary => new Binary($value), DecodeException::truncatedBinary(...)),
+            0xa1 => $this->decodeArrayElementVariable($bytes, $cursor, $end, "\xa1", $this->decodeVariableValue8(...), static fn (string $value): string => $value, DecodeException::truncatedString(...)),
+            0xa3 => $this->decodeArrayElementVariable($bytes, $cursor, $end, "\xa3", $this->decodeVariableValue8(...), static fn (string $value): Symbol => new Symbol($value), DecodeException::truncatedSymbol(...)),
+            0xb0 => $this->decodeArrayElementVariable($bytes, $cursor, $end, "\xb0", $this->decodeVariableValue32(...), static fn (string $value): Binary => new Binary($value), DecodeException::truncatedBinary(...)),
+            0xb1 => $this->decodeArrayElementVariable($bytes, $cursor, $end, "\xb1", $this->decodeVariableValue32(...), static fn (string $value): string => $value, DecodeException::truncatedString(...)),
+            0xb3 => $this->decodeArrayElementVariable($bytes, $cursor, $end, "\xb3", $this->decodeVariableValue32(...), static fn (string $value): Symbol => new Symbol($value), DecodeException::truncatedSymbol(...)),
+            0xc0 => $this->decodeArrayElementCompound($bytes, $cursor, $end, "\xc0", $this->decodeList8(...)),
+            0xc1 => $this->decodeArrayElementCompound($bytes, $cursor, $end, "\xc1", $this->decodeMap8(...)),
+            0xd0 => $this->decodeArrayElementCompound($bytes, $cursor, $end, "\xd0", $this->decodeList32(...)),
+            0xd1 => $this->decodeArrayElementCompound($bytes, $cursor, $end, "\xd1", $this->decodeMap32(...)),
+            0xe0 => $this->decodeArrayElementCompound($bytes, $cursor, $end, "\xe0", $this->decodeArray8(...)),
+            0xf0 => $this->decodeArrayElementCompound($bytes, $cursor, $end, "\xf0", $this->decodeArray32(...)),
+            default => throw DecodeException::unsupportedFormatCode($formatCode),
+        };
+    }
+
+    /**
+     * @param callable(string, int, int): array{0: mixed, 1: int} $decoder
+     *
+     * @return array{0: mixed, 1: int}
+     */
+    private function decodeArrayElementCompound(string $bytes, int $cursor, int $end, string $constructor, callable $decoder): array
+    {
+        [$value, $next] = $decoder($constructor . substr($bytes, $cursor, $end - $cursor), 0, $end - $cursor + 1);
+
+        return [$value, $cursor + $next - 1];
+    }
+
+    /**
+     * @param callable(string, int, int, callable, callable): array{0: mixed, 1: int} $decoder
+     * @param callable(string): mixed $factory
+     * @param callable(): DecodeException $truncated
+     *
+     * @return array{0: mixed, 1: int}
+     */
+    private function decodeArrayElementVariable(
+        string $bytes,
+        int $cursor,
+        int $end,
+        string $constructor,
+        callable $decoder,
+        callable $factory,
+        callable $truncated,
+    ): array {
+        [$value, $next] = $decoder($constructor . substr($bytes, $cursor, $end - $cursor), 0, $end - $cursor + 1, $factory, $truncated);
+
+        return [$value, $cursor + $next - 1];
     }
 
     private function signedInt64BytesToInt(string $bytes): int

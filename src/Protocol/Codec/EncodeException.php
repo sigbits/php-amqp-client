@@ -15,4 +15,9 @@ final class EncodeException extends RuntimeException
             get_debug_type($value),
         ));
     }
+
+    public static function mismatchedArrayElementConstructor(): self
+    {
+        return new self('AMQP array item does not match the declared element constructor.');
+    }
 }
