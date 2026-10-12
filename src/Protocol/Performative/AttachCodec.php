@@ -9,8 +9,10 @@ use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
 use Sigbits\Amqp\Protocol\Codec\ScalarReader;
+use Sigbits\Amqp\Protocol\Type\AmqpArray;
 use Sigbits\Amqp\Protocol\Type\AmqpDescribedValue;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
+use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Symbol;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\ULong;
@@ -347,6 +349,12 @@ final class AttachCodec
             $source->expiryPolicy === null ? null : new Symbol($source->expiryPolicy),
             $source->timeout === null ? null : new UInt($source->timeout),
             $source->dynamic,
+            $source->dynamicNodeProperties,
+            null,
+            null,
+            null,
+            null,
+            $this->encodeMultipleSymbols($source->capabilities),
         ]);
     }
 
@@ -361,7 +369,24 @@ final class AttachCodec
             $target->expiryPolicy === null ? null : new Symbol($target->expiryPolicy),
             $target->timeout === null ? null : new UInt($target->timeout),
             $target->dynamic,
+            $target->dynamicNodeProperties,
+            $this->encodeMultipleSymbols($target->capabilities),
         ]);
+    }
+
+    /**
+     * @param list<string> $values
+     */
+    private function encodeMultipleSymbols(array $values): ?AmqpArray
+    {
+        if ($values === []) {
+            return null;
+        }
+
+        return new AmqpArray(
+            "\xa3",
+            array_map(static fn (string $value): Symbol => new Symbol($value), $values),
+        );
     }
 
     /**
@@ -388,6 +413,8 @@ final class AttachCodec
             expiryPolicy: $this->nullableSymbol($fields[2] ?? null),
             timeout: $this->nullableUInt($fields[3] ?? null),
             dynamic: $this->nullableBool($fields[4] ?? null),
+            dynamicNodeProperties: $this->nullableMap($fields[5] ?? null),
+            capabilities: $this->multipleSymbols($fields[10] ?? null),
         );
     }
 
@@ -401,6 +428,8 @@ final class AttachCodec
             expiryPolicy: $this->nullableSymbol($fields[2] ?? null),
             timeout: $this->nullableUInt($fields[3] ?? null),
             dynamic: $this->nullableBool($fields[4] ?? null),
+            dynamicNodeProperties: $this->nullableMap($fields[5] ?? null),
+            capabilities: $this->multipleSymbols($fields[6] ?? null),
         );
     }
 
@@ -459,6 +488,38 @@ final class AttachCodec
     {
         if ($value === null || is_bool($value)) {
             return $value;
+        }
+
+        throw PerformativeException::truncatedAttach();
+    }
+
+    private function nullableMap(mixed $value): ?AmqpMap
+    {
+        if ($value === null || $value instanceof AmqpMap) {
+            return $value;
+        }
+
+        throw PerformativeException::truncatedAttach();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function multipleSymbols(mixed $value): array
+    {
+        if ($value === null) {
+            return [];
+        }
+
+        if ($value instanceof Symbol) {
+            return [$value->value];
+        }
+
+        if ($value instanceof AmqpArray && in_array($value->elementConstructor, ["\xa3", "\xb3"], true)) {
+            return array_map(
+                static fn (Symbol $symbol): string => $symbol->value,
+                $value->items,
+            );
         }
 
         throw PerformativeException::truncatedAttach();

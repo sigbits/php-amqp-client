@@ -11,6 +11,9 @@ use Sigbits\Amqp\Protocol\Performative\LinkRole;
 use Sigbits\Amqp\Protocol\Performative\PerformativeException;
 use Sigbits\Amqp\Protocol\Performative\Source;
 use Sigbits\Amqp\Protocol\Performative\Target;
+use Sigbits\Amqp\Protocol\Type\AmqpMap;
+use Sigbits\Amqp\Protocol\Type\Symbol;
+use Sigbits\Amqp\Protocol\Type\UInt;
 
 final class AttachCodecTest extends TestCase
 {
@@ -125,6 +128,46 @@ final class AttachCodecTest extends TestCase
         );
     }
 
+    public function testEncodesAttachWithSourceAndTargetDynamicPropertiesAndCapabilities(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertSame(
+            "\x00\x53\x12\xc0\x81\x07\xa1\x04link"
+            . "\x70\x00\x00\x00\x00"
+            . "\x41"
+            . "\x40\x40"
+            . "\x00\x53\x28\xc0\x3d\x0b\xa1\x06source\x40\x40\x40\x41"
+            . "\xc1\x15\x02\xa3\x0dx-opt-created\x70\x65\x53\xf1\x00"
+            . "\x40\x40\x40\x40"
+            . "\xe0\x13\x01\xa3\x10temporary-source"
+            . "\x00\x53\x29\xc0\x2b\x07\xa1\x06target\x40\x40\x40\x41"
+            . "\xc1\x07\x02\xa3\x03foo\x41"
+            . "\xe0\x13\x01\xa3\x10temporary-target",
+            $codec->encode(new Attach(
+                name: 'link',
+                handle: 0,
+                role: LinkRole::Receiver,
+                source: new Source(
+                    address: 'source',
+                    dynamic: true,
+                    dynamicNodeProperties: new AmqpMap([
+                        [new Symbol('x-opt-created'), new UInt(1700000000)],
+                    ]),
+                    capabilities: ['temporary-source'],
+                ),
+                target: new Target(
+                    address: 'target',
+                    dynamic: true,
+                    dynamicNodeProperties: new AmqpMap([
+                        [new Symbol('foo'), true],
+                    ]),
+                    capabilities: ['temporary-target'],
+                ),
+            )),
+        );
+    }
+
     public function testDecodesAttachWithSourceAndTargetTermini(): void
     {
         $codec = new AttachCodec();
@@ -179,6 +222,48 @@ final class AttachCodecTest extends TestCase
                 . "\x40\x40"
                 . "\x00\x53\x28\xc0\x1b\x05\xa1\x06source\x70\x00\x00\x00\x01\xa3\x05never\x70\x00\x00\x00\x3c\x41"
                 . "\x00\x53\x29\xc0\x1b\x05\xa1\x06target\x70\x00\x00\x00\x02\xa3\x05never\x70\x00\x00\x00\x78\x42",
+            ),
+        );
+    }
+
+    public function testDecodesAttachWithSourceAndTargetDynamicPropertiesAndCapabilities(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertEquals(
+            new Attach(
+                name: 'link',
+                handle: 0,
+                role: LinkRole::Receiver,
+                source: new Source(
+                    address: 'source',
+                    dynamic: true,
+                    dynamicNodeProperties: new AmqpMap([
+                        [new Symbol('x-opt-created'), new UInt(1700000000)],
+                    ]),
+                    capabilities: ['temporary-source'],
+                ),
+                target: new Target(
+                    address: 'target',
+                    dynamic: true,
+                    dynamicNodeProperties: new AmqpMap([
+                        [new Symbol('foo'), true],
+                    ]),
+                    capabilities: ['temporary-target'],
+                ),
+            ),
+            $codec->decode(
+                "\x00\x53\x12\xc0\x81\x07\xa1\x04link"
+                . "\x70\x00\x00\x00\x00"
+                . "\x41"
+                . "\x40\x40"
+                . "\x00\x53\x28\xc0\x3d\x0b\xa1\x06source\x40\x40\x40\x41"
+                . "\xc1\x15\x02\xa3\x0dx-opt-created\x70\x65\x53\xf1\x00"
+                . "\x40\x40\x40\x40"
+                . "\xe0\x13\x01\xa3\x10temporary-source"
+                . "\x00\x53\x29\xc0\x2b\x07\xa1\x06target\x40\x40\x40\x41"
+                . "\xc1\x07\x02\xa3\x03foo\x41"
+                . "\xe0\x13\x01\xa3\x10temporary-target",
             ),
         );
     }
