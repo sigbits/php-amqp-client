@@ -6,6 +6,7 @@ namespace Sigbits\Amqp\Protocol\Codec;
 
 use LogicException;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
+use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Char;
@@ -109,6 +110,10 @@ final class Encoder
             return $this->encodeList($value);
         }
 
+        if ($value instanceof AmqpMap) {
+            return $this->encodeMap($value);
+        }
+
         if ($value instanceof Binary) {
             return $this->encodeVariableBytes($value->value, "\xa0", "\xb0");
         }
@@ -177,6 +182,24 @@ final class Encoder
         }
 
         return "\xd0" . pack('N', strlen($payload) + 4) . pack('N', $count) . $payload;
+    }
+
+    private function encodeMap(AmqpMap $map): string
+    {
+        $payload = '';
+
+        foreach ($map->pairs as [$key, $value]) {
+            $payload .= $this->encode($key) . $this->encode($value);
+        }
+
+        $count = count($map->pairs) * 2;
+        $smallSize = strlen($payload) + 1;
+
+        if ($smallSize <= 255 && $count <= 255) {
+            return "\xc1" . chr($smallSize) . chr($count) . $payload;
+        }
+
+        return "\xd1" . pack('N', strlen($payload) + 4) . pack('N', $count) . $payload;
     }
 
     /**

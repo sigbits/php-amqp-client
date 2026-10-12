@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
+use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Char;
@@ -666,6 +667,93 @@ final class DecoderTest extends TestCase
         $this->expectExceptionMessage('Truncated AMQP list value.');
 
         $decoder->decode("\xd0\x00\x00\x00\x04\x00\x00\x00");
+    }
+
+    public function testDecodesMap8Empty(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new AmqpMap([]), $decoder->decode("\xc1\x01\x00"));
+    }
+
+    public function testDecodesMap8(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpMap([
+                ['queue', 'orders'],
+                [new Symbol('priority'), new UInt(5)],
+            ]),
+            $decoder->decode("\xc1\x1f\x04\xa1\x05queue\xa1\x06orders\xa3\x08priority\x70\x00\x00\x00\x05"),
+        );
+    }
+
+    public function testDecodesNestedMap8(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpMap([
+                ['nested', new AmqpMap([
+                    ['x', true],
+                ])],
+            ]),
+            $decoder->decode("\xc1\x10\x02\xa1\x06nested\xc1\x05\x02\xa1\x01x\x41"),
+        );
+    }
+
+    public function testDecodesMap32(): void
+    {
+        $decoder = new Decoder();
+        $text = str_repeat('x', 256);
+
+        self::assertEquals(
+            new AmqpMap([
+                ['payload', $text],
+            ]),
+            $decoder->decode("\xd1\x00\x00\x01\x12\x00\x00\x00\x02\xa1\x07payload\xb1\x00\x00\x01\x00" . $text),
+        );
+    }
+
+    public function testRejectsTruncatedMap8Header(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP map value.');
+
+        $decoder->decode("\xc1\x01");
+    }
+
+    public function testRejectsTruncatedMap8Payload(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP map value.');
+
+        $decoder->decode("\xc1\x05\x02\xa1\x01x");
+    }
+
+    public function testRejectsMalformedMap8Count(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Malformed AMQP map value.');
+
+        $decoder->decode("\xc1\x01\x01");
+    }
+
+    public function testRejectsTruncatedMap32Header(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP map value.');
+
+        $decoder->decode("\xd1\x00\x00\x00\x04\x00\x00\x00");
     }
 
     public function testRejectsUnsupportedFormatCode(): void
