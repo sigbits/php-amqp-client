@@ -7,10 +7,8 @@ namespace Sigbits\Amqp\Protocol\Message;
 use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
-use Sigbits\Amqp\Protocol\Type\Byte;
-use Sigbits\Amqp\Protocol\Type\Int_;
-use Sigbits\Amqp\Protocol\Type\Long_;
-use Sigbits\Amqp\Protocol\Type\Short;
+use Sigbits\Amqp\Protocol\Type\AmqpMap;
+use Sigbits\Amqp\Protocol\Type\Symbol;
 
 final class MessageCodec
 {
@@ -54,11 +52,7 @@ final class MessageCodec
     private const int CONSTRUCTOR_STRING32 = 0xb1;
     private const int CONSTRUCTOR_SYMBOL8 = 0xa3;
     private const int CONSTRUCTOR_SYMBOL32 = 0xb3;
-    private const int CONSTRUCTOR_BYTE = 0x51;
-    private const int CONSTRUCTOR_SHORT = 0x61;
     private const int CONSTRUCTOR_USHORT = 0x60;
-    private const int CONSTRUCTOR_INT = 0x71;
-    private const int CONSTRUCTOR_LONG = 0x81;
     private const int CONSTRUCTOR_UBYTE = 0x50;
     private const int CONSTRUCTOR_UINT = 0x70;
     private const int CONSTRUCTOR_ULONG = 0x80;
@@ -381,62 +375,16 @@ final class MessageCodec
     }
 
     /**
-     * @param array<string, string|Byte|Short|Int_|Long_> $properties
+     * @param array<string, mixed> $properties
      */
     private function encodeApplicationProperties(array $properties): string
     {
-        $entries = '';
-
-        foreach ($properties as $name => $value) {
-            $entries .= $this->encodeSymbol($name) . $this->encodeMapValue($value);
-        }
-
-        $mapSize = 1 + strlen($entries);
-
-        if ($mapSize > 255) {
-            throw new \InvalidArgumentException('AMQP application properties must fit in map8 encoding.');
-        }
-
-        return self::APPLICATION_PROPERTIES_DESCRIPTOR
-            . chr(self::CONSTRUCTOR_MAP8)
-            . chr($mapSize)
-            . chr(count($properties) * 2)
-            . $entries;
+        return self::APPLICATION_PROPERTIES_DESCRIPTOR . $this->encodeMessageMap($properties);
     }
 
     private function encodeString(string $value): string
     {
         return chr(self::CONSTRUCTOR_STRING8) . chr(strlen($value)) . $value;
-    }
-
-    private function encodeSymbol(string $value): string
-    {
-        return chr(self::CONSTRUCTOR_SYMBOL8) . chr(strlen($value)) . $value;
-    }
-
-    private function encodeMapValue(string|Byte|Short|Int_|Long_ $value): string
-    {
-        if (is_string($value)) {
-            return $this->encodeString($value);
-        }
-
-        if ($value instanceof Byte) {
-            return chr(self::CONSTRUCTOR_BYTE) . chr($value->value & 0xff);
-        }
-
-        if ($value instanceof Short) {
-            return chr(self::CONSTRUCTOR_SHORT) . pack('n', $value->value & 0xffff);
-        }
-
-        if ($value instanceof Int_) {
-            return chr(self::CONSTRUCTOR_INT) . pack('N', $value->value & 0xffffffff);
-        }
-
-        return chr(self::CONSTRUCTOR_LONG) . pack(
-            'NN',
-            ($value->value >> 32) & 0xffffffff,
-            $value->value & 0xffffffff,
-        );
     }
 
     /**
@@ -464,75 +412,45 @@ final class MessageCodec
     }
 
     /**
-     * @param array<string, string|Byte|Short|Int_|Long_> $footer
+     * @param array<string, mixed> $footer
      */
     private function encodeFooter(array $footer): string
     {
-        $entries = '';
-
-        foreach ($footer as $name => $value) {
-            $entries .= $this->encodeSymbol($name) . $this->encodeMapValue($value);
-        }
-
-        $mapSize = 1 + strlen($entries);
-
-        if ($mapSize > 255) {
-            throw new \InvalidArgumentException('AMQP footer must fit in map8 encoding.');
-        }
-
-        return self::FOOTER_DESCRIPTOR
-            . chr(self::CONSTRUCTOR_MAP8)
-            . chr($mapSize)
-            . chr(count($footer) * 2)
-            . $entries;
+        return self::FOOTER_DESCRIPTOR . $this->encodeMessageMap($footer);
     }
 
     /**
-     * @param array<string, string|Byte|Short|Int_|Long_> $annotations
+     * @param array<string, mixed> $annotations
      */
     private function encodeDeliveryAnnotations(array $annotations): string
     {
-        $entries = '';
-
-        foreach ($annotations as $name => $value) {
-            $entries .= $this->encodeSymbol($name) . $this->encodeMapValue($value);
-        }
-
-        $mapSize = 1 + strlen($entries);
-
-        if ($mapSize > 255) {
-            throw new \InvalidArgumentException('AMQP delivery annotations must fit in map8 encoding.');
-        }
-
-        return self::DELIVERY_ANNOTATIONS_DESCRIPTOR
-            . chr(self::CONSTRUCTOR_MAP8)
-            . chr($mapSize)
-            . chr(count($annotations) * 2)
-            . $entries;
+        return self::DELIVERY_ANNOTATIONS_DESCRIPTOR . $this->encodeMessageMap($annotations);
     }
 
     /**
-     * @param array<string, string|Byte|Short|Int_|Long_> $annotations
+     * @param array<string, mixed> $annotations
      */
     private function encodeMessageAnnotations(array $annotations): string
     {
-        $entries = '';
+        return self::MESSAGE_ANNOTATIONS_DESCRIPTOR . $this->encodeMessageMap($annotations);
+    }
 
-        foreach ($annotations as $name => $value) {
-            $entries .= $this->encodeSymbol($name) . $this->encodeMapValue($value);
+    /**
+     * @param array<string, mixed> $values
+     */
+    private function encodeMessageMap(array $values): string
+    {
+        $pairs = [];
+
+        foreach ($values as $name => $value) {
+            if ($name === '') {
+                throw new \InvalidArgumentException('AMQP message map name must be a non-empty string.');
+            }
+
+            $pairs[] = [new Symbol($name), $value];
         }
 
-        $mapSize = 1 + strlen($entries);
-
-        if ($mapSize > 255) {
-            throw new \InvalidArgumentException('AMQP message annotations must fit in map8 encoding.');
-        }
-
-        return self::MESSAGE_ANNOTATIONS_DESCRIPTOR
-            . chr(self::CONSTRUCTOR_MAP8)
-            . chr($mapSize)
-            . chr(count($annotations) * 2)
-            . $entries;
+        return (new Encoder())->encode(new AmqpMap($pairs));
     }
 
     /**
@@ -821,7 +739,7 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: array<string, string|Byte|Short|Int_|Long_>, 1: int}
+     * @return array{0: array<string, mixed>, 1: int}
      */
     private function decodeDeliveryAnnotations(string $bytes, int $cursor): array
     {
@@ -835,104 +753,12 @@ final class MessageCodec
 
         $cursor += self::DELIVERY_ANNOTATIONS_DESCRIPTOR_LENGTH;
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_MAP8) {
-            throw MessageException::malformedDeliveryAnnotations();
-        }
-
-        ++$cursor;
-
-        if (strlen($bytes) < $cursor + 2) {
-            throw MessageException::truncatedDeliveryAnnotations();
-        }
-
-        $mapSize = ord($bytes[$cursor]);
-        ++$cursor;
-        $mapCount = ord($bytes[$cursor]);
-        ++$cursor;
-        $mapEnd = $cursor + $mapSize - 1;
-
-        if ($mapCount % 2 !== 0) {
-            throw MessageException::malformedDeliveryAnnotations();
-        }
-
-        if (strlen($bytes) < $mapEnd) {
-            throw MessageException::truncatedDeliveryAnnotations();
-        }
-
-        $annotations = [];
-
-        for ($i = 0; $i < $mapCount; $i += 2) {
-            [$name, $cursor] = $this->decodeDeliveryAnnotationSymbol($bytes, $cursor, $mapEnd);
-            [$value, $cursor] = $this->decodeDeliveryAnnotationValue($bytes, $cursor, $mapEnd);
-
-            if ($value !== null) {
-                $annotations[$name] = $value;
-            }
-        }
-
-        if ($cursor !== $mapEnd) {
-            throw MessageException::malformedDeliveryAnnotations();
-        }
-
-        return [$annotations, $cursor];
-    }
-
-    /**
-     * @return array{0: string, 1: int}
-     */
-    private function decodeDeliveryAnnotationSymbol(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedDeliveryAnnotations();
-        }
-
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYMBOL8) {
-            throw MessageException::malformedDeliveryAnnotations();
-        }
-
-        return $this->decodeDeliveryAnnotationString8($bytes, $cursor + 1, $mapEnd);
-    }
-
-    /**
-     * @return array{0: string|Byte|Short|Int_|Long_|null, 1: int}
-     */
-    private function decodeDeliveryAnnotationValue(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedDeliveryAnnotations();
-        }
-
-        if (!$this->isSupportedUserMapValueConstructor(ord($bytes[$cursor]))) {
-            return [
-                null,
-                $this->skipUnsupportedAnnotationValue(
-                    $bytes,
-                    $cursor,
-                    $mapEnd,
-                    MessageException::malformedDeliveryAnnotations(...),
-                    MessageException::truncatedDeliveryAnnotations(...),
-                ),
-            ];
-        }
-
-        return $this->decodeMapValue(
+        return $this->decodeMessageMap(
             $bytes,
             $cursor,
-            $mapEnd,
             MessageException::malformedDeliveryAnnotations(...),
             MessageException::truncatedDeliveryAnnotations(...),
         );
-    }
-
-    private function isSupportedUserMapValueConstructor(int $constructor): bool
-    {
-        return in_array($constructor, [
-            self::CONSTRUCTOR_STRING8,
-            self::CONSTRUCTOR_BYTE,
-            self::CONSTRUCTOR_SHORT,
-            self::CONSTRUCTOR_INT,
-            self::CONSTRUCTOR_LONG,
-        ], true);
     }
 
     /**
@@ -1034,29 +860,7 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: string, 1: int}
-     */
-    private function decodeDeliveryAnnotationString8(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedDeliveryAnnotations();
-        }
-
-        $length = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($cursor + $length > $mapEnd) {
-            throw MessageException::truncatedDeliveryAnnotations();
-        }
-
-        return [
-            substr($bytes, $cursor, $length),
-            $cursor + $length,
-        ];
-    }
-
-    /**
-     * @return array{0: array<string, string|Byte|Short|Int_|Long_>, 1: int}
+     * @return array{0: array<string, mixed>, 1: int}
      */
     private function decodeMessageAnnotations(string $bytes, int $cursor): array
     {
@@ -1070,115 +874,12 @@ final class MessageCodec
 
         $cursor += self::MESSAGE_ANNOTATIONS_DESCRIPTOR_LENGTH;
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_MAP8) {
-            throw MessageException::malformedMessageAnnotations();
-        }
-
-        ++$cursor;
-
-        if (strlen($bytes) < $cursor + 2) {
-            throw MessageException::truncatedMessageAnnotations();
-        }
-
-        $mapSize = ord($bytes[$cursor]);
-        ++$cursor;
-        $mapCount = ord($bytes[$cursor]);
-        ++$cursor;
-        $mapEnd = $cursor + $mapSize - 1;
-
-        if ($mapCount % 2 !== 0) {
-            throw MessageException::malformedMessageAnnotations();
-        }
-
-        if (strlen($bytes) < $mapEnd) {
-            throw MessageException::truncatedMessageAnnotations();
-        }
-
-        $annotations = [];
-
-        for ($i = 0; $i < $mapCount; $i += 2) {
-            [$name, $cursor] = $this->decodeAnnotationSymbol($bytes, $cursor, $mapEnd);
-            [$value, $cursor] = $this->decodeAnnotationValue($bytes, $cursor, $mapEnd);
-
-            if ($value !== null) {
-                $annotations[$name] = $value;
-            }
-        }
-
-        if ($cursor !== $mapEnd) {
-            throw MessageException::malformedMessageAnnotations();
-        }
-
-        return [$annotations, $cursor];
-    }
-
-    /**
-     * @return array{0: string, 1: int}
-     */
-    private function decodeAnnotationSymbol(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedMessageAnnotations();
-        }
-
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYMBOL8) {
-            throw MessageException::malformedMessageAnnotations();
-        }
-
-        return $this->decodeAnnotationString8($bytes, $cursor + 1, $mapEnd);
-    }
-
-    /**
-     * @return array{0: string|Byte|Short|Int_|Long_|null, 1: int}
-     */
-    private function decodeAnnotationValue(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedMessageAnnotations();
-        }
-
-        if (!$this->isSupportedUserMapValueConstructor(ord($bytes[$cursor]))) {
-            return [
-                null,
-                $this->skipUnsupportedAnnotationValue(
-                    $bytes,
-                    $cursor,
-                    $mapEnd,
-                    MessageException::malformedMessageAnnotations(...),
-                    MessageException::truncatedMessageAnnotations(...),
-                ),
-            ];
-        }
-
-        return $this->decodeMapValue(
+        return $this->decodeMessageMap(
             $bytes,
             $cursor,
-            $mapEnd,
             MessageException::malformedMessageAnnotations(...),
             MessageException::truncatedMessageAnnotations(...),
         );
-    }
-
-    /**
-     * @return array{0: string, 1: int}
-     */
-    private function decodeAnnotationString8(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedMessageAnnotations();
-        }
-
-        $length = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($cursor + $length > $mapEnd) {
-            throw MessageException::truncatedMessageAnnotations();
-        }
-
-        return [
-            substr($bytes, $cursor, $length),
-            $cursor + $length,
-        ];
     }
 
     /**
@@ -1336,7 +1037,7 @@ final class MessageCodec
     }
 
     /**
-     * @return array{0: array<string, string|Byte|Short|Int_|Long_>, 1: int}
+     * @return array{0: array<string, mixed>, 1: int}
      */
     private function decodeApplicationProperties(string $bytes, int $cursor): array
     {
@@ -1350,47 +1051,16 @@ final class MessageCodec
 
         $cursor += self::APPLICATION_PROPERTIES_DESCRIPTOR_LENGTH;
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_MAP8) {
-            throw MessageException::malformedApplicationProperties();
-        }
-
-        ++$cursor;
-
-        if (strlen($bytes) < $cursor + 2) {
-            throw MessageException::truncatedApplicationProperties();
-        }
-
-        $mapSize = ord($bytes[$cursor]);
-        ++$cursor;
-        $mapCount = ord($bytes[$cursor]);
-        ++$cursor;
-        $mapEnd = $cursor + $mapSize - 1;
-
-        if ($mapCount % 2 !== 0) {
-            throw MessageException::malformedApplicationProperties();
-        }
-
-        if (strlen($bytes) < $mapEnd) {
-            throw MessageException::truncatedApplicationProperties();
-        }
-
-        $properties = [];
-
-        for ($i = 0; $i < $mapCount; $i += 2) {
-            [$name, $cursor] = $this->decodeSymbol($bytes, $cursor, $mapEnd);
-            [$value, $cursor] = $this->decodeApplicationPropertyValue($bytes, $cursor, $mapEnd);
-            $properties[$name] = $value;
-        }
-
-        if ($cursor !== $mapEnd) {
-            throw MessageException::malformedApplicationProperties();
-        }
-
-        return [$properties, $cursor];
+        return $this->decodeMessageMap(
+            $bytes,
+            $cursor,
+            MessageException::malformedApplicationProperties(...),
+            MessageException::truncatedApplicationProperties(...),
+        );
     }
 
     /**
-     * @return array{0: array<string, string|Byte|Short|Int_|Long_>, 1: int}
+     * @return array{0: array<string, mixed>, 1: int}
      */
     private function decodeFooter(string $bytes, int $cursor): array
     {
@@ -1404,255 +1074,55 @@ final class MessageCodec
 
         $cursor += self::FOOTER_DESCRIPTOR_LENGTH;
 
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_MAP8) {
-            throw MessageException::malformedFooter();
-        }
-
-        ++$cursor;
-
-        if (strlen($bytes) < $cursor + 2) {
-            throw MessageException::truncatedFooter();
-        }
-
-        $mapSize = ord($bytes[$cursor]);
-        ++$cursor;
-        $mapCount = ord($bytes[$cursor]);
-        ++$cursor;
-        $mapEnd = $cursor + $mapSize - 1;
-
-        if ($mapCount % 2 !== 0) {
-            throw MessageException::malformedFooter();
-        }
-
-        if (strlen($bytes) < $mapEnd) {
-            throw MessageException::truncatedFooter();
-        }
-
-        $footer = [];
-
-        for ($i = 0; $i < $mapCount; $i += 2) {
-            [$name, $cursor] = $this->decodeFooterSymbol($bytes, $cursor, $mapEnd);
-            [$value, $cursor] = $this->decodeFooterValue($bytes, $cursor, $mapEnd);
-            $footer[$name] = $value;
-        }
-
-        if ($cursor !== $mapEnd) {
-            throw MessageException::malformedFooter();
-        }
-
-        return [$footer, $cursor];
-    }
-
-    /**
-     * @return array{0: string, 1: int}
-     */
-    private function decodeFooterSymbol(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedFooter();
-        }
-
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYMBOL8) {
-            throw MessageException::malformedFooter();
-        }
-
-        return $this->decodeFooterString8($bytes, $cursor + 1, $mapEnd);
-    }
-
-    /**
-     * @return array{0: string|Byte|Short|Int_|Long_, 1: int}
-     */
-    private function decodeFooterValue(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedFooter();
-        }
-
-        return $this->decodeMapValue(
+        return $this->decodeMessageMap(
             $bytes,
             $cursor,
-            $mapEnd,
             MessageException::malformedFooter(...),
             MessageException::truncatedFooter(...),
         );
     }
 
     /**
-     * @return array{0: string, 1: int}
-     */
-    private function decodeFooterString8(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedFooter();
-        }
-
-        $length = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($cursor + $length > $mapEnd) {
-            throw MessageException::truncatedFooter();
-        }
-
-        return [
-            substr($bytes, $cursor, $length),
-            $cursor + $length,
-        ];
-    }
-
-    /**
-     * @return array{0: string, 1: int}
-     */
-    private function decodeSymbol(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedApplicationProperties();
-        }
-
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_SYMBOL8) {
-            throw MessageException::malformedApplicationProperties();
-        }
-
-        return $this->decodeMapString8($bytes, $cursor + 1, $mapEnd);
-    }
-
-    /**
-     * @return array{0: string|Byte|Short|Int_|Long_, 1: int}
-     */
-    private function decodeApplicationPropertyValue(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedApplicationProperties();
-        }
-
-        return $this->decodeMapValue(
-            $bytes,
-            $cursor,
-            $mapEnd,
-            MessageException::malformedApplicationProperties(...),
-            MessageException::truncatedApplicationProperties(...),
-        );
-    }
-
-    /**
-     * @return array{0: string, 1: int}
-     */
-    private function decodeMapString8(string $bytes, int $cursor, int $mapEnd): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw MessageException::truncatedApplicationProperties();
-        }
-
-        $length = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($cursor + $length > $mapEnd) {
-            throw MessageException::truncatedApplicationProperties();
-        }
-
-        return [
-            substr($bytes, $cursor, $length),
-            $cursor + $length,
-        ];
-    }
-
-    /**
      * @param callable(): MessageException $malformed
      * @param callable(): MessageException $truncated
      *
-     * @return array{0: string|Byte|Short|Int_|Long_, 1: int}
+     * @return array{0: array<string, mixed>, 1: int}
      */
-    private function decodeMapValue(
+    private function decodeMessageMap(
         string $bytes,
         int $cursor,
-        int $mapEnd,
         callable $malformed,
         callable $truncated,
     ): array {
-        $constructor = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($constructor === self::CONSTRUCTOR_STRING8) {
-            return $this->decodeMapValueString8($bytes, $cursor, $mapEnd, $truncated);
-        }
-
-        if ($constructor === self::CONSTRUCTOR_BYTE) {
-            if ($cursor >= $mapEnd) {
+        try {
+            [$map, $consumed] = (new Decoder())->decodeWithConsumed(substr($bytes, $cursor));
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
                 throw $truncated();
             }
 
-            $unsigned = ord($bytes[$cursor]);
-
-            return [new Byte($unsigned >= 128 ? $unsigned - 256 : $unsigned), $cursor + 1];
+            throw $malformed();
         }
 
-        if ($constructor === self::CONSTRUCTOR_SHORT) {
-            if ($cursor + 2 > $mapEnd) {
-                throw $truncated();
-            }
-
-            $unsigned = (ord($bytes[$cursor]) << 8) | ord($bytes[$cursor + 1]);
-
-            return [new Short($unsigned >= 32768 ? $unsigned - 65536 : $unsigned), $cursor + 2];
+        if (!$map instanceof AmqpMap) {
+            throw $malformed();
         }
 
-        if ($constructor === self::CONSTRUCTOR_INT) {
-            if ($cursor + 4 > $mapEnd) {
-                throw $truncated();
+        $values = [];
+
+        foreach ($map->pairs as [$key, $value]) {
+            if ($key instanceof Symbol) {
+                $key = $key->value;
             }
 
-            $unsigned = (ord($bytes[$cursor]) << 24)
-                | (ord($bytes[$cursor + 1]) << 16)
-                | (ord($bytes[$cursor + 2]) << 8)
-                | ord($bytes[$cursor + 3]);
+            if (!is_string($key) || $key === '') {
+                throw $malformed();
+            }
 
-            return [new Int_($unsigned >= 2147483648 ? $unsigned - 4294967296 : $unsigned), $cursor + 4];
+            $values[$key] = $value;
         }
 
-        if ($constructor === self::CONSTRUCTOR_LONG) {
-            if ($cursor + 8 > $mapEnd) {
-                throw $truncated();
-            }
-
-            $high = (ord($bytes[$cursor]) << 24)
-                | (ord($bytes[$cursor + 1]) << 16)
-                | (ord($bytes[$cursor + 2]) << 8)
-                | ord($bytes[$cursor + 3]);
-            $low = (ord($bytes[$cursor + 4]) << 24)
-                | (ord($bytes[$cursor + 5]) << 16)
-                | (ord($bytes[$cursor + 6]) << 8)
-                | ord($bytes[$cursor + 7]);
-
-            if ($high >= 2147483648) {
-                $high -= 4294967296;
-            }
-
-            return [new Long_(($high << 32) | $low), $cursor + 8];
-        }
-
-        throw $malformed();
+        return [$values, $cursor + $consumed];
     }
 
-    /**
-     * @param callable(): MessageException $truncated
-     *
-     * @return array{0: string, 1: int}
-     */
-    private function decodeMapValueString8(string $bytes, int $cursor, int $mapEnd, callable $truncated): array
-    {
-        if ($cursor >= $mapEnd) {
-            throw $truncated();
-        }
-
-        $length = ord($bytes[$cursor]);
-        ++$cursor;
-
-        if ($cursor + $length > $mapEnd) {
-            throw $truncated();
-        }
-
-        return [
-            substr($bytes, $cursor, $length),
-            $cursor + $length,
-        ];
-    }
 }

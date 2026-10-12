@@ -112,14 +112,14 @@ $sender->send(new Message(
 ));
 ```
 
-Supported map values are strings and signed AMQP scalar wrappers. String map
-keys must be non-empty and fit in the AMQP symbol8 encoding. AMQP value bodies
-use the generic AMQP value codec, including explicit `null`, scalars,
-containers, described values, and binary values. When receiving messages,
-decoded AMQP value strings remain in `Message::$body` for backwards
-compatibility; non-string values and explicit null are available through
-`Message::$bodyValue` when `Message::hasBodyValue()` is true. AMQP sequence
-items and string property values must fit in the documented string8 limits.
+Message map keys must be non-empty strings. Map values and AMQP value bodies use
+the generic AMQP value codec, including explicit `null`, scalars, containers,
+described values, binary values, and large `string32`/`map32` encodings when
+needed. When receiving messages, decoded AMQP value strings remain in
+`Message::$body` for backwards compatibility; non-string values and explicit
+null are available through `Message::$bodyValue` when `Message::hasBodyValue()`
+is true. AMQP sequence items and string property values must fit in the
+documented string8 limits.
 
 ### Receiving Messages
 
