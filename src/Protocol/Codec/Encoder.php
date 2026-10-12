@@ -6,6 +6,10 @@ namespace Sigbits\Amqp\Protocol\Codec;
 
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
+use Sigbits\Amqp\Protocol\Type\Char;
+use Sigbits\Amqp\Protocol\Type\Decimal128;
+use Sigbits\Amqp\Protocol\Type\Decimal32;
+use Sigbits\Amqp\Protocol\Type\Decimal64;
 use Sigbits\Amqp\Protocol\Type\Float32;
 use Sigbits\Amqp\Protocol\Type\Float64;
 use Sigbits\Amqp\Protocol\Type\Int_;
@@ -67,8 +71,24 @@ final class Encoder
             return "\x80" . $this->encodeUnsignedInt64($value->value);
         }
 
+        if ($value instanceof Char) {
+            return "\x73" . pack('N', $value->codePoint);
+        }
+
+        if ($value instanceof Decimal32) {
+            return "\x74" . $value->bytes;
+        }
+
         if ($value instanceof Float32) {
             return "\x72" . pack('G', $value->value);
+        }
+
+        if ($value instanceof Decimal64) {
+            return "\x84" . $value->bytes;
+        }
+
+        if ($value instanceof Decimal128) {
+            return "\x94" . $value->bytes;
         }
 
         if ($value instanceof Float64) {
