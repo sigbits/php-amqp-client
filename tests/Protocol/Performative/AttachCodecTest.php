@@ -168,6 +168,31 @@ final class AttachCodecTest extends TestCase
         );
     }
 
+    public function testEncodesAttachWithSourceDistributionModeAndOutcomes(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertSame(
+            "\x00\x53\x12\xc0\x41\x07\xa1\x04link"
+            . "\x70\x00\x00\x00\x00"
+            . "\x41"
+            . "\x40\x40"
+            . "\x00\x53\x28\xc0\x2c\x0a\xa1\x06source\x40\x40\x40\x40\x40\xa3\x04move\x40\x40"
+            . "\xe0\x14\x02\xa3\x08accepted\x08rejected"
+            . "\x40",
+            $codec->encode(new Attach(
+                name: 'link',
+                handle: 0,
+                role: LinkRole::Receiver,
+                source: new Source(
+                    address: 'source',
+                    distributionMode: 'move',
+                    outcomes: ['accepted', 'rejected'],
+                ),
+            )),
+        );
+    }
+
     public function testDecodesAttachWithSourceAndTargetTermini(): void
     {
         $codec = new AttachCodec();
@@ -264,6 +289,33 @@ final class AttachCodecTest extends TestCase
                 . "\x00\x53\x29\xc0\x2b\x07\xa1\x06target\x40\x40\x40\x41"
                 . "\xc1\x07\x02\xa3\x03foo\x41"
                 . "\xe0\x13\x01\xa3\x10temporary-target",
+            ),
+        );
+    }
+
+    public function testDecodesAttachWithSourceDistributionModeAndOutcomes(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertEquals(
+            new Attach(
+                name: 'link',
+                handle: 0,
+                role: LinkRole::Receiver,
+                source: new Source(
+                    address: 'source',
+                    distributionMode: 'move',
+                    outcomes: ['accepted', 'rejected'],
+                ),
+            ),
+            $codec->decode(
+                "\x00\x53\x12\xc0\x41\x07\xa1\x04link"
+                . "\x70\x00\x00\x00\x00"
+                . "\x41"
+                . "\x40\x40"
+                . "\x00\x53\x28\xc0\x2c\x0a\xa1\x06source\x40\x40\x40\x40\x40\xa3\x04move\x40\x40"
+                . "\xe0\x14\x02\xa3\x08accepted\x08rejected"
+                . "\x40",
             ),
         );
     }
