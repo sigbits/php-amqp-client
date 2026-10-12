@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\EncodeException;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
+use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Char;
@@ -330,6 +331,53 @@ final class EncoderTest extends TestCase
         self::assertSame(
             "\xd0\x00\x00\x01\x09\x00\x00\x00\x01\xb1\x00\x00\x01\x00" . $text,
             $encoder->encode(new AmqpList([$text])),
+        );
+    }
+
+    public function testEncodesEmptyMapAsMap8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\xc1\x01\x00", $encoder->encode(new AmqpMap([])));
+    }
+
+    public function testEncodesMap8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame(
+            "\xc1\x1f\x04\xa1\x05queue\xa1\x06orders\xa3\x08priority\x70\x00\x00\x00\x05",
+            $encoder->encode(new AmqpMap([
+                ['queue', 'orders'],
+                [new Symbol('priority'), new UInt(5)],
+            ])),
+        );
+    }
+
+    public function testEncodesNestedMap8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame(
+            "\xc1\x10\x02\xa1\x06nested\xc1\x05\x02\xa1\x01x\x41",
+            $encoder->encode(new AmqpMap([
+                ['nested', new AmqpMap([
+                    ['x', true],
+                ])],
+            ])),
+        );
+    }
+
+    public function testEncodesMap32(): void
+    {
+        $encoder = new Encoder();
+        $text = str_repeat('x', 256);
+
+        self::assertSame(
+            "\xd1\x00\x00\x01\x12\x00\x00\x00\x02\xa1\x07payload\xb1\x00\x00\x01\x00" . $text,
+            $encoder->encode(new AmqpMap([
+                ['payload', $text],
+            ])),
         );
     }
 

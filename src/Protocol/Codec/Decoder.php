@@ -6,6 +6,7 @@ namespace Sigbits\Amqp\Protocol\Codec;
 
 use InvalidArgumentException;
 use Sigbits\Amqp\Protocol\Type\AmqpList;
+use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Char;
@@ -78,7 +79,9 @@ final class Decoder
             0xb1 => $this->decodeVariableValue32($bytes, $cursor, $end, static fn (string $value): string => $value, DecodeException::truncatedString(...)),
             0xb3 => $this->decodeVariableValue32($bytes, $cursor, $end, static fn (string $value): Symbol => new Symbol($value), DecodeException::truncatedSymbol(...)),
             0xc0 => $this->decodeList8($bytes, $cursor, $end),
+            0xc1 => $this->decodeMap8($bytes, $cursor, $end),
             0xd0 => $this->decodeList32($bytes, $cursor, $end),
+            0xd1 => $this->decodeMap32($bytes, $cursor, $end),
             default => throw DecodeException::unsupportedFormatCode($formatCode),
         };
     }
@@ -428,6 +431,104 @@ final class Decoder
             return new AmqpList($items);
         } catch (InvalidArgumentException) {
             throw DecodeException::malformedList();
+        }
+    }
+
+    /**
+     * @return array{0: AmqpMap, 1: int}
+     */
+    private function decodeMap8(string $bytes, int $cursor, int $end): array
+    {
+        if ($end - $cursor < 3) {
+            throw DecodeException::truncatedMap();
+        }
+
+        $size = ord($bytes[$cursor + 1]);
+
+        if ($size < 1) {
+            throw DecodeException::malformedMap();
+        }
+
+        $mapEnd = $cursor + 2 + $size;
+
+        if ($mapEnd > $end) {
+            throw DecodeException::truncatedMap();
+        }
+
+        return [$this->decodeMapItems($bytes, $cursor + 3, $mapEnd, ord($bytes[$cursor + 2])), $mapEnd];
+    }
+
+    /**
+     * @return array{0: AmqpMap, 1: int}
+     */
+    private function decodeMap32(string $bytes, int $cursor, int $end): array
+    {
+        if ($end - $cursor < 9) {
+            throw DecodeException::truncatedMap();
+        }
+
+        $size = (ord($bytes[$cursor + 1]) << 24)
+            | (ord($bytes[$cursor + 2]) << 16)
+            | (ord($bytes[$cursor + 3]) << 8)
+            | ord($bytes[$cursor + 4]);
+
+        if ($size < 4) {
+            throw DecodeException::malformedMap();
+        }
+
+        $mapEnd = $cursor + 5 + $size;
+
+        if ($mapEnd > $end) {
+            throw DecodeException::truncatedMap();
+        }
+
+        $count = (ord($bytes[$cursor + 5]) << 24)
+            | (ord($bytes[$cursor + 6]) << 16)
+            | (ord($bytes[$cursor + 7]) << 8)
+            | ord($bytes[$cursor + 8]);
+
+        return [$this->decodeMapItems($bytes, $cursor + 9, $mapEnd, $count), $mapEnd];
+    }
+
+    private function decodeMapItems(string $bytes, int $cursor, int $end, int $count): AmqpMap
+    {
+        if ($count % 2 !== 0) {
+            throw DecodeException::malformedMap();
+        }
+
+        $pairs = [];
+
+        for ($index = 0; $index < $count; $index += 2) {
+            if ($cursor >= $end) {
+                throw DecodeException::malformedMap();
+            }
+
+            try {
+                [$key, $cursor] = $this->decodeValue($bytes, $cursor, $end);
+
+                if ($cursor >= $end) {
+                    throw DecodeException::malformedMap();
+                }
+
+                [$value, $cursor] = $this->decodeValue($bytes, $cursor, $end);
+                $pairs[] = [$key, $value];
+            } catch (DecodeException $exception) {
+                if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
+                    throw DecodeException::truncatedMap();
+                }
+
+                throw $exception;
+            }
+        }
+
+        if ($cursor !== $end) {
+            throw DecodeException::malformedMap();
+        }
+
+        try {
+            return new AmqpMap($pairs);
+        } catch (InvalidArgumentException) {
+            throw DecodeException::malformedMap();
         }
     }
 
