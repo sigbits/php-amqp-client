@@ -80,13 +80,17 @@ or AMQP sequence bodies:
 
 use Sigbits\Amqp\Protocol\Message\Message;
 use Sigbits\Amqp\Protocol\Message\Properties;
+use Sigbits\Amqp\Protocol\Type\Uuid;
 
 $sender->send(new Message(
     body: '{"id":"order-123"}',
     properties: new Properties(
-        messageId: 'order-123',
+        messageId: new Uuid('00112233-4455-6677-8899-aabbccddeeff'),
+        correlationId: 'checkout-456',
         contentType: 'application/json',
         subject: 'order-created',
+        to: '/queues/orders',
+        replyTo: '/queues/replies',
     ),
     applicationProperties: [
         'source' => 'checkout',
@@ -118,8 +122,10 @@ described values, binary values, and large `string32`/`map32` encodings when
 needed. When receiving messages, decoded AMQP value strings remain in
 `Message::$body` for backwards compatibility; non-string values and explicit
 null are available through `Message::$bodyValue` when `Message::hasBodyValue()`
-is true. AMQP sequence items and string property values must fit in the
-documented string8 limits.
+is true. Message properties support the AMQP property field set, including
+message-id/correlation-id choices via `string`, `ULong`, `Uuid`, or `Binary`
+values. AMQP sequence items currently must fit in the documented string8
+limits.
 
 ### Receiving Messages
 
