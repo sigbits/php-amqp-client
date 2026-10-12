@@ -9,13 +9,24 @@ use Sigbits\Amqp\Protocol\Type\UInt;
 
 final readonly class Attach
 {
+    public string $name;
+    public int $handle;
+    public LinkRole $role;
+    public ?string $sourceAddress;
+    public ?string $targetAddress;
+    public ?int $initialDeliveryCount;
+    public ?Source $source;
+    public ?Target $target;
+
     public function __construct(
-        public string $name,
-        public int $handle,
-        public LinkRole $role,
-        public ?string $sourceAddress = null,
-        public ?string $targetAddress = null,
-        public ?int $initialDeliveryCount = null,
+        string $name,
+        int $handle,
+        LinkRole $role,
+        ?string $sourceAddress = null,
+        ?string $targetAddress = null,
+        ?int $initialDeliveryCount = null,
+        ?Source $source = null,
+        ?Target $target = null,
     ) {
         if ($name === '') {
             throw new InvalidArgumentException('AMQP attach name must not be empty.');
@@ -27,18 +38,28 @@ final readonly class Attach
 
         new UInt($handle);
 
-        foreach ([$sourceAddress, $targetAddress] as $address) {
-            if ($address !== null && $address === '') {
-                throw new InvalidArgumentException('AMQP attach source and target addresses must not be empty.');
-            }
-
-            if ($address !== null && strlen($address) > 255) {
-                throw new InvalidArgumentException('AMQP attach source and target addresses must fit in str8 encoding.');
-            }
+        if ($source !== null && $sourceAddress !== null && $source->address !== $sourceAddress) {
+            throw new InvalidArgumentException('AMQP attach source and sourceAddress must match.');
         }
+
+        if ($target !== null && $targetAddress !== null && $target->address !== $targetAddress) {
+            throw new InvalidArgumentException('AMQP attach target and targetAddress must match.');
+        }
+
+        $source ??= $sourceAddress === null ? null : new Source($sourceAddress);
+        $target ??= $targetAddress === null ? null : new Target($targetAddress);
 
         if ($initialDeliveryCount !== null) {
             new UInt($initialDeliveryCount);
         }
+
+        $this->name = $name;
+        $this->handle = $handle;
+        $this->role = $role;
+        $this->source = $source;
+        $this->target = $target;
+        $this->sourceAddress = $source?->address;
+        $this->targetAddress = $target?->address;
+        $this->initialDeliveryCount = $initialDeliveryCount;
     }
 }

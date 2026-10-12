@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Performative;
 
+use InvalidArgumentException;
 use Sigbits\Amqp\Protocol\Codec\DecodeException;
+use Sigbits\Amqp\Protocol\Codec\Decoder;
 use Sigbits\Amqp\Protocol\Codec\ScalarReader;
+use Sigbits\Amqp\Protocol\Type\AmqpDescribedValue;
+use Sigbits\Amqp\Protocol\Type\AmqpList;
 use Sigbits\Amqp\Protocol\Type\UInt;
+use Sigbits\Amqp\Protocol\Type\ULong;
 
 final class AttachCodec
 {
@@ -26,10 +31,12 @@ final class AttachCodec
     private const string TARGET_DESCRIPTOR = "\x00\x53\x29";
 
     private readonly ScalarReader $scalarReader;
+    private readonly Decoder $decoder;
 
-    public function __construct(?ScalarReader $scalarReader = null)
+    public function __construct(?ScalarReader $scalarReader = null, ?Decoder $decoder = null)
     {
         $this->scalarReader = $scalarReader ?? new ScalarReader();
+        $this->decoder = $decoder ?? new Decoder();
     }
 
     public function encode(Attach $attach): string
@@ -39,11 +46,11 @@ final class AttachCodec
             . ($attach->role === LinkRole::Receiver ? "\x41" : "\x42");
         $fieldCount = 3;
 
-        if ($attach->sourceAddress !== null || $attach->targetAddress !== null || $attach->initialDeliveryCount !== null) {
+        if ($attach->source !== null || $attach->target !== null || $attach->initialDeliveryCount !== null) {
             $fields .= chr(self::CONSTRUCTOR_NULL)
                 . chr(self::CONSTRUCTOR_NULL)
-                . ($attach->sourceAddress !== null ? $this->encodeSource($attach->sourceAddress) : chr(self::CONSTRUCTOR_NULL))
-                . ($attach->targetAddress !== null ? $this->encodeTarget($attach->targetAddress) : chr(self::CONSTRUCTOR_NULL));
+                . ($attach->source !== null ? $this->encodeSource($attach->source) : chr(self::CONSTRUCTOR_NULL))
+                . ($attach->target !== null ? $this->encodeTarget($attach->target) : chr(self::CONSTRUCTOR_NULL));
             $fieldCount = 7;
         }
 
@@ -106,12 +113,40 @@ final class AttachCodec
 
         [$name, $cursor] = $this->decodeString($bytes, $cursor, $listEnd);
         [$handle, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
-        [$role] = $this->decodeRole($bytes, $cursor, $listEnd);
+        [$role, $cursor] = $this->decodeRole($bytes, $cursor, $listEnd);
+        $source = null;
+        $target = null;
+
+        if ($fieldCount >= 4) {
+            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        }
+
+        if ($fieldCount >= 5) {
+            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        }
+
+        if ($fieldCount >= 6) {
+            [$source, $cursor] = $this->decodeSource($bytes, $cursor, $listEnd);
+        }
+
+        if ($fieldCount >= 7) {
+            [$target, $cursor] = $this->decodeTarget($bytes, $cursor, $listEnd);
+        }
+
+        for ($field = 7; $field < $fieldCount; ++$field) {
+            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+        }
+
+        if ($cursor !== $listEnd) {
+            throw PerformativeException::truncatedAttach();
+        }
 
         return new Attach(
             name: $name,
             handle: $handle,
             role: $role,
+            source: $source,
+            target: $target,
         );
     }
 
@@ -140,22 +175,30 @@ final class AttachCodec
         return $this->encodeUInt($value);
     }
 
-    private function encodeSource(string $address): string
+    private function encodeSource(Source $source): string
     {
+        if ($source->address === null) {
+            return self::SOURCE_DESCRIPTOR . chr(self::CONSTRUCTOR_LIST0);
+        }
+
         return self::SOURCE_DESCRIPTOR
             . chr(self::CONSTRUCTOR_LIST8)
-            . chr(1 + strlen($this->encodeString($address)))
+            . chr(1 + strlen($this->encodeString($source->address)))
             . "\x01"
-            . $this->encodeString($address);
+            . $this->encodeString($source->address);
     }
 
-    private function encodeTarget(string $address): string
+    private function encodeTarget(Target $target): string
     {
+        if ($target->address === null) {
+            return self::TARGET_DESCRIPTOR . chr(self::CONSTRUCTOR_LIST0);
+        }
+
         return self::TARGET_DESCRIPTOR
             . chr(self::CONSTRUCTOR_LIST8)
-            . chr(1 + strlen($this->encodeString($address)))
+            . chr(1 + strlen($this->encodeString($target->address)))
             . "\x01"
-            . $this->encodeString($address);
+            . $this->encodeString($target->address);
     }
 
     /**
@@ -240,5 +283,101 @@ final class AttachCodec
             ord($bytes[$cursor]) === 0 ? LinkRole::Sender : LinkRole::Receiver,
             $cursor + 1,
         ];
+    }
+
+    /**
+     * @return array{0: Source|null, 1: int}
+     */
+    private function decodeSource(string $bytes, int $cursor, int $listEnd): array
+    {
+        [$value, $cursor] = $this->decodeNullableTerminus($bytes, $cursor, $listEnd);
+
+        if ($value === null) {
+            return [null, $cursor];
+        }
+
+        if (!$value->descriptor instanceof ULong || $value->descriptor->value !== '40') {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        return [new Source($this->terminusAddress($value)), $cursor];
+    }
+
+    /**
+     * @return array{0: Target|null, 1: int}
+     */
+    private function decodeTarget(string $bytes, int $cursor, int $listEnd): array
+    {
+        [$value, $cursor] = $this->decodeNullableTerminus($bytes, $cursor, $listEnd);
+
+        if ($value === null) {
+            return [null, $cursor];
+        }
+
+        if (!$value->descriptor instanceof ULong || $value->descriptor->value !== '41') {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        return [new Target($this->terminusAddress($value)), $cursor];
+    }
+
+    /**
+     * @return array{0: AmqpDescribedValue|null, 1: int}
+     */
+    private function decodeNullableTerminus(string $bytes, int $cursor, int $listEnd): array
+    {
+        if ($cursor >= $listEnd) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor + 1];
+        }
+
+        try {
+            [$value, $consumed] = $this->decoder->decodeWithConsumed(substr($bytes, $cursor, $listEnd - $cursor));
+        } catch (DecodeException|InvalidArgumentException) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (!$value instanceof AmqpDescribedValue) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        return [$value, $cursor + $consumed];
+    }
+
+    private function terminusAddress(AmqpDescribedValue $value): ?string
+    {
+        if ($value->value instanceof AmqpList && $value->value->items === []) {
+            return null;
+        }
+
+        if (!$value->value instanceof AmqpList) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        $address = $value->value->items[0] ?? null;
+
+        if ($address !== null && !is_string($address)) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        return $address;
+    }
+
+    private function skipValue(string $bytes, int $cursor, int $listEnd): int
+    {
+        if ($cursor >= $listEnd) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        try {
+            [, $consumed] = $this->decoder->decodeWithConsumed(substr($bytes, $cursor, $listEnd - $cursor));
+        } catch (DecodeException|InvalidArgumentException) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        return $cursor + $consumed;
     }
 }

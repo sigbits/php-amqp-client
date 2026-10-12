@@ -9,6 +9,8 @@ use Sigbits\Amqp\Protocol\Performative\Attach;
 use Sigbits\Amqp\Protocol\Performative\AttachCodec;
 use Sigbits\Amqp\Protocol\Performative\LinkRole;
 use Sigbits\Amqp\Protocol\Performative\PerformativeException;
+use Sigbits\Amqp\Protocol\Performative\Source;
+use Sigbits\Amqp\Protocol\Performative\Target;
 
 final class AttachCodecTest extends TestCase
 {
@@ -55,6 +57,7 @@ final class AttachCodecTest extends TestCase
                 name: 'sender',
                 handle: 0,
                 role: LinkRole::Receiver,
+                targetAddress: 'orders.test',
             ),
             $codec->decode(
                 "\x00\x53\x12\xc0\x23\x07\xa1\x06sender"
@@ -64,6 +67,50 @@ final class AttachCodecTest extends TestCase
                 . "\x50\x00"
                 . "\x40"
                 . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test",
+            ),
+        );
+    }
+
+    public function testEncodesAttachWithSourceAndTargetTermini(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertSame(
+            "\x00\x53\x12\xc0\x2b\x07\xa1\x04link"
+            . "\x70\x00\x00\x00\x00"
+            . "\x41"
+            . "\x40\x40"
+            . "\x00\x53\x28\xc0\x09\x01\xa1\x06source"
+            . "\x00\x53\x29\xc0\x09\x01\xa1\x06target",
+            $codec->encode(new Attach(
+                name: 'link',
+                handle: 0,
+                role: LinkRole::Receiver,
+                source: new Source(address: 'source'),
+                target: new Target(address: 'target'),
+            )),
+        );
+    }
+
+    public function testDecodesAttachWithSourceAndTargetTermini(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertEquals(
+            new Attach(
+                name: 'link',
+                handle: 0,
+                role: LinkRole::Receiver,
+                source: new Source(address: 'source'),
+                target: new Target(address: 'target'),
+            ),
+            $codec->decode(
+                "\x00\x53\x12\xc0\x27\x07\xa1\x04link"
+                . "\x43"
+                . "\x41"
+                . "\x40\x40"
+                . "\x00\x53\x28\xc0\x09\x01\xa1\x06source"
+                . "\x00\x53\x29\xc0\x09\x01\xa1\x06target",
             ),
         );
     }
