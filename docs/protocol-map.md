@@ -115,14 +115,14 @@ specification.
 | Message area | Status | Current implementation | Current tests | Missing behavior | Priority | Target |
 | --- | --- | --- | --- | --- | --- | --- |
 | Header section | partial | `Header`, `MessageCodec` | `MessageCodecTest` | Confirm full field validation and generic value integration. | P1 | v1.4 |
-| Delivery annotations | partial | Map with non-empty string keys and string/signed scalar values. | `MessageCodecTest` | Full annotation key/value types and described/nested values. | P0 | v1.4 |
-| Message annotations | partial | Same constrained map model. | `MessageCodecTest` | Full annotation key/value types and described/nested values. | P0 | v1.4 |
+| Delivery annotations | partial | Non-empty string public keys encoded as AMQP symbols; generic AMQP values, `map8`, and `map32` decode/encode through the generic map codec. | `MessageCodecTest` | Public representation for arbitrary non-string annotation keys if future API needs them. | P1 | v1.4 |
+| Message annotations | partial | Non-empty string public keys encoded as AMQP symbols; generic AMQP values, `map8`, and `map32` decode/encode through the generic map codec. | `MessageCodecTest` | Public representation for arbitrary non-string annotation keys if future API needs them. | P1 | v1.4 |
 | Properties | partial | message-id, correlation-id, content-type, subject. | `MessageCodecTest` | user-id, to, reply-to, absolute-expiry-time, creation-time, group-id, group-sequence, reply-to-group-id, and message-id/correlation-id choice types. | P0 | v1.4 |
-| Application properties | partial | Constrained map model. | `MessageCodecTest` | Full scalar/container values and string32/map32 support. | P0 | v1.4 |
+| Application properties | implemented | Non-empty string public keys encoded as AMQP symbols; generic AMQP values, `string32`, `map8`, and `map32` decode/encode through the generic map codec. | `MessageCodecTest` | Revisit key constructor choice if strict AMQP application-property string-key enforcement becomes necessary. | P1 | v1.4 |
 | DATA body | partial | `vbin8` and `vbin32` DATA sections. | Message and integration tests. | Multiple DATA sections and generic binary value integration. | P0 | v1.4 |
 | AMQP sequence body | partial | list8 of strings. | `MessageCodecTest` | Multiple sequence sections and arbitrary AMQP values. | P1 | v1.4 |
 | AMQP value body | implemented | Any single generic AMQP value; `Message::$bodyValue` carries non-string values and explicit null, while string values remain available through `Message::$body` for backwards compatibility. | `MessageCodecTest`; generic codec tests. | Multiple AMQP value body sections are deliberately out of scope because the AMQP message body admits at most one `amqp-value` section. | P0 | v1.4 |
-| Footer | partial | Constrained map model. | `MessageCodecTest` | Full map value support and map32. | P1 | v1.4 |
+| Footer | partial | Non-empty string public keys encoded as AMQP symbols; generic AMQP values, `map8`, and `map32` decode/encode through the generic map codec. | `MessageCodecTest` | Public representation for arbitrary non-string footer keys if future API needs them. | P1 | v1.4 |
 | Message format | partial | Transfer message-format is fixed to `0`. | Transfer and engine tests. | Validation and public behavior for non-zero message formats. | P2 | v1.6 |
 
 ## Delivery States, Settlement, and Transactions
@@ -188,10 +188,10 @@ designed explicitly if a future public API needs them.
 
 Recommended concrete slices:
 
-1. Message maps: widen application properties, annotations, and footers to the
-   generic map/value model while preserving strict malformed-payload behavior.
-2. Message properties: widen message-id and correlation-id choice handling plus
+1. Message properties: widen message-id and correlation-id choice handling plus
    remaining timestamp, binary, string, symbol, and numeric fields.
+2. AMQP sequence bodies: widen from list8 of strings to arbitrary AMQP values
+   through the generic list model.
 3. Performatives and terminus fields: replace duplicated local list/map parsing
    where the generic codec reduces risk, then expand optional fields in focused
    slices.

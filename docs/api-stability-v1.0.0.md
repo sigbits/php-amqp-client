@@ -118,8 +118,7 @@ The committed v1.0.0 message model supports these user-facing sections:
 - `Header` fields for durable, priority, TTL, first-acquirer, and delivery
   count.
 - Delivery annotations, message annotations, application properties, and
-  footer maps with non-empty string keys. Map values are strings or signed AMQP
-  scalar wrappers: `Byte`, `Short`, `Int_`, and `Long_`.
+  footer maps with non-empty string keys and generic AMQP values.
 - `Properties` fields for message ID, correlation ID, content type, and
   subject.
 - DATA bodies, generic AMQP value bodies through `Message::$bodyValue` for
@@ -127,11 +126,10 @@ The committed v1.0.0 message model supports these user-facing sections:
   `Message::$body`, and AMQP sequence bodies containing strings.
 
 Encoding limits are part of the public model. Legacy AMQP value string bodies
-and sequence items use string8-sized values, map names use symbol8-sized values,
-string map values use string8-sized values, and DATA bodies may use vbin8 or
-vbin32. Generic AMQP value bodies use the generic value codec. Unsupported AMQP
-section shapes and scalar types remain protocol-internal details, not v1.0.0
-user-facing API.
+and sequence items use string8-sized values, and DATA bodies may use vbin8 or
+vbin32. Message map values and generic AMQP value bodies use the generic value
+codec, including large encodings when needed. Unsupported AMQP section shapes
+remain protocol-internal details, not v1.0.0 user-facing API.
 
 ### Timeout Unit Commitment
 

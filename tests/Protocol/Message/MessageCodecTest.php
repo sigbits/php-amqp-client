@@ -410,12 +410,17 @@ final class MessageCodecTest extends TestCase
         );
     }
 
-    public function testDecodesDataBodyWhenDeliveryAnnotationsContainUnsupportedBrokerScalar(): void
+    public function testDecodesDeliveryAnnotationsWithUnsignedBrokerScalar(): void
     {
         $codec = new MessageCodec();
 
         self::assertEquals(
-            new Message(body: 'payload'),
+            new Message(
+                body: 'payload',
+                deliveryAnnotations: [
+                    'x-opt-sequence-number' => new ULong(1),
+                ],
+            ),
             $codec->decode(
                 "\x00\x53\x71\xc1\x21\x02"
                     . "\xa3\x15x-opt-sequence-number\x80\x00\x00\x00\x00\x00\x00\x00\x01"
@@ -492,12 +497,17 @@ final class MessageCodecTest extends TestCase
         );
     }
 
-    public function testDecodesDataBodyWhenMessageAnnotationsContainUnsupportedBrokerScalar(): void
+    public function testDecodesMessageAnnotationsWithUnsignedBrokerScalar(): void
     {
         $codec = new MessageCodec();
 
         self::assertEquals(
-            new Message(body: 'payload'),
+            new Message(
+                body: 'payload',
+                messageAnnotations: [
+                    'x-opt-sequence-number' => new ULong(1),
+                ],
+            ),
             $codec->decode(
                 "\x00\x53\x72\xc1\x21\x02"
                     . "\xa3\x15x-opt-sequence-number\x80\x00\x00\x00\x00\x00\x00\x00\x01"
@@ -506,12 +516,17 @@ final class MessageCodecTest extends TestCase
         );
     }
 
-    public function testDecodesDataBodyWhenMessageAnnotationsContainUnsupportedDescribedBrokerValue(): void
+    public function testDecodesMessageAnnotationsWithDescribedBrokerValue(): void
     {
         $codec = new MessageCodec();
 
         self::assertEquals(
-            new Message(body: 'payload'),
+            new Message(
+                body: 'payload',
+                messageAnnotations: [
+                    'x-opt-sequence-number' => new AmqpDescribedValue(new ULong(128), new UInt(1)),
+                ],
+            ),
             $codec->decode(
                 "\x00\x53\x72\xc1\x1d\x02"
                     . "\xa3\x15x-opt-sequence-number\x00\x53\x80\x52\x01"
@@ -658,6 +673,84 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesApplicationPropertiesWithGenericValues(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x74\xc1\x1f\x04"
+                . "\xa3\x04tags\xc0\x0b\x02\xa1\x03new\x70\x00\x00\x00\x2a"
+                . "\xa3\x04blob\xa0\x03abc"
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                applicationProperties: [
+                    'tags' => new AmqpList(['new', new UInt(42)]),
+                    'blob' => new Binary('abc'),
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesApplicationPropertiesWithGenericValues(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                applicationProperties: [
+                    'tags' => new AmqpList(['new', new UInt(42)]),
+                    'blob' => new Binary('abc'),
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x74\xc1\x1f\x04"
+                    . "\xa3\x04tags\xc0\x0b\x02\xa1\x03new\x70\x00\x00\x00\x2a"
+                    . "\xa3\x04blob\xa0\x03abc"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
+    public function testEncodesApplicationPropertiesWithMap32(): void
+    {
+        $codec = new MessageCodec();
+        $value = str_repeat('x', 256);
+
+        self::assertSame(
+            "\x00\x53\x74\xd1\x00\x00\x01\x12\x00\x00\x00\x02"
+                . "\xa3\x07payload\xb1\x00\x00\x01\x00" . $value
+                . "\x00\x53\x75\xa0\x07payload",
+            $codec->encode(new Message(
+                body: 'payload',
+                applicationProperties: [
+                    'payload' => $value,
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesApplicationPropertiesWithMap32(): void
+    {
+        $codec = new MessageCodec();
+        $value = str_repeat('x', 256);
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                applicationProperties: [
+                    'payload' => $value,
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x74\xd1\x00\x00\x01\x12\x00\x00\x00\x02"
+                    . "\xa3\x07payload\xb1\x00\x00\x01\x00" . $value
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
     public function testEncodesFooterAfterDataBody(): void
     {
         $codec = new MessageCodec();
@@ -688,6 +781,40 @@ final class MessageCodecTest extends TestCase
             $codec->decode(
                 "\x00\x53\x75\xa0\x07payload"
                     . "\x00\x53\x78\xc1\x13\x02\xa3\x08checksum\xa1\x06abc123",
+            ),
+        );
+    }
+
+    public function testEncodesFooterWithDescribedValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x75\xa0\x07payload"
+                . "\x00\x53\x78\xc1\x11\x02\xa3\x05state\x00\x53\x75\xc0\x04\x01\xa1\x01x",
+            $codec->encode(new Message(
+                body: 'payload',
+                footer: [
+                    'state' => new AmqpDescribedValue(new ULong(117), new AmqpList(['x'])),
+                ],
+            )),
+        );
+    }
+
+    public function testDecodesFooterWithDescribedValue(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                footer: [
+                    'state' => new AmqpDescribedValue(new ULong(117), new AmqpList(['x'])),
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x75\xa0\x07payload"
+                    . "\x00\x53\x78\xc1\x11\x02\xa3\x05state\x00\x53\x75\xc0\x04\x01\xa1\x01x",
             ),
         );
     }
