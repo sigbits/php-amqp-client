@@ -11,9 +11,6 @@ use Sigbits\Amqp\Protocol\Type\UInt;
 final class DispositionCodec
 {
     private const string DESCRIPTOR = "\x00\x53\x15";
-    private const string ACCEPTED_DESCRIPTOR = "\x00\x53\x24";
-    private const string REJECTED_DESCRIPTOR = "\x00\x53\x25";
-    private const string RELEASED_DESCRIPTOR = "\x00\x53\x26";
     private const int DESCRIPTOR_LENGTH = 3;
     private const int CONSTRUCTOR_LIST0 = 0x45;
     private const int CONSTRUCTOR_LIST8 = 0xc0;
@@ -22,10 +19,14 @@ final class DispositionCodec
     private const int CONSTRUCTOR_UINT = 0x70;
 
     private readonly ScalarReader $scalarReader;
+    private readonly DeliveryStateCodec $deliveryStateCodec;
 
-    public function __construct(?ScalarReader $scalarReader = null)
-    {
+    public function __construct(
+        ?ScalarReader $scalarReader = null,
+        ?DeliveryStateCodec $deliveryStateCodec = null,
+    ) {
         $this->scalarReader = $scalarReader ?? new ScalarReader();
+        $this->deliveryStateCodec = $deliveryStateCodec ?? new DeliveryStateCodec();
     }
 
     public function encode(Disposition $disposition): string
@@ -112,10 +113,15 @@ final class DispositionCodec
 
     private function encodeOutcome(SettlementOutcome $outcome): string
     {
+        return $this->deliveryStateCodec->encode($this->stateForOutcome($outcome));
+    }
+
+    private function stateForOutcome(SettlementOutcome $outcome): DeliveryState
+    {
         return match ($outcome) {
-            SettlementOutcome::Accepted => self::ACCEPTED_DESCRIPTOR . chr(self::CONSTRUCTOR_LIST0),
-            SettlementOutcome::Released => self::RELEASED_DESCRIPTOR . chr(self::CONSTRUCTOR_LIST0),
-            SettlementOutcome::Rejected => self::REJECTED_DESCRIPTOR . chr(self::CONSTRUCTOR_LIST0),
+            SettlementOutcome::Accepted => new Accepted(),
+            SettlementOutcome::Released => new Released(),
+            SettlementOutcome::Rejected => new Rejected(),
         };
     }
 
@@ -192,24 +198,33 @@ final class DispositionCodec
      */
     private function decodeOutcome(string $bytes, int $cursor, int $listEnd): array
     {
-        if ($cursor + self::DESCRIPTOR_LENGTH + 1 > $listEnd) {
-            throw PerformativeException::truncatedDisposition();
-        }
+        try {
+            [$state, $consumed] = $this->deliveryStateCodec->decodeWithConsumed(substr($bytes, $cursor, $listEnd - $cursor));
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
+                throw PerformativeException::truncatedDisposition();
+            }
 
-        $descriptor = substr($bytes, $cursor, self::DESCRIPTOR_LENGTH);
-        $cursor += self::DESCRIPTOR_LENGTH;
-
-        if (ord($bytes[$cursor]) !== self::CONSTRUCTOR_LIST0) {
             throw PerformativeException::missingDispositionRequiredFields();
         }
 
-        ++$cursor;
+        return [$this->outcomeForState($state), $cursor + $consumed];
+    }
 
-        return match ($descriptor) {
-            self::ACCEPTED_DESCRIPTOR => [SettlementOutcome::Accepted, $cursor],
-            self::RELEASED_DESCRIPTOR => [SettlementOutcome::Released, $cursor],
-            self::REJECTED_DESCRIPTOR => [SettlementOutcome::Rejected, $cursor],
-            default => throw PerformativeException::missingDispositionRequiredFields(),
-        };
+    private function outcomeForState(DeliveryState $state): SettlementOutcome
+    {
+        if ($state instanceof Accepted) {
+            return SettlementOutcome::Accepted;
+        }
+
+        if ($state instanceof Released) {
+            return SettlementOutcome::Released;
+        }
+
+        if ($state instanceof Rejected) {
+            return SettlementOutcome::Rejected;
+        }
+
+        throw PerformativeException::missingDispositionRequiredFields();
     }
 }
