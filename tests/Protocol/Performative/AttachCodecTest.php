@@ -15,6 +15,7 @@ use Sigbits\Amqp\Protocol\Performative\Target;
 use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\Symbol;
 use Sigbits\Amqp\Protocol\Type\UInt;
+use Sigbits\Amqp\Protocol\Type\ULong;
 
 final class AttachCodecTest extends TestCase
 {
@@ -503,6 +504,29 @@ final class AttachCodecTest extends TestCase
         );
     }
 
+    public function testEncodesAttachMaxMessageSize(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertSame(
+            "\x00\x53\x12\xc0\x31\x0b\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40"
+            . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test"
+            . "\x40\x40\x43"
+            . "\x80\x00\x00\x00\x00\x00\x01\x00\x00",
+            $codec->encode(new Attach(
+                name: 'sender',
+                handle: 0,
+                role: LinkRole::Sender,
+                targetAddress: 'orders.test',
+                initialDeliveryCount: 0,
+                maxMessageSize: new ULong(65536),
+            )),
+        );
+    }
+
     public function testEncodesSenderAttachWithInitialDeliveryCount(): void
     {
         $codec = new AttachCodec();
@@ -545,6 +569,42 @@ final class AttachCodecTest extends TestCase
             initialDeliveryCount: 0,
         ), $attach);
         self::assertSame(0, $attach->initialDeliveryCount);
+    }
+
+    public function testDecodesAttachMaxMessageSize(): void
+    {
+        $codec = new AttachCodec();
+
+        $attach = $codec->decode(
+            "\x00\x53\x12\xc0\x31\x0b\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40"
+            . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test"
+            . "\x40\x40\x43"
+            . "\x80\x00\x00\x00\x00\x00\x01\x00\x00",
+        );
+
+        self::assertSame(0, $attach->initialDeliveryCount);
+        self::assertEquals(new ULong(65536), $attach->maxMessageSize);
+    }
+
+    public function testDecodesReceiverAttachMaxMessageSizeWithOmittedInitialDeliveryCount(): void
+    {
+        $codec = new AttachCodec();
+
+        $attach = $codec->decode(
+            "\x00\x53\x12\xc0\x33\x0b\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x01"
+            . "\x41"
+            . "\x40\x40"
+            . "\x00\x53\x28\xc0\x0e\x01\xa1\x0borders.test"
+            . "\x40\x40\x40\x40"
+            . "\x80\x00\x00\x00\x00\x00\x01\x00\x00",
+        );
+
+        self::assertNull($attach->initialDeliveryCount);
+        self::assertEquals(new ULong(65536), $attach->maxMessageSize);
     }
 
     public function testEncodesReceiverAttachWithSourceAddress(): void

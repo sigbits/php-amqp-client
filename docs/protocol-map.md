@@ -92,7 +92,7 @@ specification.
 | --- | --- | --- | --- | --- | --- | --- |
 | OPEN | partial | `Open`, `OpenCodec`, `ConnectionEngine`; all `OPEN` fields can be encoded/decoded, including locales, capabilities, and properties. | `OpenCodecTest`, `ConnectionEngineTest`, client/integration tests | Negotiating/enforcing max-frame-size, channel-max, idle-time-out, capabilities, and properties in connection state. | P0 | v1.3 |
 | BEGIN | partial | `Begin`, `BeginCodec`, `SessionEngine`; all `BEGIN` fields can be encoded/decoded, including handle-max, capabilities, and properties. | `BeginCodecTest`, `SessionEngineTest` | remote-channel mapping beyond one public session path, negotiating/enforcing handle-max and capabilities, and complete incoming/outgoing window behavior. | P0 | v1.3 |
-| ATTACH | partial | `Attach`, `AttachCodec`, `Source`, `Target`, sender/receiver link engines; source/target address, durability, expiry policy, timeout, dynamic, dynamic-node-properties, and capabilities can be encoded and decoded as value objects; source distribution-mode, filter, default-outcome, outcomes, snd/rcv settle modes, and initial-delivery-count are also covered. | `AttachCodecTest`, link engine tests | max-message-size, offered/desired capabilities, properties, unsettled map, incomplete-unsettled, and sender-role validation for initial-delivery-count. | P0 | v1.3 |
+| ATTACH | partial | `Attach`, `AttachCodec`, `Source`, `Target`, sender/receiver link engines; source/target address, durability, expiry policy, timeout, dynamic, dynamic-node-properties, and capabilities can be encoded and decoded as value objects; source distribution-mode, filter, default-outcome, outcomes, snd/rcv settle modes, max-message-size, and initial-delivery-count are also covered. | `AttachCodecTest`, link engine tests | offered/desired capabilities, properties, unsettled map, incomplete-unsettled, and sender-role validation for initial-delivery-count. | P0 | v1.3 |
 | FLOW | partial | `Flow`, `FlowCodec`, link engines | `FlowCodecTest`, sender/receiver engine tests | drain, echo, properties, session-only flow, complete window behavior, credit edge cases. | P0 | v1.6 |
 | TRANSFER | partial | `Transfer`, `TransferCodec`, sender/receiver engines | `TransferCodecTest`, link engine tests, large message tests | settled, state, resume, aborted, batchable, omitted repeated fields across continuation frames, full delivery-state handling. | P0 | v1.6 |
 | DISPOSITION | partial | `Disposition`, `DispositionCodec`, receiver settlement | `DispositionCodecTest`, receiver/client tests | sender role, delivery ranges, settled false, received/rejected/released/modified/transactional-state with fields, batchable. | P0 | v1.7 |
@@ -193,9 +193,9 @@ Recommended concrete slices:
    encode/decode are in place for v1.3, and `ATTACH` now has source/target
    terminus value objects with address, lifecycle, dynamic-node-properties,
    capabilities, source distribution-mode, source filter, source
-   default-outcome, source outcomes, `ATTACH` snd/rcv settle modes, and
-   `ATTACH` initial-delivery-count fields. Continue with remaining `ATTACH`
-   top-level fields.
+   default-outcome, source outcomes, `ATTACH` snd/rcv settle modes,
+   `ATTACH` max-message-size, and `ATTACH` initial-delivery-count fields.
+   Continue with remaining `ATTACH` top-level fields.
 2. Delivery states and outcomes: accepted, rejected, and released are modeled
    as described values with exact binary fixtures. Continue with rejected error
    fields, modified, received, and transactional-state.

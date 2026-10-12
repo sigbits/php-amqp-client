@@ -117,6 +117,7 @@ final class AttachCodec
         $initialDeliveryCount = null;
         $senderSettleMode = null;
         $receiverSettleMode = null;
+        $maxMessageSize = null;
 
         if ($fieldCount >= 4) {
             [$senderSettleMode, $cursor] = $this->decodeNullableSettlementMode($bytes, $cursor, $listEnd, 2);
@@ -143,10 +144,14 @@ final class AttachCodec
         }
 
         if ($fieldCount >= 10) {
-            [$initialDeliveryCount, $cursor] = $this->decodeUInt($bytes, $cursor, $listEnd);
+            [$initialDeliveryCount, $cursor] = $this->decodeNullableUInt($bytes, $cursor, $listEnd);
         }
 
-        for ($field = 10; $field < $fieldCount; ++$field) {
+        if ($fieldCount >= 11) {
+            [$maxMessageSize, $cursor] = $this->decodeNullableMaxMessageSize($bytes, $cursor, $listEnd);
+        }
+
+        for ($field = 11; $field < $fieldCount; ++$field) {
             $cursor = $this->skipValue($bytes, $cursor, $listEnd);
         }
 
@@ -163,6 +168,7 @@ final class AttachCodec
             initialDeliveryCount: $initialDeliveryCount,
             senderSettleMode: $senderSettleMode,
             receiverSettleMode: $receiverSettleMode,
+            maxMessageSize: $maxMessageSize,
         );
     }
 
@@ -224,6 +230,7 @@ final class AttachCodec
             null,
             null,
             $attach->initialDeliveryCount === null ? null : $this->encodeCompactUInt($attach->initialDeliveryCount),
+            $attach->maxMessageSize === null ? null : $this->encoder->encode($attach->maxMessageSize),
         ], $minimumFieldCount);
     }
 
@@ -290,6 +297,22 @@ final class AttachCodec
     }
 
     /**
+     * @return array{0: int|null, 1: int}
+     */
+    private function decodeNullableUInt(string $bytes, int $cursor, int $listEnd): array
+    {
+        try {
+            return $this->scalarReader->readNullableUInt($bytes, $cursor, $listEnd);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Unsupported AMQP format code')) {
+                throw PerformativeException::missingAttachRequiredFields();
+            }
+
+            throw PerformativeException::truncatedAttach();
+        }
+    }
+
+    /**
      * @return array{0: LinkRole, 1: int}
      */
     private function decodeRole(string $bytes, int $cursor, int $listEnd): array
@@ -332,6 +355,32 @@ final class AttachCodec
         }
 
         return [$value->value, $cursor + $consumed];
+    }
+
+    /**
+     * @return array{0: ULong|null, 1: int}
+     */
+    private function decodeNullableMaxMessageSize(string $bytes, int $cursor, int $listEnd): array
+    {
+        if ($cursor >= $listEnd) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor + 1];
+        }
+
+        try {
+            [$value, $consumed] = $this->decoder->decodeWithConsumed(substr($bytes, $cursor, $listEnd - $cursor));
+        } catch (DecodeException|InvalidArgumentException) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (!$value instanceof ULong) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        return [$value, $cursor + $consumed];
     }
 
     /**
