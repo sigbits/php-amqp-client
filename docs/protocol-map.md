@@ -33,7 +33,7 @@ specification.
 | Connection/session/link performatives | partial | Core performatives exist, and `OPEN` now carries its optional field model; most other optional fields and negotiation behavior are still absent. | v1.6 |
 | Message sections | partial | Generic annotation/property maps, full properties, DATA, AMQP value, and generic single AMQP sequence sections exist. | v1.4 |
 | Delivery settlement | partial | Receiver accepted/released/rejected settlement exists. | v1.7 |
-| Delivery states | partial | Accepted, released, rejected exist as settlement outcomes only. | v1.7 |
+| Delivery states | partial | Accepted, released, and rejected have concrete delivery-state value objects and described-value codec support. | v1.7 |
 | Transactions | missing | No coordinator or transactional delivery state. | v1.7 |
 | Idle timeout and heartbeats | missing | No idle-time-out negotiation or empty-frame heartbeat behavior. | v1.6 |
 | Transport abstraction | partial | Engine is mostly I/O-independent, but public client still reads/writes PHP streams directly. | v1.9 |
@@ -129,9 +129,9 @@ specification.
 
 | AMQP area | Status | Current implementation | Current tests | Missing behavior | Priority | Target |
 | --- | --- | --- | --- | --- | --- | --- |
-| Accepted | partial | `SettlementOutcome::Accepted`; receiver sends accepted disposition. | Disposition, receiver, client, integration tests. | Full delivery-state model with descriptor/value object. | P0 | v1.7 |
-| Rejected | partial | `SettlementOutcome::Rejected`; receiver sends rejected with no error fields. | Disposition and receiver tests. | Error field support and broker effect tests. | P0 | v1.7 |
-| Released | partial | `SettlementOutcome::Released`; receiver sends released. | Disposition and receiver tests. | Broker effect coverage across matrix. | P0 | v1.7 |
+| Accepted | implemented | `Accepted`, `DeliveryStateCodec`, `SettlementOutcome::Accepted`; receiver sends accepted disposition. | Delivery-state, disposition, receiver, client, integration tests. | None for the accepted field set. | P0 | v1.7 |
+| Rejected | partial | `Rejected`, `DeliveryStateCodec`, `SettlementOutcome::Rejected`; receiver sends rejected with no error fields. | Delivery-state, disposition, and receiver tests. | Error field support and broker effect tests. | P0 | v1.7 |
+| Released | partial | `Released`, `DeliveryStateCodec`, `SettlementOutcome::Released`; receiver sends released. | Delivery-state, disposition, and receiver tests. | Broker effect coverage across matrix. | P0 | v1.7 |
 | Modified | missing | None. | None. | delivery-failed, undeliverable-here, message-annotations. | P0 | v1.7 |
 | Received | missing | None. | None. | section-number, section-offset, resumable transfer behavior. | P1 | v1.7 |
 | Transactional state | missing | None. | None. | txn-id plus nested outcome. | P0 | v1.7 |
@@ -193,11 +193,10 @@ Recommended concrete slices:
    encode/decode are in place for v1.3, and `ATTACH` now has source/target
    terminus value objects with address, lifecycle, dynamic-node-properties,
    capabilities, source distribution-mode, source filter, and source outcomes
-   fields. Continue with source default-outcome after the delivery-state model
-   is ready.
-2. Delivery states and outcomes: model received, accepted, rejected, released,
-   modified, and transactional-state as described values with exact binary
-   fixtures.
+   fields. Continue with source default-outcome using the delivery-state model.
+2. Delivery states and outcomes: accepted, rejected, and released are modeled
+   as described values with exact binary fixtures. Continue with rejected error
+   fields, modified, received, and transactional-state.
 3. Message body multiplicity: model multiple DATA sections and multiple
    AMQP sequence sections with exact fixtures and broker regressions.
 
