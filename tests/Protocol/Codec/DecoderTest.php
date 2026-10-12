@@ -9,14 +9,18 @@ use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
+use Sigbits\Amqp\Protocol\Type\Float32;
+use Sigbits\Amqp\Protocol\Type\Float64;
 use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\Long_;
 use Sigbits\Amqp\Protocol\Type\Short;
 use Sigbits\Amqp\Protocol\Type\Symbol;
+use Sigbits\Amqp\Protocol\Type\Timestamp;
 use Sigbits\Amqp\Protocol\Type\UByte;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\ULong;
 use Sigbits\Amqp\Protocol\Type\UShort;
+use Sigbits\Amqp\Protocol\Type\Uuid;
 
 final class DecoderTest extends TestCase
 {
@@ -324,6 +328,77 @@ final class DecoderTest extends TestCase
         $this->expectExceptionMessage('Truncated AMQP ulong value.');
 
         $decoder->decode("\x80\x00\x00\x00\x00\x00\x00\x00");
+    }
+
+    public function testDecodesFloat32(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new Float32(1.5), $decoder->decode("\x72\x3f\xc0\x00\x00"));
+    }
+
+    public function testRejectsTruncatedFloat32(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP float value.');
+
+        $decoder->decode("\x72\x3f\xc0\x00");
+    }
+
+    public function testDecodesFloat64(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new Float64(1.5), $decoder->decode("\x82\x3f\xf8\x00\x00\x00\x00\x00\x00"));
+    }
+
+    public function testRejectsTruncatedFloat64(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP double value.');
+
+        $decoder->decode("\x82\x3f\xf8\x00\x00\x00\x00\x00");
+    }
+
+    public function testDecodesTimestamp(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new Timestamp(1), $decoder->decode("\x83\x00\x00\x00\x00\x00\x00\x00\x01"));
+    }
+
+    public function testRejectsTruncatedTimestamp(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP timestamp value.');
+
+        $decoder->decode("\x83\x00\x00\x00\x00\x00\x00\x00");
+    }
+
+    public function testDecodesUuid(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new Uuid('00112233-4455-6677-8899-aabbccddeeff'),
+            $decoder->decode("\x98\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff"),
+        );
+    }
+
+    public function testRejectsTruncatedUuid(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP uuid value.');
+
+        $decoder->decode("\x98\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee");
     }
 
     public function testDecodesBinary8(): void

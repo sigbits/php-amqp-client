@@ -6,14 +6,18 @@ namespace Sigbits\Amqp\Protocol\Codec;
 
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
+use Sigbits\Amqp\Protocol\Type\Float32;
+use Sigbits\Amqp\Protocol\Type\Float64;
 use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\Long_;
 use Sigbits\Amqp\Protocol\Type\Short;
 use Sigbits\Amqp\Protocol\Type\Symbol;
+use Sigbits\Amqp\Protocol\Type\Timestamp;
 use Sigbits\Amqp\Protocol\Type\UByte;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\ULong;
 use Sigbits\Amqp\Protocol\Type\UShort;
+use Sigbits\Amqp\Protocol\Type\Uuid;
 
 final class Decoder
 {
@@ -34,8 +38,12 @@ final class Decoder
             0x61 => $this->decodeShort($bytes),
             0x70 => $this->decodeUInt($bytes),
             0x71 => $this->decodeInt($bytes),
+            0x72 => $this->decodeFloat32($bytes),
             0x80 => $this->decodeULong($bytes),
             0x81 => $this->decodeLong($bytes),
+            0x82 => $this->decodeFloat64($bytes),
+            0x83 => $this->decodeTimestamp($bytes),
+            0x98 => $this->decodeUuid($bytes),
             0xa0 => $this->decodeBinary8($bytes),
             0xa1 => $this->decodeString8($bytes),
             0xa3 => $this->decodeSymbol8($bytes),
@@ -144,20 +152,7 @@ final class Decoder
             throw DecodeException::truncatedLong();
         }
 
-        $high = (ord($bytes[1]) << 24)
-            | (ord($bytes[2]) << 16)
-            | (ord($bytes[3]) << 8)
-            | ord($bytes[4]);
-        $low = (ord($bytes[5]) << 24)
-            | (ord($bytes[6]) << 16)
-            | (ord($bytes[7]) << 8)
-            | ord($bytes[8]);
-
-        if ($high >= 2147483648) {
-            $high -= 4294967296;
-        }
-
-        return new Long_(($high << 32) | $low);
+        return new Long_($this->signedInt64BytesToInt(substr($bytes, 1, 8)));
     }
 
     private function decodeSmallULong(string $bytes): ULong
@@ -176,6 +171,75 @@ final class Decoder
         }
 
         return new ULong($this->unsignedInt64BytesToDecimal(substr($bytes, 1, 8)));
+    }
+
+    private function decodeFloat32(string $bytes): Float32
+    {
+        if (strlen($bytes) < 5) {
+            throw DecodeException::truncatedFloat();
+        }
+
+        /** @var array{1: float} $unpacked */
+        $unpacked = unpack('G', substr($bytes, 1, 4));
+
+        return new Float32($unpacked[1]);
+    }
+
+    private function decodeFloat64(string $bytes): Float64
+    {
+        if (strlen($bytes) < 9) {
+            throw DecodeException::truncatedDouble();
+        }
+
+        /** @var array{1: float} $unpacked */
+        $unpacked = unpack('E', substr($bytes, 1, 8));
+
+        return new Float64($unpacked[1]);
+    }
+
+    private function decodeTimestamp(string $bytes): Timestamp
+    {
+        if (strlen($bytes) < 9) {
+            throw DecodeException::truncatedTimestamp();
+        }
+
+        return new Timestamp($this->signedInt64BytesToInt(substr($bytes, 1, 8)));
+    }
+
+    private function decodeUuid(string $bytes): Uuid
+    {
+        if (strlen($bytes) < 17) {
+            throw DecodeException::truncatedUuid();
+        }
+
+        $hex = bin2hex(substr($bytes, 1, 16));
+
+        return new Uuid(sprintf(
+            '%s-%s-%s-%s-%s',
+            substr($hex, 0, 8),
+            substr($hex, 8, 4),
+            substr($hex, 12, 4),
+            substr($hex, 16, 4),
+            substr($hex, 20, 12),
+        ));
+    }
+
+    private function signedInt64BytesToInt(string $bytes): int
+    {
+        $high = (ord($bytes[0]) << 24)
+            | (ord($bytes[1]) << 16)
+            | (ord($bytes[2]) << 8)
+            | ord($bytes[3]);
+        $low = (ord($bytes[4]) << 24)
+            | (ord($bytes[5]) << 16)
+            | (ord($bytes[6]) << 8)
+            | ord($bytes[7]);
+
+        if ($high >= 2147483648) {
+            $high -= 4294967296;
+        }
+
+        return ($high << 32) | $low;
     }
 
     private function decodeBinary8(string $bytes): Binary

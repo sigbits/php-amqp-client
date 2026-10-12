@@ -6,14 +6,18 @@ namespace Sigbits\Amqp\Protocol\Codec;
 
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
+use Sigbits\Amqp\Protocol\Type\Float32;
+use Sigbits\Amqp\Protocol\Type\Float64;
 use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\Long_;
 use Sigbits\Amqp\Protocol\Type\Short;
 use Sigbits\Amqp\Protocol\Type\Symbol;
+use Sigbits\Amqp\Protocol\Type\Timestamp;
 use Sigbits\Amqp\Protocol\Type\UByte;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\ULong;
 use Sigbits\Amqp\Protocol\Type\UShort;
+use Sigbits\Amqp\Protocol\Type\Uuid;
 
 final class Encoder
 {
@@ -63,6 +67,22 @@ final class Encoder
             return "\x80" . $this->encodeUnsignedInt64($value->value);
         }
 
+        if ($value instanceof Float32) {
+            return "\x72" . pack('G', $value->value);
+        }
+
+        if ($value instanceof Float64) {
+            return "\x82" . pack('E', $value->value);
+        }
+
+        if ($value instanceof Timestamp) {
+            return "\x83" . $this->encodeSignedInt64($value->milliseconds);
+        }
+
+        if ($value instanceof Uuid) {
+            return "\x98" . $this->encodeUuidBytes($value);
+        }
+
         if ($value instanceof Binary) {
             return $this->encodeVariableBytes($value->value, "\xa0", "\xb0");
         }
@@ -98,6 +118,17 @@ final class Encoder
         }
 
         return implode('', $bytes);
+    }
+
+    private function encodeUuidBytes(Uuid $value): string
+    {
+        $bytes = hex2bin(str_replace('-', '', $value->value));
+
+        if ($bytes === false) {
+            throw new \LogicException('Canonical UUID could not be converted to bytes.');
+        }
+
+        return $bytes;
     }
 
     /**
