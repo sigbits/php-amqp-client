@@ -30,7 +30,7 @@ specification.
 | Protocol header and frame parsing | partial | AMQP/SASL headers and basic frames work; extended and negotiated behavior is limited. | v1.6 |
 | Generic AMQP type system | partial | Null, booleans, integer subset including `ulong`, floating point, decimals, char, timestamp, UUID, binary, string, symbol, generic lists, generic maps, generic arrays, and generic described values are covered. | v1.5 |
 | SASL client role | partial | ANONYMOUS and PLAIN client handshake. | v1.6 |
-| Connection/session/link performatives | partial | Core performatives exist, but most optional fields and negotiation behavior are absent. | v1.6 |
+| Connection/session/link performatives | partial | Core performatives exist, and `OPEN` now carries its optional field model; most other optional fields and negotiation behavior are still absent. | v1.6 |
 | Message sections | partial | Generic annotation/property maps, full properties, DATA, AMQP value, and generic single AMQP sequence sections exist. | v1.4 |
 | Delivery settlement | partial | Receiver accepted/released/rejected settlement exists. | v1.7 |
 | Delivery states | partial | Accepted, released, rejected exist as settlement outcomes only. | v1.7 |
@@ -90,7 +90,7 @@ specification.
 
 | Performative | Status | Current implementation | Current tests | Missing behavior | Priority | Target |
 | --- | --- | --- | --- | --- | --- | --- |
-| OPEN | partial | `Open`, `OpenCodec`, `ConnectionEngine` | `OpenCodecTest`, `ConnectionEngineTest`, client/integration tests | max-frame-size, channel-max, idle-time-out, outgoing/incoming locales, offered/desired capabilities, properties, full negotiation. | P0 | v1.6 |
+| OPEN | partial | `Open`, `OpenCodec`, `ConnectionEngine`; all `OPEN` fields can be encoded/decoded, including locales, capabilities, and properties. | `OpenCodecTest`, `ConnectionEngineTest`, client/integration tests | Negotiating/enforcing max-frame-size, channel-max, idle-time-out, capabilities, and properties in connection state. | P0 | v1.3 |
 | BEGIN | partial | `Begin`, `BeginCodec`, `SessionEngine` | `BeginCodecTest`, `SessionEngineTest` | remote-channel mapping beyond one public session path, handle-max, offered/desired capabilities, properties, complete incoming/outgoing window behavior. | P0 | v1.6 |
 | ATTACH | partial | `Attach`, `AttachCodec`, sender/receiver link engines | `AttachCodecTest`, link engine tests | snd/rcv settle modes, max-message-size, offered/desired capabilities, properties, unsettled map, incomplete-unsettled, initial delivery count semantics, full source/target fields. | P0 | v1.6 |
 | FLOW | partial | `Flow`, `FlowCodec`, link engines | `FlowCodecTest`, sender/receiver engine tests | drain, echo, properties, session-only flow, complete window behavior, credit edge cases. | P0 | v1.6 |
@@ -188,9 +188,9 @@ designed explicitly if a future public API needs them.
 
 Recommended concrete slices:
 
-1. Performatives and terminus fields: replace duplicated local list/map parsing
-   where the generic codec reduces risk, then expand optional fields in focused
-   slices.
+1. Performatives and terminus fields: `OPEN` optional field encode/decode is
+   the first v1.3 slice. Continue with `BEGIN` optional fields, then introduce
+   source/target terminus value objects for `ATTACH`.
 2. Delivery states and outcomes: model received, accepted, rejected, released,
    modified, and transactional-state as described values with exact binary
    fixtures.
