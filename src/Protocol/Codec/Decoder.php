@@ -644,15 +644,13 @@ final class Decoder
             throw DecodeException::truncatedArray();
         }
 
-        $formatCode = ord($bytes[$cursor]);
-        $elementConstructor = $bytes[$cursor];
-        ++$cursor;
+        [$elementConstructor, $formatCode, $cursor] = $this->decodeArrayElementConstructor($bytes, $cursor, $end);
 
         $items = [];
 
         for ($index = 0; $index < $count; ++$index) {
             try {
-                [$item, $cursor] = $this->decodeArrayElement($formatCode, $bytes, $cursor, $end);
+                [$item, $cursor] = $this->decodeArrayElement($elementConstructor, $formatCode, $bytes, $cursor, $end);
                 $items[] = $item;
             } catch (DecodeException $exception) {
                 if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
@@ -677,7 +675,7 @@ final class Decoder
     /**
      * @return array{0: mixed, 1: int}
      */
-    private function decodeArrayElement(int $formatCode, string $bytes, int $cursor, int $end): array
+    private function decodeArrayElement(string $elementConstructor, int $formatCode, string $bytes, int $cursor, int $end): array
     {
         return match ($formatCode) {
             0x40 => [null, $cursor],
@@ -717,8 +715,43 @@ final class Decoder
             0xd1 => $this->decodeArrayElementCompound($bytes, $cursor, $end, "\xd1", $this->decodeMap32(...)),
             0xe0 => $this->decodeArrayElementCompound($bytes, $cursor, $end, "\xe0", $this->decodeArray8(...)),
             0xf0 => $this->decodeArrayElementCompound($bytes, $cursor, $end, "\xf0", $this->decodeArray32(...)),
+            0x00 => $this->decodeArrayElementDescribed($bytes, $cursor, $end, $elementConstructor),
             default => throw DecodeException::unsupportedFormatCode($formatCode),
         };
+    }
+
+    /**
+     * @return array{0: string, 1: int, 2: int}
+     */
+    private function decodeArrayElementConstructor(string $bytes, int $cursor, int $end): array
+    {
+        if ($cursor >= $end) {
+            throw DecodeException::truncatedArray();
+        }
+
+        if ($bytes[$cursor] !== "\x00") {
+            return [$bytes[$cursor], ord($bytes[$cursor]), $cursor + 1];
+        }
+
+        try {
+            [$descriptor, $next] = $this->decodeValue($bytes, $cursor + 1, $end);
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
+                throw DecodeException::truncatedArray();
+            }
+
+            throw $exception;
+        }
+
+        if (!$descriptor instanceof ULong && !$descriptor instanceof Symbol) {
+            throw DecodeException::malformedArray();
+        }
+
+        if ($next >= $end) {
+            throw DecodeException::truncatedArray();
+        }
+
+        return [substr($bytes, $cursor, $next - $cursor + 1), 0x00, $next + 1];
     }
 
     /**
@@ -731,6 +764,24 @@ final class Decoder
         [$value, $next] = $decoder($constructor . substr($bytes, $cursor, $end - $cursor), 0, $end - $cursor + 1);
 
         return [$value, $cursor + $next - 1];
+    }
+
+    /**
+     * @return array{0: AmqpDescribedValue, 1: int}
+     */
+    private function decodeArrayElementDescribed(string $bytes, int $cursor, int $end, string $elementConstructor): array
+    {
+        try {
+            [$value, $next] = $this->decodeDescribedValue($elementConstructor . substr($bytes, $cursor, $end - $cursor), 0, $end - $cursor + strlen($elementConstructor));
+        } catch (DecodeException $exception) {
+            if (str_starts_with($exception->getMessage(), 'Truncated AMQP')) {
+                throw DecodeException::truncatedArray();
+            }
+
+            throw $exception;
+        }
+
+        return [$value, $cursor + $next - strlen($elementConstructor)];
     }
 
     /**

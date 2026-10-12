@@ -808,6 +808,42 @@ final class DecoderTest extends TestCase
         );
     }
 
+    public function testDecodesArray8WithDescribedElementConstructor(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(
+            new AmqpArray("\x00\x53\x75\xc0", [
+                new AmqpDescribedValue(new ULong(117), new AmqpList(['x'])),
+                new AmqpDescribedValue(new ULong(117), new AmqpList(['y'])),
+            ]),
+            $decoder->decode("\xe0\x0f\x02\x00\x53\x75\xc0\x04\x01\xa1\x01x\x04\x01\xa1\x01y"),
+        );
+    }
+
+    public function testDecodesArray32WithDescribedElementConstructor(): void
+    {
+        $decoder = new Decoder();
+        $text = str_repeat('x', 256);
+
+        self::assertEquals(
+            new AmqpArray("\x00\xa3\x04desc\xb1", [
+                new AmqpDescribedValue(new Symbol('desc'), $text),
+            ]),
+            $decoder->decode("\xf0\x00\x00\x01\x10\x00\x00\x00\x01\x00\xa3\x04desc\xb1\x00\x00\x01\x00" . $text),
+        );
+    }
+
+    public function testRejectsTruncatedArray8DescribedElementConstructor(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP array value.');
+
+        $decoder->decode("\xe0\x04\x00\x00\x53\x75");
+    }
+
     public function testRejectsTruncatedArray8Header(): void
     {
         $decoder = new Decoder();
