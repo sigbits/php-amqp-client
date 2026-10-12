@@ -91,7 +91,7 @@ specification.
 | Performative | Status | Current implementation | Current tests | Missing behavior | Priority | Target |
 | --- | --- | --- | --- | --- | --- | --- |
 | OPEN | partial | `Open`, `OpenCodec`, `ConnectionEngine`; all `OPEN` fields can be encoded/decoded, including locales, capabilities, and properties. | `OpenCodecTest`, `ConnectionEngineTest`, client/integration tests | Negotiating/enforcing max-frame-size, channel-max, idle-time-out, capabilities, and properties in connection state. | P0 | v1.3 |
-| BEGIN | partial | `Begin`, `BeginCodec`, `SessionEngine` | `BeginCodecTest`, `SessionEngineTest` | remote-channel mapping beyond one public session path, handle-max, offered/desired capabilities, properties, complete incoming/outgoing window behavior. | P0 | v1.6 |
+| BEGIN | partial | `Begin`, `BeginCodec`, `SessionEngine`; all `BEGIN` fields can be encoded/decoded, including handle-max, capabilities, and properties. | `BeginCodecTest`, `SessionEngineTest` | remote-channel mapping beyond one public session path, negotiating/enforcing handle-max and capabilities, and complete incoming/outgoing window behavior. | P0 | v1.3 |
 | ATTACH | partial | `Attach`, `AttachCodec`, sender/receiver link engines | `AttachCodecTest`, link engine tests | snd/rcv settle modes, max-message-size, offered/desired capabilities, properties, unsettled map, incomplete-unsettled, initial delivery count semantics, full source/target fields. | P0 | v1.6 |
 | FLOW | partial | `Flow`, `FlowCodec`, link engines | `FlowCodecTest`, sender/receiver engine tests | drain, echo, properties, session-only flow, complete window behavior, credit edge cases. | P0 | v1.6 |
 | TRANSFER | partial | `Transfer`, `TransferCodec`, sender/receiver engines | `TransferCodecTest`, link engine tests, large message tests | settled, state, resume, aborted, batchable, omitted repeated fields across continuation frames, full delivery-state handling. | P0 | v1.6 |
@@ -188,9 +188,9 @@ designed explicitly if a future public API needs them.
 
 Recommended concrete slices:
 
-1. Performatives and terminus fields: `OPEN` optional field encode/decode is
-   the first v1.3 slice. Continue with `BEGIN` optional fields, then introduce
-   source/target terminus value objects for `ATTACH`.
+1. Performatives and terminus fields: `OPEN` and `BEGIN` optional field
+   encode/decode are in place for v1.3. Continue by introducing source/target
+   terminus value objects for `ATTACH`.
 2. Delivery states and outcomes: model received, accepted, rejected, released,
    modified, and transactional-state as described values with exact binary
    fixtures.
