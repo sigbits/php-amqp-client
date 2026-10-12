@@ -7,12 +7,15 @@ namespace Sigbits\Amqp\Tests\Protocol\Codec;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Codec\EncodeException;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
+use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\Long_;
 use Sigbits\Amqp\Protocol\Type\Short;
+use Sigbits\Amqp\Protocol\Type\Symbol;
 use Sigbits\Amqp\Protocol\Type\UByte;
 use Sigbits\Amqp\Protocol\Type\UInt;
+use Sigbits\Amqp\Protocol\Type\ULong;
 use Sigbits\Amqp\Protocol\Type\UShort;
 
 final class EncoderTest extends TestCase
@@ -162,6 +165,65 @@ final class EncoderTest extends TestCase
         $encoder = new Encoder();
 
         self::assertSame("\x81\x7f\xff\xff\xff\xff\xff\xff\xff", $encoder->encode(new Long_(PHP_INT_MAX)));
+    }
+
+    public function testEncodesULongZero(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x80\x00\x00\x00\x00\x00\x00\x00\x00", $encoder->encode(new ULong(0)));
+    }
+
+    public function testEncodesULongMaximum(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x80\xff\xff\xff\xff\xff\xff\xff\xff", $encoder->encode(new ULong('18446744073709551615')));
+    }
+
+    public function testEncodesBinary8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\xa0\x06orders", $encoder->encode(new Binary('orders')));
+    }
+
+    public function testEncodesBinary32(): void
+    {
+        $encoder = new Encoder();
+        $bytes = str_repeat('x', 256);
+
+        self::assertSame("\xb0\x00\x00\x01\x00" . $bytes, $encoder->encode(new Binary($bytes)));
+    }
+
+    public function testEncodesString8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\xa1\x06orders", $encoder->encode('orders'));
+    }
+
+    public function testEncodesString32(): void
+    {
+        $encoder = new Encoder();
+        $text = str_repeat('x', 256);
+
+        self::assertSame("\xb1\x00\x00\x01\x00" . $text, $encoder->encode($text));
+    }
+
+    public function testEncodesSymbol8(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\xa3\x06orders", $encoder->encode(new Symbol('orders')));
+    }
+
+    public function testEncodesSymbol32(): void
+    {
+        $encoder = new Encoder();
+        $text = str_repeat('x', 256);
+
+        self::assertSame("\xb3\x00\x00\x01\x00" . $text, $encoder->encode(new Symbol($text)));
     }
 
     public function testRejectsUnsupportedValue(): void
