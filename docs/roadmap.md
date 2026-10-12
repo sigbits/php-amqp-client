@@ -161,6 +161,12 @@ readiness steps:
 
 ## Post-v1 Roadmap
 
+The post-v1 direction is to move from a production-oriented synchronous client
+subset toward full AMQP 1.0 protocol coverage before multiplying transport
+backends. Transport work should follow a clear internal boundary so efficiency
+and robustness improvements do not leak socket or stream concerns into the
+protocol engine.
+
 ### v1.1: Developer Workflow and Receive Semantics
 
 - Keep `make ci` as the fast local quality gate, but remove expected skip noise
@@ -196,27 +202,113 @@ readiness steps:
 
 ### v1.4: Message Model Expansion
 
-- Extend practical AMQP type support for message properties, annotations,
-  application properties, and body sections where broker workflows require it.
-- Add string32 and broader scalar/container support without weakening strict
-  malformed-payload behavior.
-- Keep exact binary fixtures as the source of truth for new protocol support.
+- Expand the committed message model toward full AMQP 1.0 message-section
+  fidelity: header, delivery annotations, message annotations, properties,
+  application properties, DATA, AMQP sequence, AMQP value, and footer.
+- Support the full set of AMQP property fields, message-id/correlation-id
+  choices, binary/string/symbol encodings, map key forms allowed by the
+  specification, and broader scalar/container values.
+- Preserve strict malformed-payload behavior, exact binary fixtures, and
+  broker regression coverage for every newly supported section shape.
 
-### v1.5: Internal Transport Abstraction
+### v1.5: Full AMQP Type System
+
+- Implement complete AMQP primitive coverage, including unsigned long, float,
+  double, decimal32, decimal64, decimal128, char, timestamp, UUID, binary,
+  string, and symbol encodings.
+- Implement complete compound/container coverage for list0/list8/list32,
+  map8/map32, array8/array32, described values, and nested values.
+- Introduce value objects where PHP native types cannot preserve AMQP wire
+  semantics, while keeping ergonomic conversion helpers at the public API
+  boundary.
+- Build property/fuzz tests and exact binary fixtures for every constructor,
+  truncation path, unsupported constructor path, and round-trip guarantee.
+
+### v1.6: Full Performative and State Coverage
+
+- Model all fields for OPEN, BEGIN, ATTACH, FLOW, TRANSFER, DISPOSITION,
+  DETACH, END, and CLOSE, including capabilities, properties, handle limits,
+  settlement modes, filters, dynamic source/target nodes, unsettled maps, and
+  error payloads.
+- Complete connection, session, and link negotiation behavior, including
+  max-frame-size, channel-max, idle-time-out, incoming/outgoing windows, handle
+  allocation, and multiplexed sessions/links.
+- Add idle-timeout and heartbeat behavior with deterministic timeout,
+  half-open connection, and transport-loss semantics.
+- Keep the protocol engine independent from I/O and test the state machines
+  with memory/in-process transport fixtures before broker tests.
+
+### v1.7: Settlement, Delivery States, and Transactions
+
+- Implement the full delivery-state model: received, accepted, rejected,
+  released, modified, transactional-state, and declared transaction IDs where
+  applicable.
+- Support sender-settle-mode and receiver-settle-mode negotiation, unsettled
+  delivery tracking, delivery ranges, duplicate delivery handling, resumed
+  deliveries, and settlement races.
+- Add transaction coordinator support, including declare, discharge, successful
+  commit, rollback, and failure mapping.
+- Expand broker and conformance-style tests for settlement effects across
+  supported brokers, while keeping unsupported broker-specific behavior
+  documented instead of silently special-cased.
+
+### v1.8: Protocol Conformance and Specification Traceability
+
+- Maintain the [AMQP 1.0 Protocol Coverage Map](protocol-map.md) so implemented
+  types, performatives, message sections, state transitions, delivery states,
+  transaction behavior, SASL behavior, and transport requirements are linked to
+  the OASIS specification sections.
+- Treat full protocol coverage as a measurable release gate: every spec item is
+  implemented, explicitly not applicable to a client library, or documented as
+  a deliberate future extension.
+- Expand malformed-input, fragmentation, fuzz/property, and interop suites so
+  conformance failures are reproducible without a live broker wherever
+  possible.
+- Keep broker interoperability as a second gate after memory-level protocol
+  conformance, not as a substitute for spec coverage.
+
+### v1.9: Internal Transport Abstraction
 
 - Introduce an internal transport boundary below SASL and the public client API.
 - Keep PHP streams as the default transport.
-- Move frame reading, write completion, timeout handling, and readiness checks
-  behind the internal transport boundary.
+- Move frame reading, write completion, timeout handling, idle-timeout
+  scheduling, readiness checks, TLS/SASL handoff, and diagnostics behind the
+  internal transport boundary.
+- Define blocking transport contracts first, then leave room for non-blocking
+  and event-loop adapters without changing protocol state machines.
 - Do not expose raw transport resources as public API until the compatibility
   impact is intentionally designed.
 
-### v1.6: Additional Transports
+### v1.10: Optional Socket Transport
 
-- Add AMQP over WebSockets first if Azure Service Bus cloud coverage requires
-  it.
-- Consider a raw socket backend only if it proves concrete value over streams,
-  such as socket options, local binding, diagnostics, or better readiness/event
-  loop integration.
-- Keep any event-loop integration additive; do not replace the synchronous API
-  unless a future major version explicitly chooses an async programming model.
+- Add a raw socket backend only after the internal transport contract is stable.
+- Keep PHP streams as the portable default; make sockets an optional backend for
+  deployments that need lower-level control or measurable performance gains.
+- Use sockets to unlock capabilities that streams cannot provide cleanly:
+  TCP_NODELAY, keepalive tuning, local bind/source address control, explicit
+  readiness checks, lower-level diagnostics, and cleaner non-blocking/event-loop
+  integration.
+- Require benchmark and robustness gates before promoting sockets: partial
+  read/write behavior, TLS implications, reconnect behavior, broker restart,
+  large-message fragmentation, idle-timeout handling, and memory-growth
+  profiles.
+
+### v1.11: AMQP over WebSockets and Cloud Transports
+
+- Add AMQP over WebSockets when required for real Azure Service Bus cloud
+  coverage or other production cloud broker scenarios.
+- Validate WebSocket framing, TLS, proxy behavior, authentication interaction,
+  reconnect semantics, idle-timeout behavior, and large-message fragmentation.
+- Keep cloud-provider behavior behind documented configuration and integration
+  tests rather than embedding provider-specific assumptions in the core AMQP
+  engine.
+
+### v1.12: Event-Loop and Async Adapters
+
+- Add ReactPHP, Amp, Revolt, or other event-loop integration only as adapters
+  over the internal transport boundary.
+- Keep the synchronous API stable and additive; do not replace it unless a
+  future major version intentionally introduces an async-first public API.
+- Prove async adapters with the same protocol conformance fixtures, broker
+  interoperability matrix, transport-loss tests, idle-timeout tests, and
+  long-running worker profiles as the stream transport.

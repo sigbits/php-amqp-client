@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Protocol\Codec;
 
+use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
 use Sigbits\Amqp\Protocol\Type\Int_;
 use Sigbits\Amqp\Protocol\Type\Long_;
 use Sigbits\Amqp\Protocol\Type\Short;
+use Sigbits\Amqp\Protocol\Type\Symbol;
 use Sigbits\Amqp\Protocol\Type\UByte;
 use Sigbits\Amqp\Protocol\Type\UInt;
+use Sigbits\Amqp\Protocol\Type\ULong;
 use Sigbits\Amqp\Protocol\Type\UShort;
 
 final class Decoder
@@ -31,7 +34,16 @@ final class Decoder
             0x61 => $this->decodeShort($bytes),
             0x70 => $this->decodeUInt($bytes),
             0x71 => $this->decodeInt($bytes),
+            0x80 => $this->decodeULong($bytes),
             0x81 => $this->decodeLong($bytes),
+            0xa0 => $this->decodeBinary8($bytes),
+            0xa1 => $this->decodeString8($bytes),
+            0xa3 => $this->decodeSymbol8($bytes),
+            0xb0 => $this->decodeBinary32($bytes),
+            0xb1 => $this->decodeString32($bytes),
+            0xb3 => $this->decodeSymbol32($bytes),
+            0x44 => new ULong(0),
+            0x53 => $this->decodeSmallULong($bytes),
             default => throw DecodeException::unsupportedFormatCode($formatCode),
         };
     }
@@ -146,5 +158,146 @@ final class Decoder
         }
 
         return new Long_(($high << 32) | $low);
+    }
+
+    private function decodeSmallULong(string $bytes): ULong
+    {
+        if (strlen($bytes) < 2) {
+            throw DecodeException::truncatedULong();
+        }
+
+        return new ULong(ord($bytes[1]));
+    }
+
+    private function decodeULong(string $bytes): ULong
+    {
+        if (strlen($bytes) < 9) {
+            throw DecodeException::truncatedULong();
+        }
+
+        return new ULong($this->unsignedInt64BytesToDecimal(substr($bytes, 1, 8)));
+    }
+
+    private function decodeBinary8(string $bytes): Binary
+    {
+        return new Binary($this->decodeVariable8($bytes, DecodeException::truncatedBinary(...)));
+    }
+
+    private function decodeBinary32(string $bytes): Binary
+    {
+        return new Binary($this->decodeVariable32($bytes, DecodeException::truncatedBinary(...)));
+    }
+
+    private function decodeString8(string $bytes): string
+    {
+        return $this->decodeVariable8($bytes, DecodeException::truncatedString(...));
+    }
+
+    private function decodeString32(string $bytes): string
+    {
+        return $this->decodeVariable32($bytes, DecodeException::truncatedString(...));
+    }
+
+    private function decodeSymbol8(string $bytes): Symbol
+    {
+        return new Symbol($this->decodeVariable8($bytes, DecodeException::truncatedSymbol(...)));
+    }
+
+    private function decodeSymbol32(string $bytes): Symbol
+    {
+        return new Symbol($this->decodeVariable32($bytes, DecodeException::truncatedSymbol(...)));
+    }
+
+    /**
+     * @param callable(): DecodeException $truncated
+     */
+    private function decodeVariable8(string $bytes, callable $truncated): string
+    {
+        if (strlen($bytes) < 2) {
+            throw $truncated();
+        }
+
+        $length = ord($bytes[1]);
+
+        if (strlen($bytes) < 2 + $length) {
+            throw $truncated();
+        }
+
+        return substr($bytes, 2, $length);
+    }
+
+    /**
+     * @param callable(): DecodeException $truncated
+     */
+    private function decodeVariable32(string $bytes, callable $truncated): string
+    {
+        if (strlen($bytes) < 5) {
+            throw $truncated();
+        }
+
+        $length = (ord($bytes[1]) << 24)
+            | (ord($bytes[2]) << 16)
+            | (ord($bytes[3]) << 8)
+            | ord($bytes[4]);
+
+        if (strlen($bytes) < 5 + $length) {
+            throw $truncated();
+        }
+
+        return substr($bytes, 5, $length);
+    }
+
+    private function unsignedInt64BytesToDecimal(string $bytes): string
+    {
+        $decimal = '0';
+
+        for ($index = 0; $index < 8; ++$index) {
+            $decimal = $this->decimalMultiplyByInt($decimal, 256);
+            $decimal = $this->decimalAddInt($decimal, ord($bytes[$index]));
+        }
+
+        return $decimal;
+    }
+
+    private function decimalMultiplyByInt(string $value, int $multiplier): string
+    {
+        $carry = 0;
+        $result = '';
+
+        for ($index = strlen($value) - 1; $index >= 0; --$index) {
+            $product = ((int) $value[$index] * $multiplier) + $carry;
+            $result = (string) ($product % 10) . $result;
+            $carry = intdiv($product, 10);
+        }
+
+        while ($carry > 0) {
+            $result = (string) ($carry % 10) . $result;
+            $carry = intdiv($carry, 10);
+        }
+
+        $result = ltrim($result, '0');
+
+        return $result === '' ? '0' : $result;
+    }
+
+    private function decimalAddInt(string $value, int $addend): string
+    {
+        $carry = $addend;
+        $result = '';
+
+        for ($index = strlen($value) - 1; $index >= 0; --$index) {
+            $sum = (int) $value[$index] + ($carry % 10);
+            $carry = intdiv($carry, 10) + intdiv($sum, 10);
+            $result = (string) ($sum % 10) . $result;
+        }
+
+        while ($carry > 0) {
+            $result = (string) ($carry % 10) . $result;
+            $carry = intdiv($carry, 10);
+        }
+
+        $result = ltrim($result, '0');
+
+        return $result === '' ? '0' : $result;
     }
 }
