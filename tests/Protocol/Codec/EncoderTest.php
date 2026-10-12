@@ -9,6 +9,10 @@ use Sigbits\Amqp\Protocol\Codec\EncodeException;
 use Sigbits\Amqp\Protocol\Codec\Encoder;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
+use Sigbits\Amqp\Protocol\Type\Char;
+use Sigbits\Amqp\Protocol\Type\Decimal128;
+use Sigbits\Amqp\Protocol\Type\Decimal32;
+use Sigbits\Amqp\Protocol\Type\Decimal64;
 use Sigbits\Amqp\Protocol\Type\Float32;
 use Sigbits\Amqp\Protocol\Type\Float64;
 use Sigbits\Amqp\Protocol\Type\Int_;
@@ -214,6 +218,35 @@ final class EncoderTest extends TestCase
             "\x98\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff",
             $encoder->encode(new Uuid('00112233-4455-6677-8899-aabbccddeeff')),
         );
+    }
+
+    public function testEncodesDecimal32(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x74\x01\x02\x03\x04", $encoder->encode(new Decimal32("\x01\x02\x03\x04")));
+    }
+
+    public function testEncodesDecimal64(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x84\x01\x02\x03\x04\x05\x06\x07\x08", $encoder->encode(new Decimal64("\x01\x02\x03\x04\x05\x06\x07\x08")));
+    }
+
+    public function testEncodesDecimal128(): void
+    {
+        $encoder = new Encoder();
+        $bytes = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff";
+
+        self::assertSame("\x94" . $bytes, $encoder->encode(new Decimal128($bytes)));
+    }
+
+    public function testEncodesChar(): void
+    {
+        $encoder = new Encoder();
+
+        self::assertSame("\x73\x00\x01\xf6\x00", $encoder->encode(new Char(0x1f600)));
     }
 
     public function testEncodesBinary8(): void

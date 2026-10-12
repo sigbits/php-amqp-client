@@ -6,6 +6,10 @@ namespace Sigbits\Amqp\Protocol\Codec;
 
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
+use Sigbits\Amqp\Protocol\Type\Char;
+use Sigbits\Amqp\Protocol\Type\Decimal128;
+use Sigbits\Amqp\Protocol\Type\Decimal32;
+use Sigbits\Amqp\Protocol\Type\Decimal64;
 use Sigbits\Amqp\Protocol\Type\Float32;
 use Sigbits\Amqp\Protocol\Type\Float64;
 use Sigbits\Amqp\Protocol\Type\Int_;
@@ -39,10 +43,14 @@ final class Decoder
             0x70 => $this->decodeUInt($bytes),
             0x71 => $this->decodeInt($bytes),
             0x72 => $this->decodeFloat32($bytes),
+            0x73 => $this->decodeChar($bytes),
+            0x74 => $this->decodeDecimal32($bytes),
             0x80 => $this->decodeULong($bytes),
             0x81 => $this->decodeLong($bytes),
             0x82 => $this->decodeFloat64($bytes),
             0x83 => $this->decodeTimestamp($bytes),
+            0x84 => $this->decodeDecimal64($bytes),
+            0x94 => $this->decodeDecimal128($bytes),
             0x98 => $this->decodeUuid($bytes),
             0xa0 => $this->decodeBinary8($bytes),
             0xa1 => $this->decodeString8($bytes),
@@ -173,6 +181,33 @@ final class Decoder
         return new ULong($this->unsignedInt64BytesToDecimal(substr($bytes, 1, 8)));
     }
 
+    private function decodeChar(string $bytes): Char
+    {
+        if (strlen($bytes) < 5) {
+            throw DecodeException::truncatedChar();
+        }
+
+        $codePoint = (ord($bytes[1]) << 24)
+            | (ord($bytes[2]) << 16)
+            | (ord($bytes[3]) << 8)
+            | ord($bytes[4]);
+
+        try {
+            return new Char($codePoint);
+        } catch (\InvalidArgumentException) {
+            throw DecodeException::invalidChar();
+        }
+    }
+
+    private function decodeDecimal32(string $bytes): Decimal32
+    {
+        if (strlen($bytes) < 5) {
+            throw DecodeException::truncatedDecimal32();
+        }
+
+        return new Decimal32(substr($bytes, 1, 4));
+    }
+
     private function decodeFloat32(string $bytes): Float32
     {
         if (strlen($bytes) < 5) {
@@ -185,6 +220,15 @@ final class Decoder
         return new Float32($unpacked[1]);
     }
 
+    private function decodeDecimal64(string $bytes): Decimal64
+    {
+        if (strlen($bytes) < 9) {
+            throw DecodeException::truncatedDecimal64();
+        }
+
+        return new Decimal64(substr($bytes, 1, 8));
+    }
+
     private function decodeFloat64(string $bytes): Float64
     {
         if (strlen($bytes) < 9) {
@@ -195,6 +239,15 @@ final class Decoder
         $unpacked = unpack('E', substr($bytes, 1, 8));
 
         return new Float64($unpacked[1]);
+    }
+
+    private function decodeDecimal128(string $bytes): Decimal128
+    {
+        if (strlen($bytes) < 17) {
+            throw DecodeException::truncatedDecimal128();
+        }
+
+        return new Decimal128(substr($bytes, 1, 16));
     }
 
     private function decodeTimestamp(string $bytes): Timestamp

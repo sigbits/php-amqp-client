@@ -28,7 +28,7 @@ specification.
 | Area | Status | Current shape | Target milestone |
 | --- | --- | --- | --- |
 | Protocol header and frame parsing | partial | AMQP/SASL headers and basic frames work; extended and negotiated behavior is limited. | v1.6 |
-| Generic AMQP type system | partial | Null, booleans, integer subset including `ulong`, floating point, timestamp, UUID, binary, string, and symbol are covered; decimal, char, and container types remain missing. | v1.5 |
+| Generic AMQP type system | partial | Null, booleans, integer subset including `ulong`, floating point, decimals, char, timestamp, UUID, binary, string, and symbol are covered; generic container types remain missing. | v1.5 |
 | SASL client role | partial | ANONYMOUS and PLAIN client handshake. | v1.6 |
 | Connection/session/link performatives | partial | Core performatives exist, but most optional fields and negotiation behavior are absent. | v1.6 |
 | Message sections | partial | Practical string-oriented sections exist; full value fidelity is missing. | v1.4 |
@@ -49,8 +49,8 @@ specification.
 | Signed integers | implemented | `Byte`, `Short`, `Int_`, `Long_`; encoder/decoder support byte/short/int/long. | Type and codec tests. | Add generic canonicalization/round-trip coverage across nested containers. | P2 | v1.5 |
 | Unsigned integers | partial | `UByte`, `UShort`, `UInt`, `ULong`; compact decode support for `uint0`, `smalluint`, `ulong0`, and `smallulong`. | Type, codec, scalar reader, and performative tests. | Container integration and canonicalization across nested values. | P1 | v1.5 |
 | Floating point | implemented | `Float32`, `Float64`; generic encoder/decoder support `float` and `double`. | Type and codec tests. | Integrate into the eventual generic value tree and nested containers. | P2 | v1.5 |
-| Decimal types | missing | None. | None. | `decimal32`, `decimal64`, `decimal128` value objects and codec support. | P1 | v1.5 |
-| Char | missing | None. | None. | AMQP `char` value object and UTF-32 wire validation. | P1 | v1.5 |
+| Decimal types | implemented | `Decimal32`, `Decimal64`, `Decimal128`; generic encoder/decoder preserve the fixed-width AMQP decimal interchange bytes. | Type and codec tests. | Public decimal arithmetic/conversion helpers are deliberately deferred because PHP has no native decimal floating-point type. | P2 | v1.5 |
+| Char | implemented | `Char`; generic encoder/decoder support Unicode scalar values in UTF-32BE wire form. | Type and codec tests. | Integrate into the eventual generic value tree and nested containers. | P2 | v1.5 |
 | Timestamp | implemented | `Timestamp`; generic encoder/decoder support signed 64-bit millisecond values. | Type and codec tests. | Integrate into message properties and nested containers. | P2 | v1.5 |
 | UUID | implemented | `Uuid`; generic encoder/decoder support strict RFC 4122 text form and 16-byte wire encoding. | Type and codec tests. | Integrate into message-id/correlation-id choice handling and nested containers. | P2 | v1.5 |
 | Binary | partial | `Binary` value object plus generic `vbin8`/`vbin32` encode/decode; DATA bodies, transfer tags, and SASL initial response also have local support. | Type, codec, message, transfer, and SASL tests. | Container integration and broad use in higher-level codecs. | P1 | v1.5 |
@@ -178,17 +178,21 @@ specification.
 ## Next Implementation Slice
 
 The next implementation slice should continue v1.5 groundwork: remaining
-primitive value objects and generic container codec expansion.
+generic container codec expansion.
+
+Note on decimals: PHP does not provide a native decimal floating-point type.
+The `Decimal32`, `Decimal64`, and `Decimal128` value objects therefore preserve
+the exact AMQP decimal interchange bytes. They do not perform decimal
+arithmetic, normalization, or conversion to PHP `float`; those helpers should be
+designed explicitly if a future public API needs them.
 
 Recommended first concrete task:
 
-1. Introduce value objects for the remaining missing primitive types:
-   `Decimal32`, `Decimal64`, `Decimal128`, and `Char`.
-2. Add failing exact-binary tests for each constructor and truncation path.
+1. Introduce generic list value support for `list0`, `list8`, and `list32`.
+2. Add failing exact-binary tests for empty, small, large, and nested lists.
 3. Extend the generic encoder/decoder before widening higher-level message or
    performative codecs.
-4. Start generic list/map/array/described-value design only after the remaining
-   primitive constructors are covered.
+4. Follow with map, array, and described-value support in separate slices.
 
 This order keeps full protocol coverage measurable and prevents transport work
 from absorbing protocol bugs that should be caught in memory-level fixtures.

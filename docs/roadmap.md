@@ -221,6 +221,9 @@ protocol engine.
 - Introduce value objects where PHP native types cannot preserve AMQP wire
   semantics, while keeping ergonomic conversion helpers at the public API
   boundary.
+- Preserve AMQP decimal32/decimal64/decimal128 values as exact interchange
+  bytes unless a future public API explicitly designs decimal arithmetic or
+  conversion helpers; PHP has no native decimal floating-point type.
 - Build property/fuzz tests and exact binary fixtures for every constructor,
   truncation path, unsupported constructor path, and round-trip guarantee.
 

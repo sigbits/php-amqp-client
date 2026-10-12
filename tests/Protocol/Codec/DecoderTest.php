@@ -9,6 +9,10 @@ use Sigbits\Amqp\Protocol\Codec\DecodeException;
 use Sigbits\Amqp\Protocol\Codec\Decoder;
 use Sigbits\Amqp\Protocol\Type\Binary;
 use Sigbits\Amqp\Protocol\Type\Byte;
+use Sigbits\Amqp\Protocol\Type\Char;
+use Sigbits\Amqp\Protocol\Type\Decimal128;
+use Sigbits\Amqp\Protocol\Type\Decimal32;
+use Sigbits\Amqp\Protocol\Type\Decimal64;
 use Sigbits\Amqp\Protocol\Type\Float32;
 use Sigbits\Amqp\Protocol\Type\Float64;
 use Sigbits\Amqp\Protocol\Type\Int_;
@@ -399,6 +403,85 @@ final class DecoderTest extends TestCase
         $this->expectExceptionMessage('Truncated AMQP uuid value.');
 
         $decoder->decode("\x98\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee");
+    }
+
+    public function testDecodesDecimal32(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new Decimal32("\x01\x02\x03\x04"), $decoder->decode("\x74\x01\x02\x03\x04"));
+    }
+
+    public function testRejectsTruncatedDecimal32(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP decimal32 value.');
+
+        $decoder->decode("\x74\x01\x02\x03");
+    }
+
+    public function testDecodesDecimal64(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new Decimal64("\x01\x02\x03\x04\x05\x06\x07\x08"), $decoder->decode("\x84\x01\x02\x03\x04\x05\x06\x07\x08"));
+    }
+
+    public function testRejectsTruncatedDecimal64(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP decimal64 value.');
+
+        $decoder->decode("\x84\x01\x02\x03\x04\x05\x06\x07");
+    }
+
+    public function testDecodesDecimal128(): void
+    {
+        $decoder = new Decoder();
+        $bytes = "\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee\xff";
+
+        self::assertEquals(new Decimal128($bytes), $decoder->decode("\x94" . $bytes));
+    }
+
+    public function testRejectsTruncatedDecimal128(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP decimal128 value.');
+
+        $decoder->decode("\x94\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xaa\xbb\xcc\xdd\xee");
+    }
+
+    public function testDecodesChar(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new Char(0x1f600), $decoder->decode("\x73\x00\x01\xf6\x00"));
+    }
+
+    public function testRejectsTruncatedChar(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Truncated AMQP char value.');
+
+        $decoder->decode("\x73\x00\x01\xf6");
+    }
+
+    public function testRejectsInvalidCharCodePoint(): void
+    {
+        $decoder = new Decoder();
+
+        $this->expectException(DecodeException::class);
+        $this->expectExceptionMessage('Invalid AMQP char value.');
+
+        $decoder->decode("\x73\x00\x00\xd8\x00");
     }
 
     public function testDecodesBinary8(): void
