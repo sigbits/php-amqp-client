@@ -19,9 +19,17 @@ final readonly class Attach
     public ?int $senderSettleMode;
     public ?int $receiverSettleMode;
     public ?ULong $maxMessageSize;
+    /** @var list<string> */
+    public array $offeredCapabilities;
+    /** @var list<string> */
+    public array $desiredCapabilities;
     public ?Source $source;
     public ?Target $target;
 
+    /**
+     * @param list<string> $offeredCapabilities
+     * @param list<string> $desiredCapabilities
+     */
     public function __construct(
         string $name,
         int $handle,
@@ -34,6 +42,8 @@ final readonly class Attach
         ?int $senderSettleMode = null,
         ?int $receiverSettleMode = null,
         ?ULong $maxMessageSize = null,
+        array $offeredCapabilities = [],
+        array $desiredCapabilities = [],
     ) {
         if ($name === '') {
             throw new InvalidArgumentException('AMQP attach name must not be empty.');
@@ -68,6 +78,9 @@ final readonly class Attach
             throw new InvalidArgumentException('AMQP receiver settle mode must be 0 or 1.');
         }
 
+        $this->assertSymbolList($offeredCapabilities, 'offered-capabilities');
+        $this->assertSymbolList($desiredCapabilities, 'desired-capabilities');
+
         $this->name = $name;
         $this->handle = $handle;
         $this->role = $role;
@@ -79,5 +92,23 @@ final readonly class Attach
         $this->senderSettleMode = $senderSettleMode;
         $this->receiverSettleMode = $receiverSettleMode;
         $this->maxMessageSize = $maxMessageSize;
+        $this->offeredCapabilities = $offeredCapabilities;
+        $this->desiredCapabilities = $desiredCapabilities;
+    }
+
+    /**
+     * @param array<array-key, mixed> $values
+     */
+    private function assertSymbolList(array $values, string $field): void
+    {
+        if (!array_is_list($values)) {
+            throw new InvalidArgumentException(sprintf('AMQP attach %s must be a list array.', $field));
+        }
+
+        foreach ($values as $value) {
+            if (!is_string($value) || $value === '') {
+                throw new InvalidArgumentException(sprintf('AMQP attach %s entries must be non-empty strings.', $field));
+            }
+        }
     }
 }

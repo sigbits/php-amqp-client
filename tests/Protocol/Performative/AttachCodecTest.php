@@ -527,6 +527,27 @@ final class AttachCodecTest extends TestCase
         );
     }
 
+    public function testEncodesAttachOfferedAndDesiredCapabilities(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertSame(
+            "\x00\x53\x12\xc0\x47\x0d\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40\x40\x40\x40\x40\x40"
+            . "\xe0\x23\x02\xa3\x0fanonymous-relay\x10delayed-delivery"
+            . "\xe0\x09\x01\xa3\x06shared",
+            $codec->encode(new Attach(
+                name: 'sender',
+                handle: 0,
+                role: LinkRole::Sender,
+                offeredCapabilities: ['anonymous-relay', 'delayed-delivery'],
+                desiredCapabilities: ['shared'],
+            )),
+        );
+    }
+
     public function testEncodesSenderAttachWithInitialDeliveryCount(): void
     {
         $codec = new AttachCodec();
@@ -587,6 +608,23 @@ final class AttachCodecTest extends TestCase
 
         self::assertSame(0, $attach->initialDeliveryCount);
         self::assertEquals(new ULong(65536), $attach->maxMessageSize);
+    }
+
+    public function testDecodesAttachOfferedAndDesiredCapabilities(): void
+    {
+        $codec = new AttachCodec();
+
+        $attach = $codec->decode(
+            "\x00\x53\x12\xc0\x47\x0d\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40\x40\x40\x40\x40\x40"
+            . "\xe0\x23\x02\xa3\x0fanonymous-relay\x10delayed-delivery"
+            . "\xe0\x09\x01\xa3\x06shared",
+        );
+
+        self::assertSame(['anonymous-relay', 'delayed-delivery'], $attach->offeredCapabilities);
+        self::assertSame(['shared'], $attach->desiredCapabilities);
     }
 
     public function testDecodesReceiverAttachMaxMessageSizeWithOmittedInitialDeliveryCount(): void
