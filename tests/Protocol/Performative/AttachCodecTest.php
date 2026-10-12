@@ -193,6 +193,32 @@ final class AttachCodecTest extends TestCase
         );
     }
 
+    public function testEncodesAttachWithSourceFilter(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertSame(
+            "\x00\x53\x12\xc0\x40\x07\xa1\x04link"
+            . "\x70\x00\x00\x00\x00"
+            . "\x41"
+            . "\x40\x40"
+            . "\x00\x53\x28\xc0\x2b\x08\xa1\x06source\x40\x40\x40\x40\x40\x40"
+            . "\xc1\x1a\x02\xa3\x08selector\xa1\x0dcolor = 'red'"
+            . "\x40",
+            $codec->encode(new Attach(
+                name: 'link',
+                handle: 0,
+                role: LinkRole::Receiver,
+                source: new Source(
+                    address: 'source',
+                    filter: new AmqpMap([
+                        [new Symbol('selector'), "color = 'red'"],
+                    ]),
+                ),
+            )),
+        );
+    }
+
     public function testDecodesAttachWithSourceAndTargetTermini(): void
     {
         $codec = new AttachCodec();
@@ -315,6 +341,34 @@ final class AttachCodecTest extends TestCase
                 . "\x40\x40"
                 . "\x00\x53\x28\xc0\x2c\x0a\xa1\x06source\x40\x40\x40\x40\x40\xa3\x04move\x40\x40"
                 . "\xe0\x14\x02\xa3\x08accepted\x08rejected"
+                . "\x40",
+            ),
+        );
+    }
+
+    public function testDecodesAttachWithSourceFilter(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertEquals(
+            new Attach(
+                name: 'link',
+                handle: 0,
+                role: LinkRole::Receiver,
+                source: new Source(
+                    address: 'source',
+                    filter: new AmqpMap([
+                        [new Symbol('selector'), "color = 'red'"],
+                    ]),
+                ),
+            ),
+            $codec->decode(
+                "\x00\x53\x12\xc0\x40\x07\xa1\x04link"
+                . "\x70\x00\x00\x00\x00"
+                . "\x41"
+                . "\x40\x40"
+                . "\x00\x53\x28\xc0\x2b\x08\xa1\x06source\x40\x40\x40\x40\x40\x40"
+                . "\xc1\x1a\x02\xa3\x08selector\xa1\x0dcolor = 'red'"
                 . "\x40",
             ),
         );
