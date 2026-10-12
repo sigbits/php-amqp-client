@@ -271,19 +271,20 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('[Developer HOWTO](developer-howto.md)', $roadmap);
     }
 
-    public function testRoadmapDocumentsPostV1DeliveryAndTransportDirection(): void
+    public function testRoadmapDocumentsPostV1ProtocolAndTransportDirection(): void
     {
         $roadmap = self::roadmap();
 
         self::assertStringContainsString('### v1.1: Developer Workflow and Receive Semantics', $roadmap);
-        self::assertStringContainsString('### v1.2: Delivery Consumption Ergonomics', $roadmap);
-        self::assertStringContainsString('### v1.5: Full AMQP Type System', $roadmap);
-        self::assertStringContainsString('### v1.9: Internal Transport Abstraction', $roadmap);
-        self::assertStringContainsString('### v1.10: Optional Socket Transport', $roadmap);
+        self::assertStringContainsString('### v1.2: Generic AMQP Containers in Messages', $roadmap);
+        self::assertStringContainsString('### v1.3: Delivery Consumption Ergonomics', $roadmap);
+        self::assertStringContainsString('### v1.6: Full AMQP Type System', $roadmap);
+        self::assertStringContainsString('### v1.10: Internal Transport Abstraction', $roadmap);
+        self::assertStringContainsString('### v1.11: Optional Socket Transport', $roadmap);
         self::assertStringContainsString('full AMQP 1.0 protocol coverage', $roadmap);
         self::assertStringContainsString('before multiplying transport', $roadmap);
         self::assertStringContainsString('Keep PHP streams as the portable default; make sockets an optional backend', $roadmap);
-        self::assertStringContainsString('### v1.11: AMQP over WebSockets and Cloud Transports', $roadmap);
+        self::assertStringContainsString('### v1.12: AMQP over WebSockets and Cloud Transports', $roadmap);
     }
 
     private static function readme(): string

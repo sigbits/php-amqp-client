@@ -179,7 +179,19 @@ protocol engine.
 - Add regression coverage for no-message receive deadlines and buffered
   deliveries.
 
-### v1.2: Delivery Consumption Ergonomics
+### v1.2: Generic AMQP Containers in Messages
+
+- Implement complete compound/container coverage for list0/list8/list32,
+  map8/map32, array8/array32, described values, and nested values.
+- Adopt the generic value model in AMQP value bodies, message maps, full
+  message properties, and AMQP sequence bodies.
+- Preserve AMQP decimal32/decimal64/decimal128 values as exact interchange
+  bytes unless a future public API explicitly designs decimal arithmetic or
+  conversion helpers; PHP has no native decimal floating-point type.
+- Keep existing string-oriented message usage backwards compatible while
+  widening message surfaces to richer AMQP value objects.
+
+### v1.3: Delivery Consumption Ergonomics
 
 - Add a synchronous generator-style delivery API so applications can consume
   deliveries without writing crude polling loops.
@@ -190,7 +202,7 @@ protocol engine.
 - Cover delivery consumption with unit, broker integration, long-running, and
   transport-interruption tests.
 
-### v1.3: Functional Broker Coverage Expansion
+### v1.4: Functional Broker Coverage Expansion
 
 - Add RabbitMQ exchange/routing-key address coverage in addition to queue
   address coverage.
@@ -200,7 +212,7 @@ protocol engine.
 - Expand settlement-effect coverage for accept, release, and reject across the
   supported broker matrix.
 
-### v1.4: Message Model Expansion
+### v1.5: Message Model Expansion
 
 - Expand the committed message model toward full AMQP 1.0 message-section
   fidelity: header, delivery annotations, message annotations, properties,
@@ -211,7 +223,7 @@ protocol engine.
 - Preserve strict malformed-payload behavior, exact binary fixtures, and
   broker regression coverage for every newly supported section shape.
 
-### v1.5: Full AMQP Type System
+### v1.6: Full AMQP Type System
 
 - Implement complete AMQP primitive coverage, including unsigned long, float,
   double, decimal32, decimal64, decimal128, char, timestamp, UUID, binary,
@@ -227,7 +239,7 @@ protocol engine.
 - Build property/fuzz tests and exact binary fixtures for every constructor,
   truncation path, unsupported constructor path, and round-trip guarantee.
 
-### v1.6: Full Performative and State Coverage
+### v1.7: Full Performative and State Coverage
 
 - Model all fields for OPEN, BEGIN, ATTACH, FLOW, TRANSFER, DISPOSITION,
   DETACH, END, and CLOSE, including capabilities, properties, handle limits,
@@ -241,7 +253,7 @@ protocol engine.
 - Keep the protocol engine independent from I/O and test the state machines
   with memory/in-process transport fixtures before broker tests.
 
-### v1.7: Settlement, Delivery States, and Transactions
+### v1.8: Settlement, Delivery States, and Transactions
 
 - Implement the full delivery-state model: received, accepted, rejected,
   released, modified, transactional-state, and declared transaction IDs where
@@ -255,7 +267,7 @@ protocol engine.
   supported brokers, while keeping unsupported broker-specific behavior
   documented instead of silently special-cased.
 
-### v1.8: Protocol Conformance and Specification Traceability
+### v1.9: Protocol Conformance and Specification Traceability
 
 - Maintain the [AMQP 1.0 Protocol Coverage Map](protocol-map.md) so implemented
   types, performatives, message sections, state transitions, delivery states,
@@ -270,7 +282,7 @@ protocol engine.
 - Keep broker interoperability as a second gate after memory-level protocol
   conformance, not as a substitute for spec coverage.
 
-### v1.9: Internal Transport Abstraction
+### v1.10: Internal Transport Abstraction
 
 - Introduce an internal transport boundary below SASL and the public client API.
 - Keep PHP streams as the default transport.
@@ -282,7 +294,7 @@ protocol engine.
 - Do not expose raw transport resources as public API until the compatibility
   impact is intentionally designed.
 
-### v1.10: Optional Socket Transport
+### v1.11: Optional Socket Transport
 
 - Add a raw socket backend only after the internal transport contract is stable.
 - Keep PHP streams as the portable default; make sockets an optional backend for
@@ -296,7 +308,7 @@ protocol engine.
   large-message fragmentation, idle-timeout handling, and memory-growth
   profiles.
 
-### v1.11: AMQP over WebSockets and Cloud Transports
+### v1.12: AMQP over WebSockets and Cloud Transports
 
 - Add AMQP over WebSockets when required for real Azure Service Bus cloud
   coverage or other production cloud broker scenarios.
@@ -306,7 +318,7 @@ protocol engine.
   tests rather than embedding provider-specific assumptions in the core AMQP
   engine.
 
-### v1.12: Event-Loop and Async Adapters
+### v1.13: Event-Loop and Async Adapters
 
 - Add ReactPHP, Amp, Revolt, or other event-loop integration only as adapters
   over the internal transport boundary.

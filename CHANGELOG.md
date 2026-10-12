@@ -9,6 +9,39 @@ must have release notes in this file before the tag is created.
 
 No unreleased changes.
 
+## v1.2.0 - 2026-10-12
+
+### Added
+
+- Generic AMQP container codec coverage for `list0`, `list8`, `list32`,
+  `map8`, `map32`, `array8`, `array32`, described values, and nested values.
+- Generic AMQP value body support through `Message::$bodyValue`, including
+  explicit AMQP null and non-string values.
+- Generic AMQP values in delivery annotations, message annotations,
+  application properties, and footer maps.
+- Full AMQP message properties support, including message-id/correlation-id
+  choices and all remaining property fields.
+- Generic AMQP sequence body support through `Message::$bodySequence`, with
+  `list0`, `list8`, and `list32` encoding.
+
+### Changed
+
+- Message maps now use the generic AMQP map codec while keeping public map keys
+  as non-empty PHP strings encoded as AMQP symbols.
+- `Message::$bodySequence` now accepts generic AMQP values instead of only
+  string items; existing string sequence bodies remain supported.
+- Message string, symbol, map, and sequence surfaces can use large AMQP
+  encodings such as `string32`, `symbol32`, `map32`, and `list32` where
+  applicable.
+
+### Notes
+
+- AMQP decimal value objects still preserve exact interchange bytes and do not
+  provide arithmetic or PHP `float` conversion helpers because PHP has no
+  native decimal floating-point type.
+- Remaining message-body caveats include multiple DATA sections and multiple
+  AMQP sequence sections.
+
 ## v1.1.0 - 2026-10-12
 
 ### Added
