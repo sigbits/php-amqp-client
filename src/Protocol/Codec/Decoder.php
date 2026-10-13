@@ -68,6 +68,8 @@ final class Decoder
             0x51 => [$this->decodeByte(substr($bytes, $cursor, 2)), $cursor + 2],
             0x52 => [$this->decodeSmallUInt(substr($bytes, $cursor, 2)), $cursor + 2],
             0x53 => [$this->decodeSmallULong(substr($bytes, $cursor, 2)), $cursor + 2],
+            0x54 => [$this->decodeSmallInt(substr($bytes, $cursor, 2)), $cursor + 2],
+            0x55 => [$this->decodeSmallLong(substr($bytes, $cursor, 2)), $cursor + 2],
             0x56 => [$this->decodeBoolean(substr($bytes, $cursor, 2)), $cursor + 2],
             0x60 => [$this->decodeUShort(substr($bytes, $cursor, 3)), $cursor + 3],
             0x61 => [$this->decodeShort(substr($bytes, $cursor, 3)), $cursor + 3],
@@ -231,6 +233,17 @@ final class Decoder
         return new Int_($unsigned);
     }
 
+    private function decodeSmallInt(string $bytes): Int_
+    {
+        if (strlen($bytes) < 2) {
+            throw DecodeException::truncatedInt();
+        }
+
+        $unsigned = ord($bytes[1]);
+
+        return new Int_($unsigned >= 128 ? $unsigned - 256 : $unsigned);
+    }
+
     private function decodeLong(string $bytes): Long_
     {
         if (strlen($bytes) < 9) {
@@ -238,6 +251,17 @@ final class Decoder
         }
 
         return new Long_($this->signedInt64BytesToInt(substr($bytes, 1, 8)));
+    }
+
+    private function decodeSmallLong(string $bytes): Long_
+    {
+        if (strlen($bytes) < 2) {
+            throw DecodeException::truncatedLong();
+        }
+
+        $unsigned = ord($bytes[1]);
+
+        return new Long_($unsigned >= 128 ? $unsigned - 256 : $unsigned);
     }
 
     private function decodeSmallULong(string $bytes): ULong
@@ -696,6 +720,8 @@ final class Decoder
             0x51 => [$this->decodeByte("\x51" . substr($bytes, $cursor, 1)), $cursor + 1],
             0x52 => [$this->decodeSmallUInt("\x52" . substr($bytes, $cursor, 1)), $cursor + 1],
             0x53 => [$this->decodeSmallULong("\x53" . substr($bytes, $cursor, 1)), $cursor + 1],
+            0x54 => [$this->decodeSmallInt("\x54" . substr($bytes, $cursor, 1)), $cursor + 1],
+            0x55 => [$this->decodeSmallLong("\x55" . substr($bytes, $cursor, 1)), $cursor + 1],
             0x56 => [$this->decodeBoolean("\x56" . substr($bytes, $cursor, 1)), $cursor + 1],
             0x60 => [$this->decodeUShort("\x60" . substr($bytes, $cursor, 2)), $cursor + 2],
             0x61 => [$this->decodeShort("\x61" . substr($bytes, $cursor, 2)), $cursor + 2],

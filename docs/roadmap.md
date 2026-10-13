@@ -220,6 +220,9 @@ commit.
 - Qpid Broker-J TLS/SASL coverage is wired into the local security matrix.
 - Real Azure Service Bus cloud smoke coverage is available behind explicit
   opt-in credentials, keeping emulator coverage as the default local path.
+- Azure Service Bus emulator broker message annotations decode compact signed
+  integer scalars used for queue metadata such as sequence number and message
+  state.
 - RabbitMQ, ActiveMQ Artemis, and Qpid Broker-J settlement-effect coverage
   verifies accepted, released, and rejected delivery effects, including Qpid's
   broker-specific rejected-delivery redelivery behavior.

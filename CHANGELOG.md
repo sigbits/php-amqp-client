@@ -30,6 +30,11 @@ must have release notes in this file before the tag is created.
 - AMQP `modified` delivery-state value object and codec support, including
   optional delivery-failed, undeliverable-here, and message-annotations fields.
 
+### Fixed
+
+- Decoding of Azure Service Bus emulator broker message annotations that use
+  compact AMQP signed integer encodings (`smallint` and `smalllong`).
+
 ## v1.3.0 - 2026-10-13
 
 ### Added

@@ -46,7 +46,7 @@ specification.
 | AMQP area | Status | Current implementation | Current tests | Missing behavior | Priority | Target |
 | --- | --- | --- | --- | --- | --- | --- |
 | Null and booleans | implemented | `src/Protocol/Codec/Encoder.php`, `src/Protocol/Codec/Decoder.php` | `tests/Protocol/Codec/EncoderTest.php`, `tests/Protocol/Codec/DecoderTest.php` | Integrate into the eventual generic value tree. | P2 | v1.5 |
-| Signed integers | implemented | `Byte`, `Short`, `Int_`, `Long_`; encoder/decoder support byte/short/int/long. | Type and codec tests. | Add generic canonicalization/round-trip coverage across nested containers. | P2 | v1.5 |
+| Signed integers | implemented | `Byte`, `Short`, `Int_`, `Long_`; encoder/decoder support byte/short/int/long, including compact `smallint` and `smalllong` decode. | Type and codec tests. | Add generic canonicalization/round-trip coverage across nested containers. | P2 | v1.5 |
 | Unsigned integers | partial | `UByte`, `UShort`, `UInt`, `ULong`; compact decode support for `uint0`, `smalluint`, `ulong0`, and `smallulong`. | Type, codec, scalar reader, and performative tests. | Container integration and canonicalization across nested values. | P1 | v1.5 |
 | Floating point | implemented | `Float32`, `Float64`; generic encoder/decoder support `float` and `double`. | Type and codec tests. | Integrate into the eventual generic value tree and nested containers. | P2 | v1.5 |
 | Decimal types | implemented | `Decimal32`, `Decimal64`, `Decimal128`; generic encoder/decoder preserve the fixed-width AMQP decimal interchange bytes. | Type and codec tests. | Public decimal arithmetic/conversion helpers are deliberately deferred because PHP has no native decimal floating-point type. | P2 | v1.5 |

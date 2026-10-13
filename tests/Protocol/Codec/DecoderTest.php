@@ -263,6 +263,20 @@ final class DecoderTest extends TestCase
         self::assertEquals(new Int_(2147483647), $decoder->decode("\x71\x7f\xff\xff\xff"));
     }
 
+    public function testDecodesSmallIntMaximum(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new Int_(127), $decoder->decode("\x54\x7f"));
+    }
+
+    public function testDecodesSmallIntMinimum(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new Int_(-128), $decoder->decode("\x54\x80"));
+    }
+
     public function testRejectsTruncatedInt(): void
     {
         $decoder = new Decoder();
@@ -292,6 +306,20 @@ final class DecoderTest extends TestCase
         $decoder = new Decoder();
 
         self::assertEquals(new Long_(PHP_INT_MAX), $decoder->decode("\x81\x7f\xff\xff\xff\xff\xff\xff\xff"));
+    }
+
+    public function testDecodesSmallLongMaximum(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new Long_(127), $decoder->decode("\x55\x7f"));
+    }
+
+    public function testDecodesSmallLongMinimum(): void
+    {
+        $decoder = new Decoder();
+
+        self::assertEquals(new Long_(-128), $decoder->decode("\x55\x80"));
     }
 
     public function testRejectsTruncatedLong(): void
