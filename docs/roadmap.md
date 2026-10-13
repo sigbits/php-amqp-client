@@ -215,8 +215,8 @@ commit.
 
 ### v1.4: Functional Broker Coverage Expansion
 
-- Add RabbitMQ exchange/routing-key address coverage in addition to queue
-  address coverage.
+- RabbitMQ exchange/routing-key address coverage is in place in addition to
+  queue address coverage.
 - Wire Qpid Broker-J TLS/SASL coverage into the local security matrix.
 - Add real Azure Service Bus cloud smoke tests behind explicit opt-in
   credentials, keeping emulator coverage as the default local path.

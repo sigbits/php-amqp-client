@@ -7,7 +7,11 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- RabbitMQ 4 broker coverage for AMQP 1.0 exchange/routing-key sending through
+  `/exchanges/:exchange/:routing-key`, routed to a bound queue and received via
+  `/queues/:queue`.
 
 ## v1.3.0 - 2026-10-13
 
