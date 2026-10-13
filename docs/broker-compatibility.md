@@ -49,9 +49,10 @@ matrix. Public sender/receiver/settlement/detach coverage creates a durable
 random test queue through the RabbitMQ management API and targets it with the
 AMQP 1.0 address v2 queue form `/queues/:queue`.
 
-The local RabbitMQ coverage uses queue addresses. Exchange/routing-key addresses
-such as `/exchanges/:exchange/:routing-key` are not yet part of the local
-RabbitMQ matrix.
+The local RabbitMQ matrix also covers exchange/routing-key sending through
+`/exchanges/:exchange/:routing-key` by binding a random test queue to
+`amq.topic`, sending through the exchange address, and receiving the routed
+message from the queue address.
 
 ## Qpid Broker-J
 

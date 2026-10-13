@@ -319,8 +319,8 @@ Broker-specific notes:
   queues through the broker management API because the local Qpid Broker-J
   container does not auto-create random targets. Qpid Broker-J TLS/SASL coverage
   is not wired into the local matrix.
-- RabbitMQ 4 coverage uses queue address v2 semantics with `/queues/:queue`.
-  Exchange/routing-key address forms are not part of the current local matrix.
+- RabbitMQ 4 coverage uses queue address v2 semantics with `/queues/:queue`
+  and exchange/routing-key sending with `/exchanges/:exchange/:routing-key`.
 - Azure Service Bus emulator coverage uses the local development emulator over
   AMQP TCP with static queues configured in
   `docker/broker/servicebus-emulator-config.json`. This does not claim

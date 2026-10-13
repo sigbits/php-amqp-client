@@ -193,6 +193,37 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
+    public function testPublicSenderRoutesMessageThroughRabbitMqExchange(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $queue = 'sigbits.public.exchange.' . bin2hex(random_bytes(4));
+        $routingKey = 'sigbits.public.exchange.' . bin2hex(random_bytes(4));
+        $this->createRabbitMqQueue($queue);
+        $this->bindRabbitMqQueueToExchange($queue, 'amq.topic', $routingKey);
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender('/exchanges/amq.topic/' . rawurlencode($routingKey));
+
+        $sender->send('hello rabbitmq exchange route');
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver('/queues/' . rawurlencode($queue));
+        $message = $receiver->receive(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($message);
+        self::assertSame('hello rabbitmq exchange route', $message->body);
+
+        $session->end();
+        $connection->close();
+    }
+
     public function testPublicReceiverAcceptsDeliveryAgainstArtemis(): void
     {
         if (getenv('RUN_BROKER_TESTS') !== '1') {
@@ -510,6 +541,38 @@ final class PublicConnectionTest extends TestCase
 
         if ($response === false || (!str_contains($status, '201 Created') && !str_contains($status, '204 No Content'))) {
             self::fail('Could not create RabbitMQ test queue: ' . $status);
+        }
+    }
+
+    private function bindRabbitMqQueueToExchange(string $queue, string $exchange, string $routingKey): void
+    {
+        $body = json_encode([
+            'routing_key' => $routingKey,
+            'arguments' => new \stdClass(),
+        ]);
+
+        if ($body === false) {
+            self::fail('Could not encode RabbitMQ binding creation payload.');
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => 'Authorization: Basic ' . base64_encode('guest:guest') . "\r\n"
+                    . "Content-Type: application/json\r\n",
+                'content' => $body,
+                'ignore_errors' => true,
+            ],
+        ]);
+        $response = file_get_contents(
+            'http://rabbitmq:15672/api/bindings/%2F/e/' . rawurlencode($exchange) . '/q/' . rawurlencode($queue),
+            false,
+            $context,
+        );
+        $status = $http_response_header[0] ?? '';
+
+        if ($response === false || !str_contains($status, '201 Created')) {
+            self::fail('Could not bind RabbitMQ test queue to exchange: ' . $status);
         }
     }
 
