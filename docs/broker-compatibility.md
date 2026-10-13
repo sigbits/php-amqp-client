@@ -57,6 +57,10 @@ The local RabbitMQ matrix also covers exchange/routing-key sending through
 `amq.topic`, sending through the exchange address, and receiving the routed
 message from the queue address.
 
+RabbitMQ settlement-effect coverage verifies that accepted and rejected
+deliveries leave no ready message in the queue, while released deliveries become
+available again for redelivery.
+
 ## Qpid Broker-J
 
 Qpid Broker-J is used for handshake, public connection/session lifecycle,
