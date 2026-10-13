@@ -208,6 +208,11 @@ protocol engine.
 - Keep protocol behavior memory-testable first; broker and transport work
   should validate the protocol model rather than define it.
 
+Release readiness is audited in
+[v1.3.0 Release Readiness Audit](release-readiness-v1.3.0.md). The milestone is
+ready for tagging once the documented verification gate passes from the release
+commit.
+
 ### v1.4: Functional Broker Coverage Expansion
 
 - Add RabbitMQ exchange/routing-key address coverage in addition to queue
