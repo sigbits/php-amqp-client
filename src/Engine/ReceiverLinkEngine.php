@@ -216,6 +216,11 @@ final class ReceiverLinkEngine
         if (str_starts_with($frame->payload, "\x00\x53\x14")) {
             $transferPayloadOffset = $this->transferPayloadOffset($frame->payload);
             $transfer = $this->transferCodec->decode(substr($frame->payload, 0, $transferPayloadOffset));
+
+            if ($transfer->messageFormat !== 0) {
+                throw ReceiverLinkException::unsupportedTransferMessageFormat($transfer->messageFormat);
+            }
+
             $this->incomingTransferDeliveryId = $transfer->deliveryId;
             $this->incomingTransferPayload .= substr($frame->payload, $transferPayloadOffset);
 
