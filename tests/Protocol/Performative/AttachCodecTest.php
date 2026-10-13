@@ -548,6 +548,28 @@ final class AttachCodecTest extends TestCase
         );
     }
 
+    public function testEncodesAttachProperties(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertSame(
+            "\x00\x53\x12\xc0\x38\x0e\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40"
+            . "\xc1\x1d\x04\xa3\x07product\xa1\x07sigbits\xa3\x03ttl\x70\x00\x00\x00\x3c",
+            $codec->encode(new Attach(
+                name: 'sender',
+                handle: 0,
+                role: LinkRole::Sender,
+                properties: new AmqpMap([
+                    [new Symbol('product'), 'sigbits'],
+                    [new Symbol('ttl'), new UInt(60)],
+                ]),
+            )),
+        );
+    }
+
     public function testEncodesSenderAttachWithInitialDeliveryCount(): void
     {
         $codec = new AttachCodec();
@@ -625,6 +647,24 @@ final class AttachCodecTest extends TestCase
 
         self::assertSame(['anonymous-relay', 'delayed-delivery'], $attach->offeredCapabilities);
         self::assertSame(['shared'], $attach->desiredCapabilities);
+    }
+
+    public function testDecodesAttachProperties(): void
+    {
+        $codec = new AttachCodec();
+
+        $attach = $codec->decode(
+            "\x00\x53\x12\xc0\x38\x0e\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40"
+            . "\xc1\x1d\x04\xa3\x07product\xa1\x07sigbits\xa3\x03ttl\x70\x00\x00\x00\x3c",
+        );
+
+        self::assertEquals(new AmqpMap([
+            [new Symbol('product'), 'sigbits'],
+            [new Symbol('ttl'), new UInt(60)],
+        ]), $attach->properties);
     }
 
     public function testDecodesReceiverAttachMaxMessageSizeWithOmittedInitialDeliveryCount(): void

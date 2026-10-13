@@ -120,6 +120,7 @@ final class AttachCodec
         $maxMessageSize = null;
         $offeredCapabilities = [];
         $desiredCapabilities = [];
+        $properties = null;
 
         if ($fieldCount >= 4) {
             [$senderSettleMode, $cursor] = $this->decodeNullableSettlementMode($bytes, $cursor, $listEnd, 2);
@@ -161,7 +162,11 @@ final class AttachCodec
             [$desiredCapabilities, $cursor] = $this->decodeMultipleSymbols($bytes, $cursor, $listEnd);
         }
 
-        for ($field = 13; $field < $fieldCount; ++$field) {
+        if ($fieldCount >= 14) {
+            [$properties, $cursor] = $this->decodeNullableMap($bytes, $cursor, $listEnd);
+        }
+
+        for ($field = 14; $field < $fieldCount; ++$field) {
             $cursor = $this->skipValue($bytes, $cursor, $listEnd);
         }
 
@@ -181,6 +186,7 @@ final class AttachCodec
             maxMessageSize: $maxMessageSize,
             offeredCapabilities: $offeredCapabilities,
             desiredCapabilities: $desiredCapabilities,
+            properties: $properties,
         );
     }
 
@@ -245,6 +251,7 @@ final class AttachCodec
             $attach->maxMessageSize === null ? null : $this->encoder->encode($attach->maxMessageSize),
             $this->encodeCapabilities($attach->offeredCapabilities),
             $this->encodeCapabilities($attach->desiredCapabilities),
+            $attach->properties === null ? null : $this->encoder->encode($attach->properties),
         ], $minimumFieldCount);
     }
 
@@ -427,6 +434,32 @@ final class AttachCodec
         }
 
         return [$this->multipleSymbols($value), $cursor + $consumed];
+    }
+
+    /**
+     * @return array{0: AmqpMap|null, 1: int}
+     */
+    private function decodeNullableMap(string $bytes, int $cursor, int $listEnd): array
+    {
+        if ($cursor >= $listEnd) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor + 1];
+        }
+
+        try {
+            [$value, $consumed] = $this->decoder->decodeWithConsumed(substr($bytes, $cursor, $listEnd - $cursor));
+        } catch (DecodeException|InvalidArgumentException) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (!$value instanceof AmqpMap) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        return [$value, $cursor + $consumed];
     }
 
     /**
