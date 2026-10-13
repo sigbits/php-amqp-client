@@ -31,7 +31,7 @@ specification.
 | Generic AMQP type system | partial | Null, booleans, integer subset including `ulong`, floating point, decimals, char, timestamp, UUID, binary, string, symbol, generic lists, generic maps, generic arrays, and generic described values are covered. | v1.5 |
 | SASL client role | partial | ANONYMOUS and PLAIN client handshake. | v1.6 |
 | Connection/session/link performatives | partial | Core performatives exist; `OPEN` and `BEGIN` carry their optional field models, and `ATTACH` now covers its field model. Negotiation behavior and other performative optional fields remain incomplete. | v1.6 |
-| Message sections | partial | Generic annotation/property maps, full properties, DATA, AMQP value, and generic single AMQP sequence sections exist. | v1.4 |
+| Message sections | partial | Generic annotation/property maps, full properties, repeated DATA, AMQP value, and repeated generic AMQP sequence sections exist. | v1.4 |
 | Delivery settlement | partial | Receiver accepted/released/rejected settlement exists. | v1.7 |
 | Delivery states | partial | Accepted, released, and rejected have concrete delivery-state value objects and described-value codec support. | v1.7 |
 | Transactions | missing | No coordinator or transactional delivery state. | v1.7 |
@@ -119,8 +119,8 @@ specification.
 | Message annotations | partial | Non-empty string public keys encoded as AMQP symbols; generic AMQP values, `map8`, and `map32` decode/encode through the generic map codec. | `MessageCodecTest` | Public representation for arbitrary non-string annotation keys if future API needs them. | P1 | v1.4 |
 | Properties | implemented | All AMQP property fields are encoded/decoded through generic list values: message-id and correlation-id choices, user-id, to, subject, reply-to, content-type, content-encoding, absolute-expiry-time, creation-time, group-id, group-sequence, and reply-to-group-id. | `MessageCodecTest` | None for the AMQP property field set; public PHP value wrappers remain the compatibility boundary for AMQP-only types. | P0 | v1.4 |
 | Application properties | implemented | Non-empty string public keys encoded as AMQP symbols; generic AMQP values, `string32`, `map8`, and `map32` decode/encode through the generic map codec. | `MessageCodecTest` | Revisit key constructor choice if strict AMQP application-property string-key enforcement becomes necessary. | P1 | v1.4 |
-| DATA body | partial | `vbin8` and `vbin32` DATA sections. | Message and integration tests. | Multiple DATA sections and generic binary value integration. | P0 | v1.4 |
-| AMQP sequence body | partial | A single AMQP sequence section supports generic AMQP values through `list0`, `list8`, and `list32`. | `MessageCodecTest` | Multiple sequence sections. | P1 | v1.4 |
+| DATA body | implemented | Single and repeated `vbin8`/`vbin32` DATA sections. | Message, engine, and Artemis integration tests. | None for the current DATA body model. | P0 | v1.4 |
+| AMQP sequence body | implemented | Single and repeated AMQP sequence sections support generic AMQP values through `list0`, `list8`, and `list32`. | Message, engine, and Artemis integration tests. | None for the current AMQP sequence body model. | P1 | v1.4 |
 | AMQP value body | implemented | Any single generic AMQP value; `Message::$bodyValue` carries non-string values and explicit null, while string values remain available through `Message::$body` for backwards compatibility. | `MessageCodecTest`; generic codec tests. | Multiple AMQP value body sections are deliberately out of scope because the AMQP message body admits at most one `amqp-value` section. | P0 | v1.4 |
 | Footer | partial | Non-empty string public keys encoded as AMQP symbols; generic AMQP values, `map8`, and `map32` decode/encode through the generic map codec. | `MessageCodecTest` | Public representation for arbitrary non-string footer keys if future API needs them. | P1 | v1.4 |
 | Message format | partial | Transfer message-format is fixed to `0`. | Transfer and engine tests. | Validation and public behavior for non-zero message formats. | P2 | v1.6 |
@@ -189,11 +189,8 @@ if a future public API needs them.
 
 Recommended concrete slices:
 
-1. Message body multiplicity: model multiple DATA sections and multiple
-   AMQP sequence sections with exact fixtures and broker regressions for the
-   v1.4 message coverage slice.
-2. Functional broker coverage: add broader settlement-effect broker checks.
-3. Delivery states and outcomes: accepted, rejected, and released are modeled
+1. Functional broker coverage: add broader settlement-effect broker checks.
+2. Delivery states and outcomes: accepted, rejected, and released are modeled
    as described values with exact binary fixtures. Continue with rejected error
    fields, modified, received, and transactional-state.
 
