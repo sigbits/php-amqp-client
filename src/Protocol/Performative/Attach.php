@@ -77,6 +77,14 @@ final readonly class Attach
             new UInt($initialDeliveryCount);
         }
 
+        if ($role === LinkRole::Sender && $initialDeliveryCount === null) {
+            throw new InvalidArgumentException('AMQP sender attach requires initial-delivery-count.');
+        }
+
+        if ($role === LinkRole::Receiver && $initialDeliveryCount !== null) {
+            throw new InvalidArgumentException('AMQP receiver attach must not include initial-delivery-count.');
+        }
+
         if ($senderSettleMode !== null && ($senderSettleMode < 0 || $senderSettleMode > 2)) {
             throw new InvalidArgumentException('AMQP sender settle mode must be 0, 1, or 2.');
         }

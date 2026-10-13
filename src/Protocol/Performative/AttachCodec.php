@@ -176,22 +176,26 @@ final class AttachCodec
             throw PerformativeException::truncatedAttach();
         }
 
-        return new Attach(
-            name: $name,
-            handle: $handle,
-            role: $role,
-            source: $source,
-            target: $target,
-            unsettled: $unsettled,
-            incompleteUnsettled: $incompleteUnsettled,
-            initialDeliveryCount: $initialDeliveryCount,
-            senderSettleMode: $senderSettleMode,
-            receiverSettleMode: $receiverSettleMode,
-            maxMessageSize: $maxMessageSize,
-            offeredCapabilities: $offeredCapabilities,
-            desiredCapabilities: $desiredCapabilities,
-            properties: $properties,
-        );
+        try {
+            return new Attach(
+                name: $name,
+                handle: $handle,
+                role: $role,
+                source: $source,
+                target: $target,
+                unsettled: $unsettled,
+                incompleteUnsettled: $incompleteUnsettled,
+                initialDeliveryCount: $initialDeliveryCount,
+                senderSettleMode: $senderSettleMode,
+                receiverSettleMode: $receiverSettleMode,
+                maxMessageSize: $maxMessageSize,
+                offeredCapabilities: $offeredCapabilities,
+                desiredCapabilities: $desiredCapabilities,
+                properties: $properties,
+            );
+        } catch (InvalidArgumentException) {
+            throw PerformativeException::malformedAttach();
+        }
     }
 
     private function encodeString(string $value): string

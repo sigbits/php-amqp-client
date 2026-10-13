@@ -22,10 +22,12 @@ final class SenderLinkEngineTest extends TestCase
 
         self::assertSame(
             [
-                "\x00\x00\x00\x1c\x02\x00\x00\x01"
-                . "\x00\x53\x12\xc0\x0f\x03\xa1\x06sender"
+                "\x00\x00\x00\x23\x02\x00\x00\x01"
+                . "\x00\x53\x12\xc0\x16\x0a\xa1\x06sender"
                 . "\x70\x00\x00\x00\x00"
-                . "\x42",
+                . "\x42"
+                . "\x40\x40\x40\x40\x40\x40"
+                . "\x43",
             ],
             $engine->attach(),
         );

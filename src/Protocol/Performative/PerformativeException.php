@@ -38,6 +38,11 @@ final class PerformativeException extends RuntimeException
         return new self('AMQP attach performative requires name, handle, and role.');
     }
 
+    public static function malformedAttach(): self
+    {
+        return new self('Malformed AMQP attach performative.');
+    }
+
     public static function truncatedAttach(): self
     {
         return new self('Truncated AMQP attach performative.');

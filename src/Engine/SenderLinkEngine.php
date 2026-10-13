@@ -130,7 +130,7 @@ final class SenderLinkEngine
                 role: LinkRole::Sender,
                 sourceAddress: $this->sourceAddress,
                 targetAddress: $this->targetAddress,
-                initialDeliveryCount: $this->targetAddress === null ? null : 0,
+                initialDeliveryCount: 0,
             ))),
         ];
     }
