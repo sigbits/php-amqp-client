@@ -74,6 +74,23 @@ This runs `TlsSaslBrokerTest` with `RUN_BROKER_SECURITY_TESTS=1`. It currently
 covers Apache Qpid Broker-J, ActiveMQ Artemis, and RabbitMQ 4 through
 HAProxy-backed TLS endpoints.
 
+### Azure Service Bus Cloud Smoke Tests
+
+Use the cloud smoke suite only with explicit Azure Service Bus credentials and a
+dedicated test queue:
+
+```sh
+AMQP_AZURE_SERVICE_BUS_CLOUD_URI='amqps://<policy>:<key>@<namespace>.servicebus.windows.net:5671' \
+AMQP_AZURE_SERVICE_BUS_CLOUD_ADDRESS='<queue-name>' \
+make test-azure-cloud
+```
+
+This runs `AzureServiceBusCloudSmokeTest` with
+`RUN_AZURE_SERVICE_BUS_CLOUD_TESTS=1`. The smoke test sends, receives, and
+accepts one message against the configured address. Keep the address dedicated
+to smoke testing so the receive loop does not encounter unrelated production
+messages.
+
 ### Long-Running Worker Tests
 
 Use long-running tests when changing lifecycle, receive loops, settlement,

@@ -93,3 +93,10 @@ This coverage proves compatibility with the local development emulator only. It
 does not claim production Azure Service Bus cloud coverage, AMQP over
 WebSockets, Entra ID authentication, VNet/private endpoint behavior, cloud
 quotas, broker persistence across emulator restart, or cloud SLA behavior.
+
+`make test-azure-cloud` runs a real Azure Service Bus cloud smoke test and
+requires explicit opt-in credentials provided through
+`AMQP_AZURE_SERVICE_BUS_CLOUD_URI` and
+`AMQP_AZURE_SERVICE_BUS_CLOUD_ADDRESS`. The smoke test sends, receives, and
+accepts one message against the configured address. It is intentionally outside
+the default local broker matrix and requires a dedicated test queue.

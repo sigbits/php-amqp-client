@@ -16,7 +16,7 @@ LONG_TEST_REQUEST_REPLY_CYCLES ?= $(LONG_TEST_CYCLES)
 LONG_TEST_SEND_CYCLES ?= $(LONG_TEST_CYCLES)
 SOAK_PROFILE ?= all
 
-.PHONY: build install validate test test-integration test-security test-long test-soak test-broker-restart broker-up broker-wait broker-down broker-reset cs cs-fix stan proof-connection ci shell
+.PHONY: build install validate test test-integration test-security test-azure-cloud test-long test-soak test-broker-restart broker-up broker-wait broker-down broker-reset cs cs-fix stan proof-connection ci shell
 
 build:
 	PHP_VERSION=$(PHP_VERSION) $(DOCKER_COMPOSE) build php
@@ -35,6 +35,9 @@ test-integration: broker-reset
 
 test-security: broker-reset
 	$(BROKER_COMPOSE) run --rm -e RUN_BROKER_SECURITY_TESTS=1 -e AMQP_ARTEMIS_TLS_URI=amqps://guest:guest@artemis-tls:5671 -e AMQP_ARTEMIS_TLS_INVALID_URI=amqps://guest:wrong@artemis-tls:5671 -e AMQP_ARTEMIS_TLS_CA_FILE=/app/docker/broker/tls/ca.crt -e AMQP_ARTEMIS_TLS_PEER_NAME=artemis-tls.sigbits.test -e AMQP_RABBITMQ_TLS_URI=amqps://guest:guest@rabbitmq-tls:5671 -e AMQP_RABBITMQ_TLS_INVALID_URI=amqps://guest:wrong@rabbitmq-tls:5671 -e AMQP_RABBITMQ_TLS_CA_FILE=/app/docker/broker/tls/ca.crt -e AMQP_RABBITMQ_TLS_PEER_NAME=rabbitmq-tls.sigbits.test -e AMQP_QPID_TLS_URI=amqps://guest:guest@qpid-tls:5671 -e AMQP_QPID_TLS_INVALID_URI=amqps://guest:wrong@qpid-tls:5671 -e AMQP_QPID_TLS_CA_FILE=/app/docker/broker/tls/qpid-tls.pem -e AMQP_QPID_TLS_PEER_NAME=qpid-tls.sigbits.test php composer test:integration -- --filter TlsSaslBrokerTest
+
+test-azure-cloud:
+	PHP_VERSION=$(PHP_VERSION) $(DOCKER_COMPOSE) run --rm -e RUN_AZURE_SERVICE_BUS_CLOUD_TESTS=1 -e AMQP_AZURE_SERVICE_BUS_CLOUD_URI -e AMQP_AZURE_SERVICE_BUS_CLOUD_ADDRESS php composer test:integration -- --filter AzureServiceBusCloudSmokeTest
 
 test-long: broker-reset
 	$(BROKER_COMPOSE) run --rm -e RUN_LONG_TESTS=1 -e AMQP_TOXIPROXY_API=http://toxiproxy:8474 -e AMQP_LONG_CYCLES=$(LONG_TEST_CYCLES) -e AMQP_LONG_CREDIT_CYCLES=$(LONG_TEST_CREDIT_CYCLES) -e AMQP_LONG_CREDIT_WINDOW=$(LONG_TEST_CREDIT_WINDOW) -e AMQP_LONG_FAILURE_CYCLES=$(LONG_TEST_FAILURE_CYCLES) -e AMQP_LONG_LARGE_MESSAGE_BYTES=$(LONG_TEST_LARGE_MESSAGE_BYTES) -e AMQP_LONG_LARGE_MESSAGE_CYCLES=$(LONG_TEST_LARGE_MESSAGE_CYCLES) -e AMQP_LONG_MAX_MEMORY_GROWTH_BYTES=$(LONG_TEST_MAX_MEMORY_GROWTH_BYTES) -e AMQP_LONG_RECONNECT_CYCLES=$(LONG_TEST_RECONNECT_CYCLES) php composer test:long
