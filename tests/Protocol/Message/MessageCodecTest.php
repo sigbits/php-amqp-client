@@ -36,6 +36,20 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testEncodesMultipleDataBodySections(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x75\xa0\x03one"
+                . "\x00\x53\x75\xa0\x03two",
+            $codec->encode(new Message(
+                body: '',
+                dataSections: ['one', 'two'],
+            )),
+        );
+    }
+
     public function testDecodesDataBodyMessage(): void
     {
         $codec = new MessageCodec();
@@ -268,6 +282,24 @@ final class MessageCodecTest extends TestCase
                 body: '',
                 bodySection: MessageBodySection::AmqpSequence,
                 bodySequence: ['one', 'two'],
+            )),
+        );
+    }
+
+    public function testEncodesMultipleAmqpSequenceBodySections(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x76\xc0\x06\x01\xa1\x03one"
+                . "\x00\x53\x76\xc0\x0b\x02\xa1\x03two\x70\x00\x00\x00\x02",
+            $codec->encode(new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpSequence,
+                bodySequences: [
+                    ['one'],
+                    ['two', new UInt(2)],
+                ],
             )),
         );
     }
@@ -1015,6 +1047,24 @@ final class MessageCodecTest extends TestCase
                 . "\x00\x53\x78\xc1\x13\x02\xa3\x08checksum\xa1\x06abc123",
             $codec->encode(new Message(
                 body: 'payload',
+                footer: [
+                    'checksum' => 'abc123',
+                ],
+            )),
+        );
+    }
+
+    public function testEncodesFooterAfterMultipleDataBodySections(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertSame(
+            "\x00\x53\x75\xa0\x03one"
+                . "\x00\x53\x75\xa0\x03two"
+                . "\x00\x53\x78\xc1\x13\x02\xa3\x08checksum\xa1\x06abc123",
+            $codec->encode(new Message(
+                body: '',
+                dataSections: ['one', 'two'],
                 footer: [
                     'checksum' => 'abc123',
                 ],
