@@ -84,6 +84,36 @@ final class ReceiverTest extends TestCase
         self::assertNull($receiver->receive(timeoutMilliseconds: 0));
     }
 
+    public function testDeliveriesYieldsReceivedDeliveriesUntilTimeout(): void
+    {
+        $receiver = ClientObjectFactory::receiver($this->attachedReceiverLink(), $this->reader([
+            "\x00\x00\x00\x35\x02\x00\x00\x01"
+            . "\x00\x53\x14\xc0\x1e\x06"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\xa0\x0adelivery-0"
+            . "\x70\x00\x00\x00\x00"
+            . "\x40"
+            . "\x42"
+            . "\x00\x53\x75\xa0\x05first",
+            "\x00\x00\x00\x35\x02\x00\x00\x01"
+            . "\x00\x53\x14\xc0\x1e\x06"
+            . "\x70\x00\x00\x00\x01"
+            . "\x70\x00\x00\x00\x01"
+            . "\xa0\x0adelivery-1"
+            . "\x70\x00\x00\x00\x00"
+            . "\x40"
+            . "\x42"
+            . "\x00\x53\x75\xa0\x05world",
+        ]));
+
+        $deliveries = iterator_to_array($receiver->deliveries(timeoutMilliseconds: 100), preserve_keys: false);
+
+        self::assertCount(2, $deliveries);
+        self::assertSame('first', $deliveries[0]->message()->body);
+        self::assertSame('world', $deliveries[1]->message()->body);
+    }
+
     public function testReceiveDeliveryCanAcceptReceivedMessage(): void
     {
         $written = [];

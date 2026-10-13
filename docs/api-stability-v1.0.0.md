@@ -27,8 +27,8 @@ compatibility promise:
 - `Sender::state()`, `Sender::availableCredit()`, `Sender::send()`, and
   `Sender::detach()`.
 - `Receiver::state()`, `Receiver::receive()`,
-  `Receiver::receiveDelivery()`, `Receiver::grantCredit()`, and
-  `Receiver::detach()`.
+  `Receiver::receiveDelivery()`, additive v1.4 `Receiver::deliveries()`,
+  `Receiver::grantCredit()`, and `Receiver::detach()`.
 - `Delivery::message()`, `Delivery::accept()`, `Delivery::release()`, and
   `Delivery::reject()`.
 - `ConnectionUri::parse()`, `ConnectionUri::usesTls()`, and
@@ -110,8 +110,9 @@ boundaries.
 
 `Sender::send()` accepts either a `Message` object or a string. A string is
 sent as a DATA-body `Message` with the string as its binary body. `Receiver::receive()`
-returns `?Message`, and `Receiver::receiveDelivery()` returns a `Delivery`
-whose `message()` method returns the same `Message` model.
+returns `?Message`, `Receiver::receiveDelivery()` returns a `Delivery`, and
+additive v1.4 `Receiver::deliveries()` yields `Delivery` objects whose
+`message()` method returns the same `Message` model.
 
 The committed v1.0.0 message model supports these user-facing sections:
 

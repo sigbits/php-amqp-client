@@ -222,9 +222,8 @@ commit.
   credentials, keeping emulator coverage as the default local path.
 - Expand settlement-effect coverage for accept, release, and reject across the
   supported broker matrix.
-- Add a synchronous generator-style delivery API after the underlying delivery
-  state model is strong enough that consumption ergonomics do not hide protocol
-  gaps.
+- Synchronous generator-style `Receiver::deliveries()` API is in place without
+  hiding explicit settlement or credit management.
 
 ### v1.5: Message Model Expansion
 

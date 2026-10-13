@@ -93,7 +93,9 @@ details are included in the exception message.
 
 `Receiver::receive()` returns only the decoded message. Use
 `Receiver::receiveDelivery()` when the application needs to explicitly settle a
-delivery with `accept()`, `release()`, or `reject()`.
+delivery with `accept()`, `release()`, or `reject()`. Use
+`Receiver::deliveries()` for a synchronous iterator that yields deliveries until
+the supplied receive timeout returns no message.
 
 Use `Receiver::grantCredit($credit)` to replenish receiver link credit after
 consuming deliveries in bounded-credit worker loops.
