@@ -880,9 +880,11 @@ final class ConnectionTest extends TestCase
     private function remoteReceiverAttachFrame(int $channel): string
     {
         return $this->frame(
-            "\x00\x53\x12\xc0\x11\x03\xa1\x08receiver"
+            "\x00\x53\x12\xc0\x18\x0a\xa1\x08receiver"
             . "\x70\x00\x00\x00\x01"
-            . "\x42",
+            . "\x42"
+            . "\x40\x40\x40\x40\x40\x40"
+            . "\x43",
             channel: $channel,
         );
     }

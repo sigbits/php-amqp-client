@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Sigbits\Amqp\Tests\Protocol\Performative;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use Sigbits\Amqp\Protocol\Performative\Attach;
 use Sigbits\Amqp\Protocol\Performative\AttachCodec;
@@ -24,13 +25,16 @@ final class AttachCodecTest extends TestCase
         $codec = new AttachCodec();
 
         self::assertSame(
-            "\x00\x53\x12\xc0\x0f\x03\xa1\x06sender"
+            "\x00\x53\x12\xc0\x16\x0a\xa1\x06sender"
             . "\x70\x00\x00\x00\x00"
-            . "\x42",
+            . "\x42"
+            . "\x40\x40\x40\x40\x40\x40"
+            . "\x43",
             $codec->encode(new Attach(
                 name: 'sender',
                 handle: 0,
                 role: LinkRole::Sender,
+                initialDeliveryCount: 0,
             )),
         );
     }
@@ -44,11 +48,14 @@ final class AttachCodecTest extends TestCase
                 name: 'sender',
                 handle: 0,
                 role: LinkRole::Sender,
+                initialDeliveryCount: 0,
             ),
             $codec->decode(
-                "\x00\x53\x12\xc0\x0f\x03\xa1\x06sender"
+                "\x00\x53\x12\xc0\x16\x0a\xa1\x06sender"
                 . "\x70\x00\x00\x00\x00"
-                . "\x42",
+                . "\x42"
+                . "\x40\x40\x40\x40\x40\x40"
+                . "\x43",
             ),
         );
     }
@@ -467,16 +474,18 @@ final class AttachCodecTest extends TestCase
         $codec = new AttachCodec();
 
         self::assertSame(
-            "\x00\x53\x12\xc0\x25\x07\xa1\x06sender"
+            "\x00\x53\x12\xc0\x28\x0a\xa1\x06sender"
             . "\x70\x00\x00\x00\x00"
             . "\x42"
             . "\x40\x40\x40"
-            . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test",
+            . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test"
+            . "\x40\x40\x43",
             $codec->encode(new Attach(
                 name: 'sender',
                 handle: 0,
                 role: LinkRole::Sender,
                 targetAddress: 'orders.test',
+                initialDeliveryCount: 0,
             )),
         );
     }
@@ -486,18 +495,20 @@ final class AttachCodecTest extends TestCase
         $codec = new AttachCodec();
 
         self::assertSame(
-            "\x00\x53\x12\xc0\x27\x07\xa1\x06sender"
+            "\x00\x53\x12\xc0\x2a\x0a\xa1\x06sender"
             . "\x70\x00\x00\x00\x00"
             . "\x42"
             . "\x50\x02"
             . "\x50\x00"
             . "\x40"
-            . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test",
+            . "\x00\x53\x29\xc0\x0e\x01\xa1\x0borders.test"
+            . "\x40\x40\x43",
             $codec->encode(new Attach(
                 name: 'sender',
                 handle: 0,
                 role: LinkRole::Sender,
                 targetAddress: 'orders.test',
+                initialDeliveryCount: 0,
                 senderSettleMode: 2,
                 receiverSettleMode: 0,
             )),
@@ -535,13 +546,14 @@ final class AttachCodecTest extends TestCase
             "\x00\x53\x12\xc0\x47\x0d\xa1\x06sender"
             . "\x70\x00\x00\x00\x00"
             . "\x42"
-            . "\x40\x40\x40\x40\x40\x40\x40\x40"
+            . "\x40\x40\x40\x40\x40\x40\x43\x40"
             . "\xe0\x23\x02\xa3\x0fanonymous-relay\x10delayed-delivery"
             . "\xe0\x09\x01\xa3\x06shared",
             $codec->encode(new Attach(
                 name: 'sender',
                 handle: 0,
                 role: LinkRole::Sender,
+                initialDeliveryCount: 0,
                 offeredCapabilities: ['anonymous-relay', 'delayed-delivery'],
                 desiredCapabilities: ['shared'],
             )),
@@ -556,12 +568,13 @@ final class AttachCodecTest extends TestCase
             "\x00\x53\x12\xc0\x38\x0e\xa1\x06sender"
             . "\x70\x00\x00\x00\x00"
             . "\x42"
-            . "\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40"
+            . "\x40\x40\x40\x40\x40\x40\x43\x40\x40\x40"
             . "\xc1\x1d\x04\xa3\x07product\xa1\x07sigbits\xa3\x03ttl\x70\x00\x00\x00\x3c",
             $codec->encode(new Attach(
                 name: 'sender',
                 handle: 0,
                 role: LinkRole::Sender,
+                initialDeliveryCount: 0,
                 properties: new AmqpMap([
                     [new Symbol('product'), 'sigbits'],
                     [new Symbol('ttl'), new UInt(60)],
@@ -575,12 +588,13 @@ final class AttachCodecTest extends TestCase
         $codec = new AttachCodec();
 
         self::assertSame(
-            "\x00\x53\x12\xc0\x26\x09\xa1\x06sender"
+            "\x00\x53\x12\xc0\x27\x0a\xa1\x06sender"
             . "\x70\x00\x00\x00\x00"
             . "\x42"
             . "\x40\x40\x40\x40"
             . "\xc1\x10\x02\xa3\x08delivery\x70\x00\x00\x00\x01"
-            . "\x41",
+            . "\x41"
+            . "\x43",
             $codec->encode(new Attach(
                 name: 'sender',
                 handle: 0,
@@ -589,6 +603,7 @@ final class AttachCodecTest extends TestCase
                     [new Symbol('delivery'), new UInt(1)],
                 ]),
                 incompleteUnsettled: true,
+                initialDeliveryCount: 0,
             )),
         );
     }
@@ -637,6 +652,61 @@ final class AttachCodecTest extends TestCase
         self::assertSame(0, $attach->initialDeliveryCount);
     }
 
+    public function testRejectsSenderAttachWithoutInitialDeliveryCount(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('AMQP sender attach requires initial-delivery-count.');
+
+        new Attach(
+            name: 'sender',
+            handle: 0,
+            role: LinkRole::Sender,
+        );
+    }
+
+    public function testRejectsReceiverAttachWithInitialDeliveryCount(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('AMQP receiver attach must not include initial-delivery-count.');
+
+        new Attach(
+            name: 'receiver',
+            handle: 1,
+            role: LinkRole::Receiver,
+            initialDeliveryCount: 0,
+        );
+    }
+
+    public function testRejectsDecodedSenderAttachWithoutInitialDeliveryCount(): void
+    {
+        $codec = new AttachCodec();
+
+        $this->expectException(PerformativeException::class);
+        $this->expectExceptionMessage('Malformed AMQP attach performative.');
+
+        $codec->decode(
+            "\x00\x53\x12\xc0\x0f\x03\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42",
+        );
+    }
+
+    public function testRejectsDecodedReceiverAttachWithInitialDeliveryCount(): void
+    {
+        $codec = new AttachCodec();
+
+        $this->expectException(PerformativeException::class);
+        $this->expectExceptionMessage('Malformed AMQP attach performative.');
+
+        $codec->decode(
+            "\x00\x53\x12\xc0\x18\x0a\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x01"
+            . "\x41"
+            . "\x40\x40\x40\x40\x40\x40"
+            . "\x43",
+        );
+    }
+
     public function testDecodesAttachMaxMessageSize(): void
     {
         $codec = new AttachCodec();
@@ -663,7 +733,7 @@ final class AttachCodecTest extends TestCase
             "\x00\x53\x12\xc0\x47\x0d\xa1\x06sender"
             . "\x70\x00\x00\x00\x00"
             . "\x42"
-            . "\x40\x40\x40\x40\x40\x40\x40\x40"
+            . "\x40\x40\x40\x40\x40\x40\x43\x40"
             . "\xe0\x23\x02\xa3\x0fanonymous-relay\x10delayed-delivery"
             . "\xe0\x09\x01\xa3\x06shared",
         );
@@ -680,7 +750,7 @@ final class AttachCodecTest extends TestCase
             "\x00\x53\x12\xc0\x38\x0e\xa1\x06sender"
             . "\x70\x00\x00\x00\x00"
             . "\x42"
-            . "\x40\x40\x40\x40\x40\x40\x40\x40\x40\x40"
+            . "\x40\x40\x40\x40\x40\x40\x43\x40\x40\x40"
             . "\xc1\x1d\x04\xa3\x07product\xa1\x07sigbits\xa3\x03ttl\x70\x00\x00\x00\x3c",
         );
 
@@ -695,12 +765,13 @@ final class AttachCodecTest extends TestCase
         $codec = new AttachCodec();
 
         $attach = $codec->decode(
-            "\x00\x53\x12\xc0\x26\x09\xa1\x06sender"
+            "\x00\x53\x12\xc0\x27\x0a\xa1\x06sender"
             . "\x70\x00\x00\x00\x00"
             . "\x42"
             . "\x40\x40\x40\x40"
             . "\xc1\x10\x02\xa3\x08delivery\x70\x00\x00\x00\x01"
-            . "\x41",
+            . "\x41"
+            . "\x43",
         );
 
         self::assertEquals(new AmqpMap([
