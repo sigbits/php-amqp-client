@@ -8,7 +8,24 @@ use InvalidArgumentException;
 
 final readonly class Message
 {
+    public string $body;
+
+    /**
+     * @var list<mixed>
+     */
+    public array $bodySequence;
+
     public mixed $bodyValue;
+
+    /**
+     * @var list<string>
+     */
+    public array $dataSections;
+
+    /**
+     * @var list<list<mixed>>
+     */
+    public array $bodySequences;
 
     private bool $hasBodyValue;
 
@@ -18,13 +35,15 @@ final readonly class Message
      * @param array<string, mixed> $applicationProperties
      * @param array<string, mixed> $footer
      * @param list<mixed> $bodySequence
+     * @param list<string> $dataSections
+     * @param list<list<mixed>> $bodySequences
      * @param mixed $bodyValue AMQP value body payload when provided. Use `hasBodyValue()` to distinguish an
      *                         explicit AMQP null from the legacy string body path.
      */
     public function __construct(
-        public string $body,
+        string $body,
         public MessageBodySection $bodySection = MessageBodySection::Data,
-        public array $bodySequence = [],
+        array $bodySequence = [],
         public ?Header $header = null,
         public array $deliveryAnnotations = [],
         public array $messageAnnotations = [],
@@ -32,11 +51,47 @@ final readonly class Message
         public array $applicationProperties = [],
         public array $footer = [],
         mixed $bodyValue = new UnsetMessageBodyValue(),
+        array $dataSections = [],
+        array $bodySequences = [],
     ) {
+        if ($dataSections !== [] && $bodySection !== MessageBodySection::Data) {
+            throw new InvalidArgumentException('DATA body sections require the DATA body section type.');
+        }
+
+        if ($bodySequences !== [] && $bodySection !== MessageBodySection::AmqpSequence) {
+            throw new InvalidArgumentException('AMQP sequence body sections require the AMQP sequence body section type.');
+        }
+
+        $canonicalBody = $body;
+        $canonicalBodySequence = $bodySequence;
+        $canonicalDataSections = [];
+        $canonicalBodySequences = [];
+
+        if ($bodySection === MessageBodySection::Data) {
+            $canonicalDataSections = $dataSections === [] ? [$body] : $dataSections;
+            $canonicalBody = $canonicalDataSections[0];
+            $canonicalBodySequence = [];
+        }
+
+        if ($bodySection === MessageBodySection::AmqpSequence) {
+            $canonicalBodySequences = $bodySequences === [] ? [$bodySequence] : $bodySequences;
+            $canonicalBodySequence = $canonicalBodySequences[0];
+            $canonicalBody = '';
+        }
+
+        if ($bodySection === MessageBodySection::AmqpValue) {
+            $canonicalBodySequence = [];
+        }
+
+        $this->body = $canonicalBody;
+        $this->bodySequence = $canonicalBodySequence;
+        $this->dataSections = $canonicalDataSections;
+        $this->bodySequences = $canonicalBodySequences;
+
         $this->hasBodyValue = !$bodyValue instanceof UnsetMessageBodyValue;
         $this->bodyValue = $this->hasBodyValue ? $bodyValue : null;
 
-        if ($bodySection === MessageBodySection::AmqpValue && !$this->hasBodyValue && strlen($body) > 255) {
+        if ($bodySection === MessageBodySection::AmqpValue && !$this->hasBodyValue && strlen($this->body) > 255) {
             throw new InvalidArgumentException('AMQP value body must fit in string8 encoding.');
         }
 
