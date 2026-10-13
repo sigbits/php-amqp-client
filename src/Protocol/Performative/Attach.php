@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sigbits\Amqp\Protocol\Performative;
 
 use InvalidArgumentException;
+use Sigbits\Amqp\Protocol\Type\AmqpMap;
 use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Protocol\Type\ULong;
 
@@ -23,6 +24,7 @@ final readonly class Attach
     public array $offeredCapabilities;
     /** @var list<string> */
     public array $desiredCapabilities;
+    public ?AmqpMap $properties;
     public ?Source $source;
     public ?Target $target;
 
@@ -44,6 +46,7 @@ final readonly class Attach
         ?ULong $maxMessageSize = null,
         array $offeredCapabilities = [],
         array $desiredCapabilities = [],
+        ?AmqpMap $properties = null,
     ) {
         if ($name === '') {
             throw new InvalidArgumentException('AMQP attach name must not be empty.');
@@ -94,6 +97,7 @@ final readonly class Attach
         $this->maxMessageSize = $maxMessageSize;
         $this->offeredCapabilities = $offeredCapabilities;
         $this->desiredCapabilities = $desiredCapabilities;
+        $this->properties = $properties;
     }
 
     /**
