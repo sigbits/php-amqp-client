@@ -28,6 +28,11 @@ final class ReceiverLinkException extends RuntimeException
         return new self('Truncated AMQP receiver transfer payload.');
     }
 
+    public static function unsupportedTransferMessageFormat(int $messageFormat): self
+    {
+        return new self(sprintf('Unsupported AMQP transfer message format %d.', $messageFormat));
+    }
+
     public static function unknownDelivery(): self
     {
         return new self('Cannot settle unknown AMQP delivery.');
