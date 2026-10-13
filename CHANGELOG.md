@@ -24,6 +24,11 @@ must have release notes in this file before the tag is created.
   settlements, complementing the existing accepted-delivery queue-state check.
 - Artemis broker regression coverage for repeated AMQP sequence body sections,
   complementing the existing repeated DATA body workflow coverage.
+- Artemis and Qpid Broker-J broker-effect coverage for released deliveries,
+  plus rejected-delivery effect coverage that records Artemis/RabbitMQ removal
+  behavior and Qpid redelivery behavior.
+- AMQP `modified` delivery-state value object and codec support, including
+  optional delivery-failed, undeliverable-here, and message-annotations fields.
 
 ## v1.3.0 - 2026-10-13
 

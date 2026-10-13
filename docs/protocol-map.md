@@ -33,7 +33,7 @@ specification.
 | Connection/session/link performatives | partial | Core performatives exist; `OPEN` and `BEGIN` carry their optional field models, and `ATTACH` now covers its field model. Negotiation behavior and other performative optional fields remain incomplete. | v1.6 |
 | Message sections | partial | Generic annotation/property maps, full properties, repeated DATA, AMQP value, and repeated generic AMQP sequence sections exist. | v1.4 |
 | Delivery settlement | partial | Receiver accepted/released/rejected settlement exists. | v1.7 |
-| Delivery states | partial | Accepted, released, and rejected have concrete delivery-state value objects and described-value codec support. | v1.7 |
+| Delivery states | partial | Accepted, released, rejected, and modified have concrete delivery-state value objects and described-value codec support. | v1.7 |
 | Transactions | missing | No coordinator or transactional delivery state. | v1.7 |
 | Idle timeout and heartbeats | missing | No idle-time-out negotiation or empty-frame heartbeat behavior. | v1.6 |
 | Transport abstraction | partial | Engine is mostly I/O-independent, but public client still reads/writes PHP streams directly. | v1.9 |
@@ -130,9 +130,9 @@ specification.
 | AMQP area | Status | Current implementation | Current tests | Missing behavior | Priority | Target |
 | --- | --- | --- | --- | --- | --- | --- |
 | Accepted | implemented | `Accepted`, `DeliveryStateCodec`, `SettlementOutcome::Accepted`; receiver sends accepted disposition. | Delivery-state, disposition, receiver, client, integration tests. | None for the accepted field set. | P0 | v1.7 |
-| Rejected | partial | `Rejected`, `DeliveryStateCodec`, `SettlementOutcome::Rejected`; receiver sends rejected with no error fields. | Delivery-state, disposition, receiver tests, RabbitMQ broker-effect test. | Error field support and broader broker effect tests. | P0 | v1.7 |
-| Released | partial | `Released`, `DeliveryStateCodec`, `SettlementOutcome::Released`; receiver sends released. | Delivery-state, disposition, receiver tests, RabbitMQ broker-effect test. | Broader broker effect coverage across matrix. | P0 | v1.7 |
-| Modified | missing | None. | None. | delivery-failed, undeliverable-here, message-annotations. | P0 | v1.7 |
+| Rejected | partial | `Rejected`, `DeliveryStateCodec`, `SettlementOutcome::Rejected`; receiver sends rejected with no error fields. | Delivery-state, disposition, receiver tests, and RabbitMQ/Artemis/Qpid broker-effect tests. | Error field support. | P0 | v1.7 |
+| Released | partial | `Released`, `DeliveryStateCodec`, `SettlementOutcome::Released`; receiver sends released. | Delivery-state, disposition, receiver tests, and RabbitMQ/Artemis/Qpid broker-effect tests. | Broader settlement semantics beyond one-shot receiver settlement. | P0 | v1.7 |
+| Modified | partial | `Modified`, `DeliveryStateCodec`; fields cover delivery-failed, undeliverable-here, and message-annotations. | Delivery-state codec tests and Qpid receiver attach interop through decoded default-outcome. | Public settlement API and broker effect coverage for modified outcomes. | P0 | v1.7 |
 | Received | missing | None. | None. | section-number, section-offset, resumable transfer behavior. | P1 | v1.7 |
 | Transactional state | missing | None. | None. | txn-id plus nested outcome. | P0 | v1.7 |
 | Sender settlement | missing | Sender sends transfers and consumes credit but does not track remote settlement. | Sender engine/client tests cover credit and detach, not settlement. | Unsettled outgoing deliveries, remote disposition handling, settlement modes, duplicate settlement. | P0 | v1.7 |
@@ -189,10 +189,9 @@ if a future public API needs them.
 
 Recommended concrete slices:
 
-1. Functional broker coverage: add broader settlement-effect broker checks.
-2. Delivery states and outcomes: accepted, rejected, and released are modeled
-   as described values with exact binary fixtures. Continue with rejected error
-   fields, modified, received, and transactional-state.
+1. Delivery states and outcomes: accepted, rejected, released, and modified are
+   modeled as described values with exact binary fixtures. Continue with
+   rejected error fields, received, and transactional-state.
 
 This order keeps full protocol coverage measurable and prevents transport work
 from absorbing protocol bugs that should be caught in memory-level fixtures.

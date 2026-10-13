@@ -64,11 +64,14 @@ available again for redelivery.
 ## Qpid Broker-J
 
 Qpid Broker-J is used for handshake, public connection/session lifecycle,
-public sender/receiver detach, send, receive, accepted settlement, and
+public sender/receiver detach, send, receive, settlement effects, and
 long-running worker soak-profile coverage. Tests create explicit queues through
 the broker management API because this test broker does not auto-create random
-targets. Qpid Broker-J TLS/SASL security hardening is covered through the local
-`qpid-tls` HAProxy endpoint.
+targets. Qpid settlement-effect coverage verifies that accepted deliveries leave
+no available message, released deliveries become available again, and rejected
+deliveries are made available again for redelivery by this broker. Qpid Broker-J
+TLS/SASL security hardening is covered through the local `qpid-tls` HAProxy
+endpoint.
 
 ## ActiveMQ Artemis
 
@@ -78,6 +81,10 @@ hardening through `artemis-tls`, long-running worker, send-only, receive-only,
 request/reply-like, bounded credit, reconnect, transport interruption, broker
 restart, large DATA message coverage, and repeated DATA/AMQP sequence body
 round-trip regressions.
+
+ActiveMQ Artemis settlement-effect coverage verifies that accepted and rejected
+deliveries leave no message on the address, while released deliveries become
+available again for redelivery.
 
 `make test-broker-restart` currently exercises ActiveMQ Artemis restart during
 active public receiver, sender, and settlement loops. The harness runs PHPUnit

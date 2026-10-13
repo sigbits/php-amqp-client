@@ -279,6 +279,37 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
     }
 
+    public function testPublicReceiverReleaseMakesArtemisDeliveryAvailableAgain(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $address = 'sigbits.public.release.' . bin2hex(random_bytes(4));
+
+        $this->assertReleasedDeliveryIsRedelivered(
+            getenv('AMQP_ARTEMIS_URI') ?: 'amqp://guest:guest@artemis:5672',
+            $address,
+            'hello artemis released delivery',
+        );
+    }
+
+    public function testPublicReceiverReleaseMakesQpidDeliveryAvailableAgain(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $address = 'sigbits.public.release.' . bin2hex(random_bytes(4));
+        $this->createQpidQueue($address);
+
+        $this->assertReleasedQueuedDeliveryIsRedelivered(
+            getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672',
+            $address,
+            'hello qpid released delivery',
+        );
+    }
+
     public function testPublicReceiverAcceptsDeliveryAgainstRabbitMq(): void
     {
         if (getenv('RUN_BROKER_TESTS') !== '1') {
@@ -345,6 +376,39 @@ final class PublicConnectionTest extends TestCase
         $connection->close();
 
         self::assertSame(1, $this->rabbitMqReadyMessageCount($queue));
+    }
+
+    public function testPublicReceiverRejectRemovesArtemisDelivery(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $address = 'sigbits.public.reject.' . bin2hex(random_bytes(4));
+
+        $this->assertRejectedDeliveryIsNotRedelivered(
+            getenv('AMQP_ARTEMIS_URI') ?: 'amqp://guest:guest@artemis:5672',
+            $address,
+            'hello artemis rejected delivery',
+            fn (): int => $this->artemisMessageCount($address),
+        );
+    }
+
+    public function testPublicReceiverRejectLeavesQpidDeliveryAvailableAgain(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $address = 'sigbits.public.reject.' . bin2hex(random_bytes(4));
+        $this->createQpidQueue($address);
+
+        $this->assertRejectedQueuedDeliveryIsRedelivered(
+            getenv('AMQP_QPID_URI') ?: 'amqp://guest:guest@qpid:5672',
+            $address,
+            'hello qpid rejected delivery',
+            fn (): int => $this->qpidAvailableMessageCount($address),
+        );
     }
 
     public function testPublicReceiverRejectRemovesRabbitMqDelivery(): void
@@ -612,6 +676,64 @@ final class PublicConnectionTest extends TestCase
         }
     }
 
+    private function artemisMessageCount(string $address): int
+    {
+        $mbean = 'org.apache.activemq.artemis:broker="0.0.0.0",component=addresses,address="' . $address . '"';
+        $context = stream_context_create([
+            'http' => [
+                'header' => 'Authorization: Basic ' . base64_encode('guest:guest') . "\r\n",
+                'ignore_errors' => true,
+            ],
+        ]);
+        $response = file_get_contents(
+            'http://artemis:8161/console/jolokia/read/' . rawurlencode($mbean) . '/MessageCount',
+            false,
+            $context,
+        );
+        $status = $http_response_header[0] ?? '';
+
+        if ($response === false || !str_contains($status, '200 OK')) {
+            self::fail('Could not inspect Artemis test address messages: ' . $status);
+        }
+
+        $payload = json_decode($response, associative: true);
+
+        if (!is_array($payload) || !is_int($payload['value'] ?? null)) {
+            self::fail('Artemis address response did not contain a message count.');
+        }
+
+        return $payload['value'];
+    }
+
+    private function qpidAvailableMessageCount(string $name): int
+    {
+        $context = stream_context_create([
+            'http' => [
+                'header' => 'Authorization: Basic ' . base64_encode('guest:guest') . "\r\n",
+                'ignore_errors' => true,
+            ],
+        ]);
+        $response = file_get_contents(
+            'http://qpid:8080/api/latest/queue/default/default/' . rawurlencode($name),
+            false,
+            $context,
+        );
+        $status = $http_response_header[0] ?? '';
+
+        if ($response === false || !str_contains($status, '200 OK')) {
+            self::fail('Could not inspect Qpid test queue messages: ' . $status);
+        }
+
+        $payload = json_decode($response, associative: true);
+        $availableMessages = $payload['statistics']['availableMessages'] ?? null;
+
+        if (!is_int($availableMessages)) {
+            self::fail('Qpid queue response did not contain an available message count.');
+        }
+
+        return $availableMessages;
+    }
+
     private function bindRabbitMqQueueToExchange(string $queue, string $exchange, string $routingKey): void
     {
         $body = json_encode([
@@ -684,6 +806,135 @@ final class PublicConnectionTest extends TestCase
         }
 
         return count($messages);
+    }
+
+    private function assertReleasedDeliveryIsRedelivered(string $uri, string $address, string $body): void
+    {
+        $connection = Connection::connect($uri, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $sender = $session->openSender($address);
+
+        $sender->send($body);
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame($body, $delivery->message()->body);
+
+        $delivery->release();
+        $receiver->grantCredit(1);
+        $redelivered = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($redelivered);
+        self::assertSame($body, $redelivered->message()->body);
+
+        $redelivered->accept();
+
+        $session->end();
+        $connection->close();
+    }
+
+    private function assertReleasedQueuedDeliveryIsRedelivered(string $uri, string $address, string $body): void
+    {
+        $connection = Connection::connect($uri, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address);
+
+        $sender->send($body);
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect($uri, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame($body, $delivery->message()->body);
+
+        $delivery->release();
+
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect($uri, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $redelivered = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($redelivered);
+        self::assertSame($body, $redelivered->message()->body);
+
+        $redelivered->accept();
+
+        $session->end();
+        $connection->close();
+    }
+
+    /**
+     * @param callable(): int $availableMessageCount
+     */
+    private function assertRejectedDeliveryIsNotRedelivered(string $uri, string $address, string $body, callable $availableMessageCount): void
+    {
+        $connection = Connection::connect($uri, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $sender = $session->openSender($address);
+
+        $sender->send($body);
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame($body, $delivery->message()->body);
+
+        $delivery->reject();
+
+        $session->end();
+        $connection->close();
+
+        self::assertSame(0, $availableMessageCount());
+    }
+
+    /**
+     * @param callable(): int $availableMessageCount
+     */
+    private function assertRejectedQueuedDeliveryIsRedelivered(string $uri, string $address, string $body, callable $availableMessageCount): void
+    {
+        $connection = Connection::connect($uri, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address);
+
+        $sender->send($body);
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect($uri, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame($body, $delivery->message()->body);
+
+        $delivery->reject();
+
+        $session->end();
+        $connection->close();
+
+        self::assertSame(1, $availableMessageCount());
+
+        $connection = Connection::connect($uri, timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $redelivered = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($redelivered);
+        self::assertSame($body, $redelivered->message()->body);
+
+        $redelivered->accept();
+
+        $session->end();
+        $connection->close();
     }
 
     private function receiveDeliveryWithBody(\Sigbits\Amqp\Client\Receiver $receiver, string $body): \Sigbits\Amqp\Client\Delivery
