@@ -84,6 +84,16 @@ final class Receiver
         return null;
     }
 
+    /**
+     * @return iterable<Delivery>
+     */
+    public function deliveries(int $timeoutMilliseconds): iterable
+    {
+        while (($delivery = $this->receiveDelivery($timeoutMilliseconds)) !== null) {
+            yield $delivery;
+        }
+    }
+
     public function grantCredit(int $credit): void
     {
         if ($this->link->state() === ReceiverLinkState::Detached) {

@@ -194,6 +194,20 @@ Each `Delivery` object can be settled once with `accept()`, `release()`, or
 `reject()`. A second settlement attempt raises `ClientException`. If the receiver
 link is detached before settlement, settlement raises `ClientException`.
 
+For synchronous worker loops, `deliveries()` yields `Delivery` objects until a
+receive call returns `null` for the supplied timeout:
+
+```php
+foreach ($receiver->deliveries(1_000) as $delivery) {
+    process($delivery->message());
+    $delivery->accept();
+    $receiver->grantCredit(1);
+}
+```
+
+`Receiver::deliveries($timeoutMilliseconds)` does not settle deliveries or grant
+credit automatically.
+
 ### Receiver Credit Management
 
 Receiver credit is caller-managed. `Session::openReceiver()` grants the initial

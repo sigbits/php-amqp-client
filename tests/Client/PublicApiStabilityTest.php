@@ -48,6 +48,7 @@ final class PublicApiStabilityTest extends TestCase
                 'state(): Sigbits\Amqp\Engine\ReceiverLinkState',
                 'receive(int $timeoutMilliseconds): ?Sigbits\Amqp\Protocol\Message\Message',
                 'receiveDelivery(int $timeoutMilliseconds): ?Sigbits\Amqp\Client\Delivery',
+                'deliveries(int $timeoutMilliseconds): iterable',
                 'grantCredit(int $credit): void',
                 'detach(): void',
             ],

@@ -15,6 +15,8 @@ must have release notes in this file before the tag is created.
 - Qpid Broker-J TLS/SASL security coverage through the local `qpid-tls`
   HAProxy endpoint, including trusted certificate validation, rejected
   untrusted certificates, and rejected invalid SASL PLAIN credentials.
+- Synchronous `Receiver::deliveries()` iterator for yielding `Delivery` objects
+  until the supplied receive timeout returns no message.
 
 ## v1.3.0 - 2026-10-13
 
