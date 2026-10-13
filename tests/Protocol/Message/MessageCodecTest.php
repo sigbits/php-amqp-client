@@ -46,6 +46,22 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testDecodesMultipleDataBodySections(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'one',
+                dataSections: ['one', 'two'],
+            ),
+            $codec->decode(
+                "\x00\x53\x75\xa0\x03one"
+                    . "\x00\x53\x75\xa0\x03two",
+            ),
+        );
+    }
+
     public function testEncodesLargeDataBodyMessageWithVbin32(): void
     {
         $codec = new MessageCodec();
@@ -267,6 +283,26 @@ final class MessageCodecTest extends TestCase
                 bodySequence: ['one', 'two'],
             ),
             $codec->decode("\x00\x53\x76\xc0\x0b\x02\xa1\x03one\xa1\x03two"),
+        );
+    }
+
+    public function testDecodesMultipleAmqpSequenceBodySections(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpSequence,
+                bodySequences: [
+                    ['one'],
+                    ['two', new UInt(2)],
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x76\xc0\x06\x01\xa1\x03one"
+                    . "\x00\x53\x76\xc0\x08\x02\xa1\x03two\x52\x02",
+            ),
         );
     }
 
@@ -1004,6 +1040,26 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testDecodesFooterAfterMultipleDataBodySections(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'one',
+                dataSections: ['one', 'two'],
+                footer: [
+                    'checksum' => 'abc123',
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x75\xa0\x03one"
+                    . "\x00\x53\x75\xa0\x03two"
+                    . "\x00\x53\x78\xc1\x13\x02\xa3\x08checksum\xa1\x06abc123",
+            ),
+        );
+    }
+
     public function testEncodesFooterWithDescribedValue(): void
     {
         $codec = new MessageCodec();
@@ -1100,6 +1156,19 @@ final class MessageCodecTest extends TestCase
         $this->expectExceptionMessage('Truncated AMQP data body section.');
 
         $codec->decode("\x00\x53\x75\xa0\x05hel");
+    }
+
+    public function testRejectsMixedBodySectionTypes(): void
+    {
+        $codec = new MessageCodec();
+
+        $this->expectException(MessageException::class);
+        $this->expectExceptionMessage('AMQP message body sections must use one body section type.');
+
+        $codec->decode(
+            "\x00\x53\x75\xa0\x03one"
+                . "\x00\x53\x76\xc0\x06\x01\xa1\x03two",
+        );
     }
 
     public function testRejectsApplicationPropertiesWithUnconsumedMapPayload(): void

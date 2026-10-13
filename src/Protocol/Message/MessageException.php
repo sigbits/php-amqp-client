@@ -38,6 +38,11 @@ final class MessageException extends RuntimeException
         return new self('AMQP sequence body must use AMQP list encoding.');
     }
 
+    public static function mixedBodySections(): self
+    {
+        return new self('AMQP message body sections must use one body section type.');
+    }
+
     public static function truncatedDataBody(): self
     {
         return new self('Truncated AMQP data body section.');
