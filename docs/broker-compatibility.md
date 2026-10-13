@@ -4,7 +4,9 @@
 
 The Docker broker stack currently provides:
 
-- Apache Qpid Broker-J on container port `5672`, exposed on host port `56720`.
+- Apache Qpid Broker-J on container port `5672`, exposed on host port `56720`,
+  plus TLS endpoint `qpid-tls` on container port `5671`, exposed on host port
+  `56721`.
 - Apache ActiveMQ Artemis on container port `5672`, exposed on host port
   `56730`, plus TLS endpoint `artemis-tls` on container port `5671`, exposed
   on host port `56731`.
@@ -20,13 +22,14 @@ The Docker broker stack currently provides:
 cannot affect the result.
 
 `make test-security` runs the broker TLS/SASL hardening suite. It currently
-covers ActiveMQ Artemis and RabbitMQ 4 through local TLS endpoints, which
-terminate TLS with HAProxy and forward AMQP traffic to each broker container.
+covers Apache Qpid Broker-J, ActiveMQ Artemis, and RabbitMQ 4 through local TLS
+endpoints, which terminate TLS with HAProxy and forward AMQP traffic to each
+broker container.
 The suite verifies trusted certificate validation, rejected untrusted
-certificate validation, and rejected invalid SASL PLAIN credentials for both
+certificate validation, and rejected invalid SASL PLAIN credentials for these
 brokers. Test certificates live under `docker/broker/tls` and are intended only
-for local broker integration tests. Qpid Broker-J TLS/SASL security coverage is
-not yet wired into the local Docker matrix.
+for local broker integration tests. Qpid Broker-J TLS/SASL security coverage
+uses the `qpid-tls` endpoint.
 
 `make test-soak` runs configurable long-running worker profiles inside Docker.
 Use `SOAK_PROFILE` to select `all`, `send-only`, `receive-only`,
@@ -60,8 +63,8 @@ Qpid Broker-J is used for handshake, public connection/session lifecycle,
 public sender/receiver detach, send, receive, accepted settlement, and
 long-running worker soak-profile coverage. Tests create explicit queues through
 the broker management API because this test broker does not auto-create random
-targets. Qpid Broker-J TLS/SASL security coverage is not yet wired into the
-local Docker matrix.
+targets. Qpid Broker-J TLS/SASL security hardening is covered through the local
+`qpid-tls` HAProxy endpoint.
 
 ## ActiveMQ Artemis
 

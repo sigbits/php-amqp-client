@@ -162,7 +162,7 @@ specification.
 | WebSocket transport | missing | None. | None. | AMQP over WebSockets for cloud brokers, proxy/TLS/auth interaction tests. | P1 | v1.11 |
 | Async/event-loop adapters | missing | None. | None. | ReactPHP/Amp/Revolt adapters over transport boundary. | P2 | v1.12 |
 | ActiveMQ Artemis | partial | Local broker matrix covers public workflows and hardening. | Integration, security, long-running, restart tests. | Full-protocol behavior after v1.4-v1.8 expansion. | P1 | ongoing |
-| Qpid Broker-J | partial | Local broker matrix covers standard public workflows. | Integration and long-running tests. | TLS/SASL local matrix and full-protocol behavior. | P1 | v1.3+ |
+| Qpid Broker-J | partial | Local broker matrix covers standard public workflows and TLS/SASL hardening. | Integration, security, and long-running tests. | Full-protocol behavior. | P1 | ongoing |
 | RabbitMQ 4 | partial | Queue-address public workflows, exchange/routing-key sending, and TLS/SASL hardening. | Integration and security tests. | Full-protocol behavior. | P1 | ongoing |
 | Azure Service Bus emulator | partial | Local emulator covers AMQP TCP public workflows. | Integration tests. | Real cloud coverage, WebSockets, Entra ID, cloud behavior. | P1 | v1.11 |
 
@@ -192,9 +192,8 @@ Recommended concrete slices:
 1. Message body multiplicity: model multiple DATA sections and multiple
    AMQP sequence sections with exact fixtures and broker regressions for the
    v1.4 message coverage slice.
-2. Functional broker coverage: add Qpid Broker-J TLS/SASL matrix coverage,
-   real Azure Service Bus cloud smoke tests behind opt-in credentials, and
-   broader settlement-effect broker checks.
+2. Functional broker coverage: add real Azure Service Bus cloud smoke tests
+   behind opt-in credentials and broader settlement-effect broker checks.
 3. Delivery states and outcomes: accepted, rejected, and released are modeled
    as described values with exact binary fixtures. Continue with rejected error
    fields, modified, received, and transactional-state.

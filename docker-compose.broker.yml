@@ -8,6 +8,16 @@ services:
       - "56720:5672"
       - "58080:8080"
 
+  qpid-tls:
+    image: haproxy:3.0-alpine
+    depends_on:
+      - qpid
+    volumes:
+      - ./docker/broker/haproxy-qpid-tls.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./docker/broker/tls:/usr/local/etc/haproxy/certs:ro
+    ports:
+      - "56721:5671"
+
   artemis:
     image: apache/artemis:latest-alpine
     environment:

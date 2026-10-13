@@ -12,6 +12,9 @@ must have release notes in this file before the tag is created.
 - RabbitMQ 4 broker coverage for AMQP 1.0 exchange/routing-key sending through
   `/exchanges/:exchange/:routing-key`, routed to a bound queue and received via
   `/queues/:queue`.
+- Qpid Broker-J TLS/SASL security coverage through the local `qpid-tls`
+  HAProxy endpoint, including trusted certificate validation, rejected
+  untrusted certificates, and rejected invalid SASL PLAIN credentials.
 
 ## v1.3.0 - 2026-10-13
 
