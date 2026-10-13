@@ -238,6 +238,9 @@ commit.
 
 ### v1.5: Message Model Expansion
 
+The implementation plan is tracked in
+[v1.5.0 Release Plan](release-plan-v1.5.0.md).
+
 - Expand the committed message model toward full AMQP 1.0 message-section
   fidelity: header, delivery annotations, message annotations, properties,
   application properties, DATA, AMQP sequence, AMQP value, and footer.
