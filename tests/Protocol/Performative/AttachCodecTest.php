@@ -570,6 +570,29 @@ final class AttachCodecTest extends TestCase
         );
     }
 
+    public function testEncodesAttachUnsettledFields(): void
+    {
+        $codec = new AttachCodec();
+
+        self::assertSame(
+            "\x00\x53\x12\xc0\x26\x09\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40\x40"
+            . "\xc1\x10\x02\xa3\x08delivery\x70\x00\x00\x00\x01"
+            . "\x41",
+            $codec->encode(new Attach(
+                name: 'sender',
+                handle: 0,
+                role: LinkRole::Sender,
+                unsettled: new AmqpMap([
+                    [new Symbol('delivery'), new UInt(1)],
+                ]),
+                incompleteUnsettled: true,
+            )),
+        );
+    }
+
     public function testEncodesSenderAttachWithInitialDeliveryCount(): void
     {
         $codec = new AttachCodec();
@@ -665,6 +688,25 @@ final class AttachCodecTest extends TestCase
             [new Symbol('product'), 'sigbits'],
             [new Symbol('ttl'), new UInt(60)],
         ]), $attach->properties);
+    }
+
+    public function testDecodesAttachUnsettledFields(): void
+    {
+        $codec = new AttachCodec();
+
+        $attach = $codec->decode(
+            "\x00\x53\x12\xc0\x26\x09\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40\x40"
+            . "\xc1\x10\x02\xa3\x08delivery\x70\x00\x00\x00\x01"
+            . "\x41",
+        );
+
+        self::assertEquals(new AmqpMap([
+            [new Symbol('delivery'), new UInt(1)],
+        ]), $attach->unsettled);
+        self::assertTrue($attach->incompleteUnsettled);
     }
 
     public function testDecodesReceiverAttachMaxMessageSizeWithOmittedInitialDeliveryCount(): void
