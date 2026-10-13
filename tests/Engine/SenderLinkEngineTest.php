@@ -185,6 +185,36 @@ final class SenderLinkEngineTest extends TestCase
         self::assertSame(0, $engine->availableCredit());
     }
 
+    public function testTransferEmitsRepeatedDataBodySections(): void
+    {
+        $engine = new SenderLinkEngine(sessionChannel: 1, name: 'sender', handle: 0);
+        $engine->attach();
+        $engine->push(
+            "\x00\x00\x00\x1c\x02\x00\x00\x01"
+            . "\x00\x53\x12\xc0\x0f\x03\xa1\x06sender"
+            . "\x70\x00\x00\x00\x00"
+            . "\x41",
+        );
+        $engine->push(
+            "\x00\x00\x00\x21\x02\x00\x00\x01"
+            . "\x00\x53\x13\xc0\x14\x07"
+            . "\x40\x40\x40\x40"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x00"
+            . "\x70\x00\x00\x00\x01",
+        );
+        $message = new Message(body: '', dataSections: ['one', 'two']);
+
+        $frames = $engine->transfer($message);
+
+        self::assertCount(1, $frames);
+        self::assertSame(
+            (new MessageCodec())->encode($message),
+            substr($frames[0], 43),
+        );
+        self::assertSame(0, $engine->availableCredit());
+    }
+
     public function testTransferFragmentsMessagePayloadWhenFrameBudgetRequiresIt(): void
     {
         $engine = new SenderLinkEngine(sessionChannel: 1, name: 'sender', handle: 0);

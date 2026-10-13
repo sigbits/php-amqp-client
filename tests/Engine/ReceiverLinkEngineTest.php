@@ -147,6 +147,41 @@ final class ReceiverLinkEngineTest extends TestCase
         self::assertNull($engine->receive());
     }
 
+    public function testRemoteTransferPreservesRepeatedDataBodySections(): void
+    {
+        $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);
+        $engine->attach();
+        $engine->push(
+            "\x00\x00\x00\x25\x02\x00\x00\x01"
+            . "\x00\x53\x12\xc0\x18\x0a\xa1\x08receiver"
+            . "\x70\x00\x00\x00\x00"
+            . "\x42"
+            . "\x40\x40\x40\x40\x40\x40"
+            . "\x43",
+        );
+
+        self::assertSame(
+            [ReceiverLinkEvent::MessageReceived],
+            $engine->push(
+                "\x00\x00\x00\x3b\x02\x00\x00\x01"
+                . "\x00\x53\x14\xc0\x1e\x06"
+                . "\x70\x00\x00\x00\x00"
+                . "\x70\x00\x00\x00\x00"
+                . "\xa0\x0adelivery-0"
+                . "\x70\x00\x00\x00\x00"
+                . "\x40"
+                . "\x42"
+                . "\x00\x53\x75\xa0\x03one"
+                . "\x00\x53\x75\xa0\x03two",
+            ),
+        );
+        self::assertEquals(
+            new Message(body: 'one', dataSections: ['one', 'two']),
+            $engine->receive(),
+        );
+        self::assertNull($engine->receive());
+    }
+
     public function testRejectsUnsupportedTransferMessageFormat(): void
     {
         $engine = new ReceiverLinkEngine(sessionChannel: 1, name: 'receiver', handle: 0);

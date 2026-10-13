@@ -23,19 +23,28 @@ final class ArtemisMessageRoundTripTest extends TestCase
 {
     public function testRoundTripsDataMessageThroughArtemis(): void
     {
+        $message = $this->roundTripThroughArtemis(new Message(body: 'hello broker'));
+
+        self::assertSame('hello broker', $message->body);
+    }
+
+    public function testRoundTripsRepeatedDataBodySectionsThroughArtemis(): void
+    {
+        $message = $this->roundTripThroughArtemis(
+            new Message(body: '', dataSections: ['hello ', 'broker']),
+        );
+
+        self::assertSame('hello ', $message->body);
+        self::assertSame(['hello ', 'broker'], $message->dataSections);
+    }
+
+    private function roundTripThroughArtemis(Message $message): Message
+    {
         if (getenv('RUN_BROKER_TESTS') !== '1') {
             self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
         }
 
-        $stream = (new SaslStreamConnector())->connect(
-            ConnectionUri::parse(getenv('AMQP_ARTEMIS_URI') ?: 'amqp://artemis:5672'),
-            SaslClient::plain(
-                getenv('AMQP_ARTEMIS_USER') ?: 'guest',
-                getenv('AMQP_ARTEMIS_PASSWORD') ?: 'guest',
-            ),
-            timeoutSeconds: 5.0,
-        );
-        stream_set_timeout($stream, 5);
+        $stream = $this->connectToArtemis();
 
         $this->openConnection($stream);
         $this->beginSession($stream);
@@ -61,9 +70,27 @@ final class ArtemisMessageRoundTripTest extends TestCase
         $this->writeAll($stream, $sender->attach());
         $this->waitForSenderCredit($stream, $sender);
 
-        $this->writeAll($stream, $sender->transfer(new Message(body: 'hello broker')));
+        $this->writeAll($stream, $sender->transfer($message));
 
-        self::assertSame('hello broker', $this->waitForMessage($stream, $receiver)->body);
+        return $this->waitForMessage($stream, $receiver);
+    }
+
+    /**
+     * @return resource
+     */
+    private function connectToArtemis(): mixed
+    {
+        $stream = (new SaslStreamConnector())->connect(
+            ConnectionUri::parse(getenv('AMQP_ARTEMIS_URI') ?: 'amqp://artemis:5672'),
+            SaslClient::plain(
+                getenv('AMQP_ARTEMIS_USER') ?: 'guest',
+                getenv('AMQP_ARTEMIS_PASSWORD') ?: 'guest',
+            ),
+            timeoutSeconds: 5.0,
+        );
+        stream_set_timeout($stream, 5);
+
+        return $stream;
     }
 
     /**
