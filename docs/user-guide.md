@@ -317,8 +317,8 @@ Broker-specific notes:
   restart, and large DATA messages.
 - Qpid Broker-J is covered for standard AMQP public workflows. Tests create
   queues through the broker management API because the local Qpid Broker-J
-  container does not auto-create random targets. Qpid Broker-J TLS/SASL coverage
-  is not wired into the local matrix.
+  container does not auto-create random targets. Qpid Broker-J TLS/SASL
+  hardening is covered through the local `qpid-tls` endpoint.
 - RabbitMQ 4 coverage uses queue address v2 semantics with `/queues/:queue`
   and exchange/routing-key sending with `/exchanges/:exchange/:routing-key`.
 - Azure Service Bus emulator coverage uses the local development emulator over

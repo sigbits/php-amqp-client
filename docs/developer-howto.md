@@ -71,8 +71,8 @@ make test-security BROKER_READY_TIMEOUT=180
 ```
 
 This runs `TlsSaslBrokerTest` with `RUN_BROKER_SECURITY_TESTS=1`. It currently
-covers ActiveMQ Artemis and RabbitMQ 4 through HAProxy-backed TLS endpoints.
-Qpid Broker-J TLS/SASL coverage is a documented future matrix gap.
+covers Apache Qpid Broker-J, ActiveMQ Artemis, and RabbitMQ 4 through
+HAProxy-backed TLS endpoints.
 
 ### Long-Running Worker Tests
 
