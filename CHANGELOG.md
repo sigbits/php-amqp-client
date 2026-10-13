@@ -17,6 +17,9 @@ must have release notes in this file before the tag is created.
   untrusted certificates, and rejected invalid SASL PLAIN credentials.
 - Synchronous `Receiver::deliveries()` iterator for yielding `Delivery` objects
   until the supplied receive timeout returns no message.
+- Opt-in real Azure Service Bus cloud smoke coverage with
+  `make test-azure-cloud`, using explicit cloud URI and queue address
+  environment variables.
 
 ## v1.3.0 - 2026-10-13
 

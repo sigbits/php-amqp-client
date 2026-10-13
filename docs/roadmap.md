@@ -218,8 +218,8 @@ commit.
 - RabbitMQ exchange/routing-key address coverage is in place in addition to
   queue address coverage.
 - Qpid Broker-J TLS/SASL coverage is wired into the local security matrix.
-- Add real Azure Service Bus cloud smoke tests behind explicit opt-in
-  credentials, keeping emulator coverage as the default local path.
+- Real Azure Service Bus cloud smoke coverage is available behind explicit
+  opt-in credentials, keeping emulator coverage as the default local path.
 - Expand settlement-effect coverage for accept, release, and reject across the
   supported broker matrix.
 - Synchronous generator-style `Receiver::deliveries()` API is in place without

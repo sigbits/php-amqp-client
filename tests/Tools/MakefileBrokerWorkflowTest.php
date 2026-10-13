@@ -108,6 +108,24 @@ final class MakefileBrokerWorkflowTest extends TestCase
         self::assertStringContainsString('composer test:integration -- --filter TlsSaslBrokerTest', $makefile);
     }
 
+    public function testAzureCloudSmokeSuiteUsesExplicitOptInCredentials(): void
+    {
+        $makefile = self::makefile();
+        $howto = self::developerHowto();
+        $documentation = self::brokerCompatibilityDocumentation();
+
+        self::assertMatchesRegularExpression('/^test-azure-cloud:/m', $makefile);
+        self::assertStringContainsString('RUN_AZURE_SERVICE_BUS_CLOUD_TESTS=1', $makefile);
+        self::assertStringContainsString('AMQP_AZURE_SERVICE_BUS_CLOUD_URI', $makefile);
+        self::assertStringContainsString('AMQP_AZURE_SERVICE_BUS_CLOUD_ADDRESS', $makefile);
+        self::assertStringContainsString('AzureServiceBusCloudSmokeTest', $makefile);
+        self::assertStringContainsString('RUN_AZURE_SERVICE_BUS_CLOUD_TESTS=1', $howto);
+        self::assertStringContainsString('AMQP_AZURE_SERVICE_BUS_CLOUD_URI', $howto);
+        self::assertStringContainsString('AMQP_AZURE_SERVICE_BUS_CLOUD_ADDRESS', $howto);
+        self::assertStringContainsString('real Azure Service Bus cloud smoke test', $documentation);
+        self::assertStringContainsString('requires explicit opt-in credentials', $documentation);
+    }
+
     public function testBrokerComposeDefinesQpidTlsEndpoint(): void
     {
         $compose = self::brokerCompose();
