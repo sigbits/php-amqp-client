@@ -1,6 +1,6 @@
 # AMQP 1.0 Protocol Coverage Map
 
-Date: 2026-10-12
+Date: 2026-10-13
 
 ## Purpose
 
@@ -30,7 +30,7 @@ specification.
 | Protocol header and frame parsing | partial | AMQP/SASL headers and basic frames work; extended and negotiated behavior is limited. | v1.6 |
 | Generic AMQP type system | partial | Null, booleans, integer subset including `ulong`, floating point, decimals, char, timestamp, UUID, binary, string, symbol, generic lists, generic maps, generic arrays, and generic described values are covered. | v1.5 |
 | SASL client role | partial | ANONYMOUS and PLAIN client handshake. | v1.6 |
-| Connection/session/link performatives | partial | Core performatives exist, and `OPEN` now carries its optional field model; most other optional fields and negotiation behavior are still absent. | v1.6 |
+| Connection/session/link performatives | partial | Core performatives exist; `OPEN` and `BEGIN` carry their optional field models, and `ATTACH` now covers its field model. Negotiation behavior and other performative optional fields remain incomplete. | v1.6 |
 | Message sections | partial | Generic annotation/property maps, full properties, DATA, AMQP value, and generic single AMQP sequence sections exist. | v1.4 |
 | Delivery settlement | partial | Receiver accepted/released/rejected settlement exists. | v1.7 |
 | Delivery states | partial | Accepted, released, and rejected have concrete delivery-state value objects and described-value codec support. | v1.7 |
@@ -189,21 +189,16 @@ if a future public API needs them.
 
 Recommended concrete slices:
 
-1. Performatives and terminus fields: `OPEN` and `BEGIN` optional field
-   encode/decode are in place for v1.3, and `ATTACH` now has source/target
-   terminus value objects with address, lifecycle, dynamic-node-properties,
-   capabilities, source distribution-mode, source filter, source
-   default-outcome, source outcomes, `ATTACH` snd/rcv settle modes,
-   `ATTACH` unsettled map, `ATTACH` incomplete-unsettled,
-   `ATTACH` max-message-size, `ATTACH` offered/desired capabilities,
-   `ATTACH` properties, and `ATTACH` initial-delivery-count fields with
-   sender/receiver role validation. Prepare the v1.3.0 release notes and
-   release-readiness audit next.
-2. Delivery states and outcomes: accepted, rejected, and released are modeled
+1. Message body multiplicity: model multiple DATA sections and multiple
+   AMQP sequence sections with exact fixtures and broker regressions for the
+   v1.4 message coverage slice.
+2. Functional broker coverage: add RabbitMQ exchange/routing-key address
+   coverage, Qpid Broker-J TLS/SASL matrix coverage, real Azure Service Bus
+   cloud smoke tests behind opt-in credentials, and broader settlement-effect
+   broker checks.
+3. Delivery states and outcomes: accepted, rejected, and released are modeled
    as described values with exact binary fixtures. Continue with rejected error
    fields, modified, received, and transactional-state.
-3. Message body multiplicity: model multiple DATA sections and multiple
-   AMQP sequence sections with exact fixtures and broker regressions.
 
 This order keeps full protocol coverage measurable and prevents transport work
 from absorbing protocol bugs that should be caught in memory-level fixtures.

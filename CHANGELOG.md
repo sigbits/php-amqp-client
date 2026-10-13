@@ -9,6 +9,43 @@ must have release notes in this file before the tag is created.
 
 No unreleased changes.
 
+## v1.3.0 - 2026-10-13
+
+### Added
+
+- Full `OPEN` optional field encode/decode coverage for max-frame-size,
+  channel-max, idle-time-out, outgoing/incoming locales, offered/desired
+  capabilities, and connection properties.
+- Full `BEGIN` optional field encode/decode coverage for remote-channel,
+  handle-max, incoming/outgoing windows, offered/desired capabilities, and
+  properties.
+- Source and target terminus value objects for `ATTACH`, including address,
+  durability, expiry policy, timeout, dynamic-node flags, dynamic-node
+  properties, and capabilities.
+- Source terminus distribution-mode, filters, default-outcome, and outcomes
+  encode/decode coverage.
+- `ATTACH` field coverage for sender/receiver settlement modes, unsettled
+  maps, incomplete-unsettled, max-message-size, offered/desired capabilities,
+  properties, and initial-delivery-count.
+- Delivery-state value objects for accepted, rejected, and released outcomes
+  with described-value codec support.
+
+### Changed
+
+- Link engines now build attach source/target fields through terminus value
+  objects instead of local string-only field shapes.
+- `ATTACH` initial-delivery-count is validated against sender/receiver role
+  rules so malformed link negotiation fails deterministically.
+
+### Notes
+
+- This release completes the v1.3 performative and terminus field-model
+  foundation. Negotiating and enforcing connection/session/link limits remains
+  scheduled for later protocol-state work.
+- Stateful unsettled delivery behavior, delivery ranges, modified/received
+  delivery states, transactional-state, and transaction coordinator support
+  remain future settlement milestones.
+
 ## v1.2.0 - 2026-10-12
 
 ### Added
