@@ -231,6 +231,11 @@ commit.
 - Synchronous generator-style `Receiver::deliveries()` API is in place without
   hiding explicit settlement or credit management.
 
+Release readiness is audited in
+[v1.4.0 Release Readiness Audit](release-readiness-v1.4.0.md). The milestone is
+ready for tagging once the documented verification gate passes from the release
+commit.
+
 ### v1.5: Message Model Expansion
 
 - Expand the committed message model toward full AMQP 1.0 message-section

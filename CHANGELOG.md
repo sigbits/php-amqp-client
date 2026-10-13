@@ -7,6 +7,8 @@ must have release notes in this file before the tag is created.
 
 ## Unreleased
 
+## v1.4.0 - 2026-10-13
+
 ### Added
 
 - RabbitMQ 4 broker coverage for AMQP 1.0 exchange/routing-key sending through
