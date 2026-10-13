@@ -130,8 +130,8 @@ specification.
 | AMQP area | Status | Current implementation | Current tests | Missing behavior | Priority | Target |
 | --- | --- | --- | --- | --- | --- | --- |
 | Accepted | implemented | `Accepted`, `DeliveryStateCodec`, `SettlementOutcome::Accepted`; receiver sends accepted disposition. | Delivery-state, disposition, receiver, client, integration tests. | None for the accepted field set. | P0 | v1.7 |
-| Rejected | partial | `Rejected`, `DeliveryStateCodec`, `SettlementOutcome::Rejected`; receiver sends rejected with no error fields. | Delivery-state, disposition, and receiver tests. | Error field support and broker effect tests. | P0 | v1.7 |
-| Released | partial | `Released`, `DeliveryStateCodec`, `SettlementOutcome::Released`; receiver sends released. | Delivery-state, disposition, and receiver tests. | Broker effect coverage across matrix. | P0 | v1.7 |
+| Rejected | partial | `Rejected`, `DeliveryStateCodec`, `SettlementOutcome::Rejected`; receiver sends rejected with no error fields. | Delivery-state, disposition, receiver tests, RabbitMQ broker-effect test. | Error field support and broader broker effect tests. | P0 | v1.7 |
+| Released | partial | `Released`, `DeliveryStateCodec`, `SettlementOutcome::Released`; receiver sends released. | Delivery-state, disposition, receiver tests, RabbitMQ broker-effect test. | Broader broker effect coverage across matrix. | P0 | v1.7 |
 | Modified | missing | None. | None. | delivery-failed, undeliverable-here, message-annotations. | P0 | v1.7 |
 | Received | missing | None. | None. | section-number, section-offset, resumable transfer behavior. | P1 | v1.7 |
 | Transactional state | missing | None. | None. | txn-id plus nested outcome. | P0 | v1.7 |

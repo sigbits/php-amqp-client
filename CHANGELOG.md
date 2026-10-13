@@ -20,6 +20,8 @@ must have release notes in this file before the tag is created.
 - Opt-in real Azure Service Bus cloud smoke coverage with
   `make test-azure-cloud`, using explicit cloud URI and queue address
   environment variables.
+- RabbitMQ broker-effect coverage for released and rejected delivery
+  settlements, complementing the existing accepted-delivery queue-state check.
 
 ## v1.3.0 - 2026-10-13
 

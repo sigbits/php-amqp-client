@@ -220,8 +220,8 @@ commit.
 - Qpid Broker-J TLS/SASL coverage is wired into the local security matrix.
 - Real Azure Service Bus cloud smoke coverage is available behind explicit
   opt-in credentials, keeping emulator coverage as the default local path.
-- Expand settlement-effect coverage for accept, release, and reject across the
-  supported broker matrix.
+- RabbitMQ settlement-effect coverage verifies accept, release, and reject
+  queue effects; broader supported-matrix settlement-effect coverage remains.
 - Synchronous generator-style `Receiver::deliveries()` API is in place without
   hiding explicit settlement or credit management.
 

@@ -313,6 +313,74 @@ final class PublicConnectionTest extends TestCase
         self::assertSame(0, $this->rabbitMqReadyMessageCount($queue));
     }
 
+    public function testPublicReceiverReleaseMakesRabbitMqDeliveryAvailableAgain(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $queue = 'sigbits.public.release.' . bin2hex(random_bytes(4));
+        $this->createRabbitMqQueue($queue);
+        $address = '/queues/' . rawurlencode($queue);
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address);
+
+        $sender->send('hello rabbitmq released delivery');
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame('hello rabbitmq released delivery', $delivery->message()->body);
+
+        $delivery->release();
+
+        $session->end();
+        $connection->close();
+
+        self::assertSame(1, $this->rabbitMqReadyMessageCount($queue));
+    }
+
+    public function testPublicReceiverRejectRemovesRabbitMqDelivery(): void
+    {
+        if (getenv('RUN_BROKER_TESTS') !== '1') {
+            self::markTestSkipped('Set RUN_BROKER_TESTS=1 to run broker integration tests.');
+        }
+
+        $queue = 'sigbits.public.reject.' . bin2hex(random_bytes(4));
+        $this->createRabbitMqQueue($queue);
+        $address = '/queues/' . rawurlencode($queue);
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $sender = $session->openSender($address);
+
+        $sender->send('hello rabbitmq rejected delivery');
+        $session->end();
+        $connection->close();
+
+        $connection = Connection::connect(getenv('AMQP_RABBITMQ_URI') ?: 'amqp://guest:guest@rabbitmq:5672', timeoutSeconds: 5.0);
+        $session = $connection->beginSession();
+        $receiver = $session->openReceiver($address);
+        $delivery = $receiver->receiveDelivery(timeoutMilliseconds: 5000);
+
+        self::assertNotNull($delivery);
+        self::assertSame('hello rabbitmq rejected delivery', $delivery->message()->body);
+
+        $delivery->reject();
+
+        $session->end();
+        $connection->close();
+
+        self::assertSame(0, $this->rabbitMqReadyMessageCount($queue));
+    }
+
     public function testPublicReceiverAcceptsDeliveryAgainstAzureServiceBusEmulator(): void
     {
         if (getenv('RUN_BROKER_TESTS') !== '1') {
