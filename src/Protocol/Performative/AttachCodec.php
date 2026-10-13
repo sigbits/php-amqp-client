@@ -114,6 +114,8 @@ final class AttachCodec
         [$role, $cursor] = $this->decodeRole($bytes, $cursor, $listEnd);
         $source = null;
         $target = null;
+        $unsettled = null;
+        $incompleteUnsettled = null;
         $initialDeliveryCount = null;
         $senderSettleMode = null;
         $receiverSettleMode = null;
@@ -139,11 +141,11 @@ final class AttachCodec
         }
 
         if ($fieldCount >= 8) {
-            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+            [$unsettled, $cursor] = $this->decodeNullableMap($bytes, $cursor, $listEnd);
         }
 
         if ($fieldCount >= 9) {
-            $cursor = $this->skipValue($bytes, $cursor, $listEnd);
+            [$incompleteUnsettled, $cursor] = $this->decodeNullableBool($bytes, $cursor, $listEnd);
         }
 
         if ($fieldCount >= 10) {
@@ -180,6 +182,8 @@ final class AttachCodec
             role: $role,
             source: $source,
             target: $target,
+            unsettled: $unsettled,
+            incompleteUnsettled: $incompleteUnsettled,
             initialDeliveryCount: $initialDeliveryCount,
             senderSettleMode: $senderSettleMode,
             receiverSettleMode: $receiverSettleMode,
@@ -245,8 +249,8 @@ final class AttachCodec
             $attach->receiverSettleMode === null ? null : $this->encodeSettlementMode($attach->receiverSettleMode),
             $attach->source === null ? null : $this->encodeSource($attach->source),
             $attach->target === null ? null : $this->encodeTarget($attach->target),
-            null,
-            null,
+            $attach->unsettled === null ? null : $this->encoder->encode($attach->unsettled),
+            $attach->incompleteUnsettled === null ? null : $this->encoder->encode($attach->incompleteUnsettled),
             $attach->initialDeliveryCount === null ? null : $this->encodeCompactUInt($attach->initialDeliveryCount),
             $attach->maxMessageSize === null ? null : $this->encoder->encode($attach->maxMessageSize),
             $this->encodeCapabilities($attach->offeredCapabilities),
@@ -456,6 +460,32 @@ final class AttachCodec
         }
 
         if (!$value instanceof AmqpMap) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        return [$value, $cursor + $consumed];
+    }
+
+    /**
+     * @return array{0: bool|null, 1: int}
+     */
+    private function decodeNullableBool(string $bytes, int $cursor, int $listEnd): array
+    {
+        if ($cursor >= $listEnd) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (ord($bytes[$cursor]) === self::CONSTRUCTOR_NULL) {
+            return [null, $cursor + 1];
+        }
+
+        try {
+            [$value, $consumed] = $this->decoder->decodeWithConsumed(substr($bytes, $cursor, $listEnd - $cursor));
+        } catch (DecodeException|InvalidArgumentException) {
+            throw PerformativeException::truncatedAttach();
+        }
+
+        if (!is_bool($value)) {
             throw PerformativeException::truncatedAttach();
         }
 

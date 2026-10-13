@@ -27,6 +27,8 @@ final readonly class Attach
     public ?AmqpMap $properties;
     public ?Source $source;
     public ?Target $target;
+    public ?AmqpMap $unsettled;
+    public ?bool $incompleteUnsettled;
 
     /**
      * @param list<string> $offeredCapabilities
@@ -47,6 +49,8 @@ final readonly class Attach
         array $offeredCapabilities = [],
         array $desiredCapabilities = [],
         ?AmqpMap $properties = null,
+        ?AmqpMap $unsettled = null,
+        ?bool $incompleteUnsettled = null,
     ) {
         if ($name === '') {
             throw new InvalidArgumentException('AMQP attach name must not be empty.');
@@ -89,6 +93,8 @@ final readonly class Attach
         $this->role = $role;
         $this->source = $source;
         $this->target = $target;
+        $this->unsettled = $unsettled;
+        $this->incompleteUnsettled = $incompleteUnsettled;
         $this->sourceAddress = $source?->address;
         $this->targetAddress = $target?->address;
         $this->initialDeliveryCount = $initialDeliveryCount;
