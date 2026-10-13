@@ -22,6 +22,8 @@ must have release notes in this file before the tag is created.
   environment variables.
 - RabbitMQ broker-effect coverage for released and rejected delivery
   settlements, complementing the existing accepted-delivery queue-state check.
+- Artemis broker regression coverage for repeated AMQP sequence body sections,
+  complementing the existing repeated DATA body workflow coverage.
 
 ## v1.3.0 - 2026-10-13
 

@@ -15,7 +15,9 @@ use Sigbits\Amqp\Engine\SenderLinkState;
 use Sigbits\Amqp\Engine\SessionEngine;
 use Sigbits\Amqp\Engine\SessionState;
 use Sigbits\Amqp\Protocol\Message\Message;
+use Sigbits\Amqp\Protocol\Message\MessageBodySection;
 use Sigbits\Amqp\Protocol\Sasl\SaslClient;
+use Sigbits\Amqp\Protocol\Type\UInt;
 use Sigbits\Amqp\Transport\ConnectionUri;
 use Sigbits\Amqp\Transport\SaslStreamConnector;
 
@@ -36,6 +38,26 @@ final class ArtemisMessageRoundTripTest extends TestCase
 
         self::assertSame('hello ', $message->body);
         self::assertSame(['hello ', 'broker'], $message->dataSections);
+    }
+
+    public function testRoundTripsRepeatedAmqpSequenceBodySectionsThroughArtemis(): void
+    {
+        $message = $this->roundTripThroughArtemis(
+            new Message(
+                body: '',
+                bodySection: MessageBodySection::AmqpSequence,
+                bodySequences: [
+                    ['one'],
+                    ['two', new UInt(2)],
+                ],
+            ),
+        );
+
+        self::assertSame(['one'], $message->bodySequence);
+        self::assertEquals([
+            ['one'],
+            ['two', new UInt(2)],
+        ], $message->bodySequences);
     }
 
     private function roundTripThroughArtemis(Message $message): Message

@@ -76,7 +76,8 @@ ActiveMQ Artemis is used for handshake, public connection/session lifecycle,
 public sender/receiver detach, send, receive, accepted settlement, TLS/SASL
 hardening through `artemis-tls`, long-running worker, send-only, receive-only,
 request/reply-like, bounded credit, reconnect, transport interruption, broker
-restart, and large DATA message coverage.
+restart, large DATA message coverage, and repeated DATA/AMQP sequence body
+round-trip regressions.
 
 `make test-broker-restart` currently exercises ActiveMQ Artemis restart during
 active public receiver, sender, and settlement loops. The harness runs PHPUnit

@@ -134,6 +134,11 @@ $sender->send(new Message(
 ));
 ```
 
+Messages with multiple DATA sections can pass `dataSections`; messages with
+multiple AMQP sequence sections can pass `bodySequences`. The legacy
+`Message::$body` and `Message::$bodySequence` views expose the first body
+section for backwards compatibility.
+
 Message map keys must be non-empty strings. Map values and AMQP value bodies use
 the generic AMQP value codec, including explicit `null`, scalars, containers,
 described values, binary values, and large `string32`/`map32` encodings when
