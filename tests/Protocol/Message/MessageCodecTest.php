@@ -662,6 +662,25 @@ final class MessageCodecTest extends TestCase
         );
     }
 
+    public function testDecodesMessageAnnotationsWithSmallIntBrokerScalar(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                messageAnnotations: [
+                    'x-opt-message-state' => new Int_(0),
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x72\xc1\x18\x02"
+                    . "\xa3\x13x-opt-message-state\x54\x00"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
     public function testDecodesMessageAnnotationsWithUnsignedBrokerScalar(): void
     {
         $codec = new MessageCodec();
@@ -676,6 +695,25 @@ final class MessageCodecTest extends TestCase
             $codec->decode(
                 "\x00\x53\x72\xc1\x21\x02"
                     . "\xa3\x15x-opt-sequence-number\x80\x00\x00\x00\x00\x00\x00\x00\x01"
+                    . "\x00\x53\x75\xa0\x07payload",
+            ),
+        );
+    }
+
+    public function testDecodesMessageAnnotationsWithSmallLongBrokerScalar(): void
+    {
+        $codec = new MessageCodec();
+
+        self::assertEquals(
+            new Message(
+                body: 'payload',
+                messageAnnotations: [
+                    'x-opt-sequence-number' => new Long_(2),
+                ],
+            ),
+            $codec->decode(
+                "\x00\x53\x72\xc1\x1a\x02"
+                    . "\xa3\x15x-opt-sequence-number\x55\x02"
                     . "\x00\x53\x75\xa0\x07payload",
             ),
         );

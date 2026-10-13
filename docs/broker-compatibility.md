@@ -99,7 +99,9 @@ The emulator depends on the local `servicebus-sql` SQL Server container and load
 
 The local emulator matrix covers AMQP/SASL handshake, public
 connection/session lifecycle, public send, public receive, and accepted-delivery
-settlement against configured queues such as `sigbits.public.accept`.
+settlement against configured queues such as `sigbits.public.accept`. Received
+broker annotations include Azure queue metadata with compact signed integer
+scalars, such as sequence number and message state.
 
 This coverage proves compatibility with the local development emulator only. It
 does not claim production Azure Service Bus cloud coverage, AMQP over
