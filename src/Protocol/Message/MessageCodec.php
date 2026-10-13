@@ -74,8 +74,8 @@ final class MessageCodec
         }
 
         $sections .= match ($message->bodySection) {
-            MessageBodySection::Data => $this->encodeDataBody($message->body),
-            MessageBodySection::AmqpSequence => $this->encodeAmqpSequenceBody($message->bodySequence),
+            MessageBodySection::Data => $this->encodeDataBodies($message->dataSections),
+            MessageBodySection::AmqpSequence => $this->encodeAmqpSequenceBodies($message->bodySequences),
             MessageBodySection::AmqpValue => $this->encodeAmqpValueBody($message),
         };
 
@@ -223,6 +223,20 @@ final class MessageCodec
             . $body;
     }
 
+    /**
+     * @param list<string> $bodies
+     */
+    private function encodeDataBodies(array $bodies): string
+    {
+        $sections = '';
+
+        foreach ($bodies as $body) {
+            $sections .= $this->encodeDataBody($body);
+        }
+
+        return $sections;
+    }
+
     private function encodeAmqpValueBody(Message $message): string
     {
         $value = $message->hasBodyValue() ? $message->bodyValue : $message->body;
@@ -337,6 +351,20 @@ final class MessageCodec
     private function encodeAmqpSequenceBody(array $items): string
     {
         return self::AMQP_SEQUENCE_DESCRIPTOR . (new Encoder())->encode(new AmqpList($items));
+    }
+
+    /**
+     * @param list<list<mixed>> $sequences
+     */
+    private function encodeAmqpSequenceBodies(array $sequences): string
+    {
+        $sections = '';
+
+        foreach ($sequences as $sequence) {
+            $sections .= $this->encodeAmqpSequenceBody($sequence);
+        }
+
+        return $sections;
     }
 
     /**
