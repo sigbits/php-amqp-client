@@ -20,7 +20,7 @@
         "docs": "https://github.com/sigbits/php-amqp-client/blob/main/docs/user-guide.md"
     },
     "require": {
-        "php": "^8.3"
+        "php": ">=8.3.36 <8.4 || >=8.4.27 <8.5 || >=8.5.12 <8.6"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.64",
@@ -53,7 +53,7 @@
     },
     "config": {
         "platform": {
-            "php": "8.3.0"
+            "php": "8.3.36"
         },
         "sort-packages": true
     },
