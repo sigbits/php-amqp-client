@@ -35,7 +35,7 @@ esac
 docker_compose="${DOCKER_COMPOSE:-docker compose}"
 read -r -a docker_compose_parts <<< "$docker_compose"
 
-exec env PHP_VERSION="${PHP_VERSION:-8.3}" "${docker_compose_parts[@]}" \
+exec env PHP_VERSION="${PHP_VERSION:-8.3.36}" "${docker_compose_parts[@]}" \
     -f docker-compose.yml \
     -f docker-compose.broker.yml \
     run --rm \
