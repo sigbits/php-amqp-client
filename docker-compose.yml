@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
       args:
-        PHP_VERSION: ${PHP_VERSION:-8.3}
+        PHP_VERSION: ${PHP_VERSION:-8.3.36}
     environment:
       COMPOSER_CACHE_DIR: /tmp/composer-cache
     volumes:

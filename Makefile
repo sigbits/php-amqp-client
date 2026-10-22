@@ -1,4 +1,4 @@
-PHP_VERSION ?= 8.3
+PHP_VERSION ?= 8.3.36
 DOCKER_COMPOSE ?= docker compose
 DOCKER_RUN = PHP_VERSION=$(PHP_VERSION) $(DOCKER_COMPOSE) run --rm php
 BROKER_COMPOSE = PHP_VERSION=$(PHP_VERSION) $(DOCKER_COMPOSE) -f docker-compose.yml -f docker-compose.broker.yml

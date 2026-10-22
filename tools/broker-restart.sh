@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 
 filter="$1"
 signal_name="$(printf '%s' "$filter" | tr -c '[:alnum:]_.-' '-')"
-PHP_VERSION="${PHP_VERSION:-8.3}"
+PHP_VERSION="${PHP_VERSION:-8.3.36}"
 DOCKER_COMPOSE="${DOCKER_COMPOSE:-docker compose}"
 # shellcheck disable=SC2206
 DOCKER_COMPOSE_CMD=($DOCKER_COMPOSE)
